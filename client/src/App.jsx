@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
+import { formatDate } from './utils';
 
 function App() {
   const [logs, setLogs] = useState([]);
@@ -46,7 +47,7 @@ function App() {
       <ul>
         {logs.map(log => (
           <li key={log.id}>
-            ID: {log.id}, Injected At: {log.injected_at}, Notify 2h At: {log.notify_2h_at}, Notify 3h At: {log.notify_3h_at}
+            ID: {log.id}, Injected At: {formatDate(log.injected_at)}, Notify 2h At: {formatDate(log.notify_2h_at)}, Notify 3h At: {formatDate(log.notify_3h_at)}
           </li>
         ))}
       </ul>
