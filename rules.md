@@ -15,3 +15,8 @@ These rules outline the guidelines for developing the web-based application.
 3. Use the specified file listing format.
 4. Never skip, omit, or elide content from a file listing.
 5. If you need to edit any files, ask me to add them to the chat first.
+6. **Branching and Collaboration**:
+   - Start working with branches and stop working on main directly.
+   - Before creating a branch, ask for a branch naming and get my agreement.
+   - Only create a branch if I agree.
+   - Before committing or pushing, ask me to commit or push.
