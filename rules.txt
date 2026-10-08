@@ -1,7 +1,0 @@
-# Rules for communication
-
-1. Use English for all communications.
-2. To suggest changes to a file, return the entire content of the updated file.
-3. Use the specified file listing format.
-4. Never skip, omit, or elide content from a file listing.
-5. If you need to edit any files, ask me to add them to the chat first.
