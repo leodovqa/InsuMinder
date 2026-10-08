@@ -46,6 +46,12 @@ We will develop a web-based application using React as the client-side framework
    - Choose a hosting provider (e.g., Heroku, AWS, Vercel, etc.).
    - Deploy the React client and server to the chosen hosting platform.
 
+## Rules
+- **Clarification**: If you are unsure about something, you must say it before doing anything.
+- **Error Reporting**: If there was a mistake, error, or something you couldn't test, you must report it. Explain what couldn't happen and why.
+- **Explain Decisions**: When you make a decision, explain why you did it and how. Avoid overcomplicating things when no needed. If you are unsure, ask before proceeding.
+- **Research**: When researching, provide the source of your data and avoid making assumptions. Always use real data from the code.
+
 ## Next Steps
 - Determine the server-side and database technologies.
 - Begin implementing the server and database.
