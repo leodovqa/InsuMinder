@@ -46,8 +46,19 @@ function App() {
       <h2>Injection Logs</h2>
       <ul>
         {logs.map(log => (
-          <li key={log.id}>
-            ID: {log.id}, Injected At: {formatDate(log.injected_at)}, Notify 2h At: {formatDate(log.notify_2h_at)}, Notify 3h At: {formatDate(log.notify_3h_at)}
+          <li key={log.id} className="log-item">
+            <div className="log-field">
+              <span className="log-label">Injected:</span>
+              <span className="log-value">{formatDate(log.injected_at)}</span>
+            </div>
+            <div className="log-field">
+              <span className="log-label">2h Reminder:</span>
+              <span className="log-value">{formatDate(log.notify_2h_at)}</span>
+            </div>
+            <div className="log-field">
+              <span className="log-label">3h Reminder:</span>
+              <span className="log-value">{formatDate(log.notify_3h_at)}</span>
+            </div>
           </li>
         ))}
       </ul>

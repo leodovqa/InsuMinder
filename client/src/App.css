@@ -182,3 +182,26 @@
     border-right-color: var(--border);
   }
 }
+
+.log-item {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+}
+
+.log-field {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.log-label {
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.log-value {
+  color: var(--text-secondary);
+}
