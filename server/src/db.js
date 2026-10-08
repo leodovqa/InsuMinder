@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database(':memory:');
+const db = new sqlite3.Database('server/insuminder.db');
 
 db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS injection_logs ("
@@ -12,4 +12,21 @@ db.serialize(() => {
     + ")");
 });
 
-module.exports = db;
+function insertInjectionLog(callback) {
+  const now = new Date();
+  const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+  const stmt = db.prepare("INSERT INTO injection_logs (notify_2h_at, notify_3h_at) VALUES (?, ?)");
+  stmt.run(notify_2h_at, notify_3h_at, callback);
+  stmt.finalize();
+}
+
+function getLogsFromLast24Hours(callback) {
+  db.all("SELECT * FROM injection_logs WHERE injected_at >= datetime('now', '-24 hours') ORDER BY injected_at DESC", [], callback);
+}
+
+module.exports = {
+  insertInjectionLog,
+  getLogsFromLast24Hours
+};
