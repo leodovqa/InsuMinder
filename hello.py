@@ -1,2 +1,1 @@
-for i in range(1, 6):
-    print(i)
+python hello.py
