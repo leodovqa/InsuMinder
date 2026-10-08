@@ -189,6 +189,9 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background-color: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .log-field {
@@ -204,4 +207,18 @@
 
 .log-value {
   color: var(--text-secondary);
+}
+
+button {
+  padding: 10px 20px;
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+
+  &:hover {
+    background-color: var(--button-bg-hover);
+  }
 }
