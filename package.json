@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"node server/src/index.js\" \"npm run dev --prefix client\"",
-    "docker": "docker compose up --build"
+    "test": "npm --prefix client test",
+    "lint": "npm --prefix client run lint",
+    "docker": "docker compose up --build",
+    "prepare": "husky"
   },
   "dependencies": {
     "moment-timezone": "^0.6.5"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "husky": "^9.1.7"
   }
 }
