@@ -14,7 +14,9 @@ import {
   getWeeklyTrendData,
   getRapidInjections,
   maskBotToken,
-  isCustomConfigName
+  isCustomConfigName,
+  getReminderStatus,
+  getFriendlyReminderError
 } from '../utils';
 
 describe('Utility Functions & Helpers', () => {
@@ -252,6 +254,133 @@ describe('Utility Functions & Helpers', () => {
       expect(isCustomConfigName('Personal Bot', '-4304245048')).toBe(true);
       expect(isCustomConfigName('Family Channel', '-1004304245048')).toBe(true);
       expect(isCustomConfigName('Office Alerts', '12345678')).toBe(true);
+    });
+  });
+
+  describe('getReminderStatus', () => {
+    it('returns none status for null or empty log', () => {
+      const res = getReminderStatus(null, '2h');
+      expect(res.status).toBe('none');
+      expect(res.label).toBe('—');
+    });
+
+    it('returns "Sent" status when status_2h_sent is 1', () => {
+      const log = {
+        id: 1,
+        injected_at: '2026-10-09T10:00:00Z',
+        notify_2h_at: '2026-10-09T12:00:00Z',
+        notify_3h_at: '2026-10-09T13:00:00Z',
+        status_2h_sent: 1,
+        error_2h: null
+      };
+
+      const res = getReminderStatus(log, '2h');
+      expect(res.status).toBe('sent');
+      expect(res.label).toBe('Sent');
+      expect(res.pillLabel).toBe('Sent');
+      expect(res.icon).toBe('✅');
+      expect(res.badgeClass).toBe('badge-sent');
+      expect(res.pillClass).toBe('sent');
+      expect(res.title).toBe('Reminder delivered to Telegram.');
+    });
+
+    it('returns "Not Sent" with custom error tooltip when delivery failed', () => {
+      const log = {
+        id: 2,
+        injected_at: '2026-10-09T10:00:00Z',
+        notify_2h_at: '2026-10-09T12:00:00Z',
+        notify_3h_at: '2026-10-09T13:00:00Z',
+        status_2h_sent: 0,
+        error_2h: 'Bad Request: chat not found'
+      };
+
+      const res = getReminderStatus(log, '2h');
+      expect(res.status).toBe('failed');
+      expect(res.label).toBe('Not Sent');
+      expect(res.pillLabel).toBe('Not Sent');
+      expect(res.icon).toBe('⚠️');
+      expect(res.badgeClass).toBe('badge-failed');
+      expect(res.pillClass).toBe('failed');
+      expect(res.title).toContain('bot token or chat ID');
+      expect(res.rawError).toBe('Bad Request: chat not found');
+      expect(res.friendlyError.category).toBe('Telegram Configuration Issue');
+    });
+
+    it('returns "Not Sent" pointing to unconfigured Telegram when not configured', () => {
+      const log = {
+        id: 3,
+        injected_at: '2026-10-09T10:00:00Z',
+        notify_3h_at: '2026-10-09T13:00:00Z',
+        status_3h_sent: 0,
+        error_3h: null
+      };
+
+      const res = getReminderStatus(log, '3h', false);
+      expect(res.status).toBe('failed');
+      expect(res.label).toBe('Not Sent');
+      expect(res.icon).toBe('⚠️');
+      expect(res.title).toContain('Telegram is not configured');
+    });
+
+    it('returns "Upcoming" status when reminder time is in the future', () => {
+      const futureTime = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const log = {
+        id: 4,
+        injected_at: new Date().toISOString(),
+        notify_2h_at: futureTime,
+        status_2h_sent: 0,
+        error_2h: null
+      };
+
+      const res = getReminderStatus(log, '2h');
+      expect(res.status).toBe('upcoming');
+      expect(res.label).toBe('Upcoming');
+      expect(res.pillLabel).toBe('Pending');
+      expect(res.icon).toBe('⏳');
+      expect(res.badgeClass).toBe('badge-upcoming');
+      expect(res.pillClass).toBe('pending');
+      expect(res.title).toContain('Scheduled for');
+    });
+  });
+
+  describe('getFriendlyReminderError', () => {
+    it('returns Telegram configuration category when Telegram is unconfigured', () => {
+      const res = getFriendlyReminderError(null, false);
+      expect(res.category).toBe('Telegram Configuration Issue');
+      expect(res.message).toContain('Telegram is not configured');
+    });
+
+    it('identifies network and connection failures', () => {
+      const res1 = getFriendlyReminderError('Network error reaching Telegram API.');
+      expect(res1.category).toBe('Network Connection Error');
+      expect(res1.message).toContain('internet connection');
+
+      const res2 = getFriendlyReminderError('fetch failed: timeout');
+      expect(res2.category).toBe('Network Connection Error');
+    });
+
+    it('identifies Telegram configuration errors such as chat not found or unauthorized', () => {
+      const res1 = getFriendlyReminderError('Bad Request: chat not found');
+      expect(res1.category).toBe('Telegram Configuration Issue');
+      expect(res1.message).toContain('bot token or chat ID');
+
+      const res2 = getFriendlyReminderError('Unauthorized: 401 invalid token');
+      expect(res2.category).toBe('Telegram Configuration Issue');
+    });
+
+    it('identifies Telegram environment and server issues', () => {
+      const res1 = getFriendlyReminderError('Telegram API error (502)');
+      expect(res1.category).toBe('Telegram Service Issue');
+      expect(res1.message).toContain('service issue');
+
+      const res2 = getFriendlyReminderError('Too Many Requests: rate limit exceeded');
+      expect(res2.category).toBe('Telegram Service Issue');
+    });
+
+    it('identifies expired notifications', () => {
+      const res = getFriendlyReminderError('Notification expired without delivery.');
+      expect(res.category).toBe('Reminder Expired');
+      expect(res.message).toContain('24 hours');
     });
   });
 });

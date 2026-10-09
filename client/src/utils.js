@@ -282,3 +282,131 @@ export const isCustomConfigName = (name, chatId) => {
   return true;
 };
 
+export const getFriendlyReminderError = (rawError, isTelegramConfigured = true) => {
+  if (isTelegramConfigured === false) {
+    return {
+      category: 'Telegram Configuration Issue',
+      message: 'Telegram is not configured. Go to Settings to set up your Telegram bot token and chat destination.'
+    };
+  }
+
+  const err = (rawError && String(rawError).trim()) || '';
+
+  if (!err) {
+    return {
+      category: 'Delivery Failed',
+      message: 'The reminder could not be delivered to Telegram.'
+    };
+  }
+
+  if (/expired/i.test(err)) {
+    return {
+      category: 'Reminder Expired',
+      message: 'This reminder expired without delivery because more than 24 hours passed.'
+    };
+  }
+
+  if (/network|econnrefused|enotfound|timeout|aborted|fetch failed|no connection/i.test(err)) {
+    return {
+      category: 'Network Connection Error',
+      message: 'Could not connect to Telegram servers due to a network connection issue. Please check your internet connection.'
+    };
+  }
+
+  if (/chat not found|unauthorized|invalid token|bot token|not configured|chat_id|401|404/i.test(err)) {
+    return {
+      category: 'Telegram Configuration Issue',
+      message: 'The Telegram bot token or chat ID is invalid, missing, or could not be found. Please check your Telegram settings.'
+    };
+  }
+
+  if (/too many requests|rate limit|429|500|502|503|504|internal|service/i.test(err)) {
+    return {
+      category: 'Telegram Service Issue',
+      message: 'Telegram servers were temporarily unable to deliver this reminder due to a service issue on their end.'
+    };
+  }
+
+  return {
+    category: 'Delivery Failed',
+    message: err
+  };
+};
+
+export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true) => {
+  if (!log) {
+    return {
+      type,
+      status: 'none',
+      label: '—',
+      pillLabel: '—',
+      icon: '',
+      badgeClass: 'badge-upcoming',
+      pillClass: 'pending',
+      title: 'No reminder scheduled',
+      targetTime: null,
+      friendlyError: null,
+      rawError: null
+    };
+  }
+
+  const is2h = type === '2h';
+  const targetTime = is2h ? log.notify_2h_at : log.notify_3h_at;
+  const isSent = Boolean(
+    is2h
+      ? log.status_2h_sent === 1 || log.status_2h_sent === true || log.status_2h_sent === '1'
+      : log.status_3h_sent === 1 || log.status_3h_sent === true || log.status_3h_sent === '1'
+  );
+  const rawError = is2h ? log.error_2h : log.error_3h;
+
+  if (isSent) {
+    return {
+      type,
+      status: 'sent',
+      label: 'Sent',
+      pillLabel: 'Sent',
+      icon: '✅',
+      badgeClass: 'badge-sent',
+      pillClass: 'sent',
+      title: 'Reminder delivered to Telegram.',
+      targetTime,
+      friendlyError: null,
+      rawError: null
+    };
+  }
+
+  const targetDate = new Date(targetTime);
+  const isDueOrPast = !isNaN(targetDate.getTime()) && targetDate.getTime() <= Date.now();
+
+  if (isDueOrPast) {
+    const friendly = getFriendlyReminderError(rawError, isTelegramConfigured);
+    return {
+      type,
+      status: 'failed',
+      label: 'Not Sent',
+      pillLabel: 'Not Sent',
+      icon: '⚠️',
+      badgeClass: 'badge-failed',
+      pillClass: 'failed',
+      title: friendly.message,
+      targetTime,
+      friendlyError: friendly,
+      rawError: rawError ? String(rawError).trim() : null
+    };
+  }
+
+  return {
+    type,
+    status: 'upcoming',
+    label: 'Upcoming',
+    pillLabel: 'Pending',
+    icon: '⏳',
+    badgeClass: 'badge-upcoming',
+    pillClass: 'pending',
+    title: targetTime ? `Scheduled for ${formatDateTime(targetTime)}` : 'Scheduled',
+    targetTime,
+    friendlyError: null,
+    rawError: null
+  };
+};
+

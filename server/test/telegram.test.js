@@ -120,6 +120,51 @@ describe('Telegram Notification Integration Tests', () => {
       assert.strictEqual(target.status_2h_sent, 1);
       assert.strictEqual(target.status_3h_sent, 1);
     });
+
+    it('records notification errors and clears error upon successful delivery', async () => {
+      const logId = await new Promise((resolve, reject) => {
+        const past = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        db.db.run(
+          "INSERT INTO injection_logs (injected_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?)",
+          [past, past, past],
+          function(err) {
+            if (err) return reject(err);
+            resolve(this.lastID);
+          }
+        );
+      });
+
+      // Record an error for 2h and 3h
+      await new Promise((resolve, reject) => {
+        db.recordNotificationError(logId, '2h', 'Chat not found (-4304245048)', (err) => (err ? reject(err) : resolve()));
+      });
+      await new Promise((resolve, reject) => {
+        db.recordNotificationError(logId, '3h', 'Bot token expired or unauthorized', (err) => (err ? reject(err) : resolve()));
+      });
+
+      let logs = await new Promise((resolve, reject) => {
+        db.getLogsFromLast24Hours((err, rows) => (err ? reject(err) : resolve(rows)));
+      });
+      let target = logs.find(l => l.id === logId);
+      assert.strictEqual(target.status_2h_sent, 0);
+      assert.strictEqual(target.status_3h_sent, 0);
+      assert.strictEqual(target.error_2h, 'Chat not found (-4304245048)');
+      assert.strictEqual(target.error_3h, 'Bot token expired or unauthorized');
+
+      // Now mark 2h sent - should clear error_2h and set status_2h_sent to 1
+      await new Promise((resolve, reject) => {
+        db.markNotificationSent(logId, '2h', (err) => (err ? reject(err) : resolve()));
+      });
+
+      logs = await new Promise((resolve, reject) => {
+        db.getLogsFromLast24Hours((err, rows) => (err ? reject(err) : resolve(rows)));
+      });
+      target = logs.find(l => l.id === logId);
+      assert.strictEqual(target.status_2h_sent, 1);
+      assert.strictEqual(target.error_2h, null);
+      assert.strictEqual(target.status_3h_sent, 0);
+      assert.strictEqual(target.error_3h, 'Bot token expired or unauthorized');
+    });
   });
 
   describe('Telegram Multi-Config Management', () => {

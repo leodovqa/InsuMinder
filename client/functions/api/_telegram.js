@@ -76,9 +76,22 @@ export async function ensureTablesExist(db) {
       notify_2h_at TIMESTAMP NOT NULL,
       notify_3h_at TIMESTAMP NOT NULL,
       status_2h_sent BOOLEAN DEFAULT 0,
-      status_3h_sent BOOLEAN DEFAULT 0
+      status_3h_sent BOOLEAN DEFAULT 0,
+      error_2h TEXT,
+      error_3h TEXT
     )`
   ).run();
+
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_2h TEXT`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_3h TEXT`).run();
+  } catch (err) {
+    void err;
+  }
 
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS telegram_configs (
@@ -97,15 +110,29 @@ export async function dispatchDueNotifications(db) {
   try {
     await ensureTablesExist(db);
 
-    const nowIso = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const cutoff24hAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+    // Expire ancient notifications
+    try {
+      await db.prepare(
+        `UPDATE injection_logs SET error_2h = COALESCE(error_2h, 'Notification expired without delivery.') WHERE status_2h_sent = 0 AND notify_2h_at < ?`
+      ).bind(cutoff24hAgo).run();
+      await db.prepare(
+        `UPDATE injection_logs SET error_3h = COALESCE(error_3h, 'Notification expired without delivery.') WHERE status_3h_sent = 0 AND notify_3h_at < ?`
+      ).bind(cutoff24hAgo).run();
+    } catch (err) {
+      void err;
+    }
 
     const { results: due2h } = await db.prepare(
-      `SELECT * FROM injection_logs WHERE status_2h_sent = 0 AND notify_2h_at <= ? ORDER BY notify_2h_at ASC LIMIT 5`
-    ).bind(nowIso).all();
+      `SELECT * FROM injection_logs WHERE status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ? ORDER BY notify_2h_at ASC LIMIT 5`
+    ).bind(nowIso, cutoff24hAgo).all();
 
     const { results: due3h } = await db.prepare(
-      `SELECT * FROM injection_logs WHERE status_3h_sent = 0 AND notify_3h_at <= ? ORDER BY notify_3h_at ASC LIMIT 5`
-    ).bind(nowIso).all();
+      `SELECT * FROM injection_logs WHERE status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ? ORDER BY notify_3h_at ASC LIMIT 5`
+    ).bind(nowIso, cutoff24hAgo).all();
 
     if ((!due2h || due2h.length === 0) && (!due3h || due3h.length === 0)) {
       return { dispatched: 0 };
@@ -116,6 +143,17 @@ export async function dispatchDueNotifications(db) {
     ).first();
 
     if (!defaultCfg || !defaultCfg.bot_token || !defaultCfg.chat_id) {
+      const missingConfigError = 'Telegram is not configured. Go to Settings to set up your destination.';
+      if (due2h && due2h.length > 0) {
+        for (const log of due2h) {
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind(missingConfigError, log.id).run();
+        }
+      }
+      if (due3h && due3h.length > 0) {
+        for (const log of due3h) {
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind(missingConfigError, log.id).run();
+        }
+      }
       return { dispatched: 0, reason: 'No default telegram config found.' };
     }
 
@@ -125,8 +163,10 @@ export async function dispatchDueNotifications(db) {
         const msg = "From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.";
         const sendRes = await sendTelegramMessage(defaultCfg.bot_token, defaultCfg.chat_id, msg);
         if (sendRes.ok) {
-          await db.prepare(`UPDATE injection_logs SET status_2h_sent = 1 WHERE id = ?`).bind(log.id).run();
+          await db.prepare(`UPDATE injection_logs SET status_2h_sent = 1, error_2h = NULL WHERE id = ?`).bind(log.id).run();
           count++;
+        } else {
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind(sendRes.error || 'Failed to send Telegram reminder.', log.id).run();
         }
       }
     }
@@ -136,8 +176,10 @@ export async function dispatchDueNotifications(db) {
         const msg = "From InsuMinder:\nPlease go and check your Glucose level after 3 Hours.";
         const sendRes = await sendTelegramMessage(defaultCfg.bot_token, defaultCfg.chat_id, msg);
         if (sendRes.ok) {
-          await db.prepare(`UPDATE injection_logs SET status_3h_sent = 1 WHERE id = ?`).bind(log.id).run();
+          await db.prepare(`UPDATE injection_logs SET status_3h_sent = 1, error_3h = NULL WHERE id = ?`).bind(log.id).run();
           count++;
+        } else {
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind(sendRes.error || 'Failed to send Telegram reminder.', log.id).run();
         }
       }
     }

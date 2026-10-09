@@ -28,9 +28,22 @@ export async function onRequestGet(context) {
         notify_2h_at TIMESTAMP NOT NULL,
         notify_3h_at TIMESTAMP NOT NULL,
         status_2h_sent BOOLEAN DEFAULT 0,
-        status_3h_sent BOOLEAN DEFAULT 0
+        status_3h_sent BOOLEAN DEFAULT 0,
+        error_2h TEXT,
+        error_3h TEXT
       )`
     ).run();
+
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_2h TEXT`).run();
+    } catch (err) {
+      void err;
+    }
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_3h TEXT`).run();
+    } catch (err) {
+      void err;
+    }
 
     // Retrieve all historical logs ordered by most recent first
     const { results } = await db
