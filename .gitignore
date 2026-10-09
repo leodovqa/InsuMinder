@@ -1,7 +1,12 @@
-﻿node_modules/
+node_modules/
 client/node_modules/
 server/node_modules/
 server/insuminder.db
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
 dist/
 .env
+.env.*
 .aider*
