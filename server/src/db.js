@@ -14,11 +14,12 @@ db.serialize(() => {
 
 function insertInjectionLog(callback) {
   const now = new Date();
-  const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const injected_at = now.toISOString();
+  const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+  const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
 
-  const stmt = db.prepare("INSERT INTO injection_logs (notify_2h_at, notify_3h_at) VALUES (?, ?)");
-  stmt.run(notify_2h_at, notify_3h_at, callback);
+  const stmt = db.prepare("INSERT INTO injection_logs (injected_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?)");
+  stmt.run(injected_at, notify_2h_at, notify_3h_at, callback);
   stmt.finalize();
 }
 
