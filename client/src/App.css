@@ -933,6 +933,19 @@
   border: 1px solid rgba(14, 165, 233, 0.3);
 }
 
+.badge-sent {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-failed {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  cursor: help;
+}
+
 .badge-past {
   background-color: rgba(156, 163, 175, 0.15);
   color: #9ca3af;
@@ -1267,6 +1280,13 @@
   color: #34d399;
 }
 
+.latest-reminder-pill.failed {
+  background-color: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  cursor: help;
+}
+
 .latest-expanded-panel {
   border-top: 1px solid var(--border);
   padding-top: 12px;
@@ -1283,6 +1303,10 @@
   font-size: 13px;
 }
 
+.expanded-error-row {
+  cursor: help;
+}
+
 .expanded-label {
   color: var(--text);
   font-weight: 500;
@@ -1292,6 +1316,13 @@
   color: var(--text-h);
   font-weight: 600;
   font-family: var(--mono);
+}
+
+.expanded-value.error-text {
+  color: #f87171;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 12px;
 }
 
 /* Weekly Trends Chart Card */
@@ -1907,6 +1938,42 @@
   font-family: var(--mono);
 }
 
+.log-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.log-status-pill.sent {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.log-status-pill.failed {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  cursor: help;
+}
+
+.log-status-pill.pending {
+  background-color: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
 /* Settings Container & Cards */
 .settings-container {
   max-width: 480px;
@@ -2508,6 +2575,184 @@
   &:hover {
     background-color: #dc2626;
   }
+}
+
+/* Reminder badge / pill buttons - preserve identical size and shape */
+.reminder-badge-btn,
+.latest-reminder-pill-btn,
+.log-status-pill-btn {
+  background: none;
+  border: none;
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  text-decoration: none;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.reminder-badge-btn:hover,
+.latest-reminder-pill-btn:hover,
+.log-status-pill-btn:hover {
+  opacity: 0.85;
+}
+
+.reminder-badge-btn:active,
+.latest-reminder-pill-btn:active,
+.log-status-pill-btn:active {
+  transform: scale(0.97);
+}
+
+/* Reminder Status Details Modal */
+.reminder-modal-card {
+  max-width: 440px;
+}
+
+.reminder-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.reminder-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-close-x-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.modal-close-x-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-h);
+}
+
+.reminder-status-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.reminder-status-icon-wrapper.sent {
+  background-color: rgba(16, 185, 129, 0.15);
+}
+
+.reminder-status-icon-wrapper.failed {
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+.reminder-status-icon-wrapper.upcoming {
+  background-color: rgba(14, 165, 233, 0.15);
+}
+
+.reminder-modal-body {
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.reminder-modal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  gap: 10px;
+}
+
+.reminder-modal-label {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.reminder-modal-value {
+  color: var(--text-h);
+  font-weight: 600;
+  font-family: var(--mono);
+}
+
+.reminder-modal-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.reminder-modal-message-box {
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 4px;
+}
+
+.reminder-modal-success-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #34d399;
+}
+
+.reminder-modal-error-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reminder-modal-error-category {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #f87171;
+}
+
+.reminder-modal-error-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-h);
+}
+
+.reminder-modal-error-raw {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text);
+  font-family: var(--mono);
+  word-break: break-word;
+}
+
+.reminder-modal-upcoming-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #38bdf8;
 }
 
 /* Application Footer */

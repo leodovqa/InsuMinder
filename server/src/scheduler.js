@@ -15,20 +15,6 @@ async function checkAndDispatchNotifications() {
   isChecking = true;
 
   try {
-    // 1. Retrieve current default Telegram configuration
-    const activeConfig = await new Promise((resolve, reject) => {
-      db.getDefaultTelegramConfig((err, res) => (err ? reject(err) : resolve(res)));
-    });
-
-    // Skip if Telegram is not configured
-    if (!activeConfig || !activeConfig.bot_token || !activeConfig.chat_id || !activeConfig.bot_token.trim() || !activeConfig.chat_id.trim()) {
-      isChecking = false;
-      return;
-    }
-
-    const botToken = activeConfig.bot_token;
-    const chatId = activeConfig.chat_id;
-
     const now = new Date();
     const nowIso = now.toISOString();
 
@@ -38,10 +24,41 @@ async function checkAndDispatchNotifications() {
       db.expireAncientNotifications(cutoff24hAgo, () => resolve());
     });
 
+    // 1. Retrieve current default Telegram configuration
+    const activeConfig = await new Promise((resolve, reject) => {
+      db.getDefaultTelegramConfig((err, res) => (err ? reject(err) : resolve(res)));
+    });
+
+    const isTelegramConfigured = Boolean(
+      activeConfig &&
+      activeConfig.bot_token &&
+      activeConfig.chat_id &&
+      activeConfig.bot_token.trim() &&
+      activeConfig.chat_id.trim()
+    );
+
     // 2. Fetch pending due injection notifications
     const dueLogs = await new Promise((resolve, reject) => {
       db.getDueNotifications((err, rows) => (err ? reject(err) : resolve(rows || [])));
     });
+
+    // If Telegram is not configured, record descriptive error on due logs
+    if (!isTelegramConfigured) {
+      const unconfiguredError = "Telegram is not configured. Go to Settings to set up your destination.";
+      for (const log of dueLogs) {
+        if (!log.status_2h_sent && log.notify_2h_at <= nowIso && (!log.error_2h || log.error_2h !== unconfiguredError)) {
+          await new Promise((resolve) => db.recordNotificationError(log.id, '2h', unconfiguredError, resolve));
+        }
+        if (!log.status_3h_sent && log.notify_3h_at <= nowIso && (!log.error_3h || log.error_3h !== unconfiguredError)) {
+          await new Promise((resolve) => db.recordNotificationError(log.id, '3h', unconfiguredError, resolve));
+        }
+      }
+      isChecking = false;
+      return;
+    }
+
+    const botToken = activeConfig.bot_token.trim();
+    const chatId = activeConfig.chat_id.trim();
 
     for (const log of dueLogs) {
       // 2-hour notification
@@ -53,6 +70,7 @@ async function checkAndDispatchNotifications() {
           await new Promise((resolve) => db.markNotificationSent(log.id, '2h', resolve));
         } else {
           console.error(`[Scheduler] Failed to send 2h reminder for #${log.id}:`, result.error);
+          await new Promise((resolve) => db.recordNotificationError(log.id, '2h', result.error, resolve));
         }
       }
 
@@ -65,6 +83,7 @@ async function checkAndDispatchNotifications() {
           await new Promise((resolve) => db.markNotificationSent(log.id, '3h', resolve));
         } else {
           console.error(`[Scheduler] Failed to send 3h reminder for #${log.id}:`, result.error);
+          await new Promise((resolve) => db.recordNotificationError(log.id, '3h', result.error, resolve));
         }
       }
     }

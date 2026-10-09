@@ -8,14 +8,14 @@ import {
   formatTimeOnly,
   formatDateTime,
   formatRelativeTime,
-  isPast,
   getStartOfWeek,
   getWeeksBelongingToMonth,
   getWeekDisplayInfo,
   getWeeklyTrendData,
   getRapidInjections,
   maskBotToken,
-  isCustomConfigName
+  isCustomConfigName,
+  getReminderStatus
 } from './utils';
 
 function LiveClock() {
@@ -176,22 +176,47 @@ function App() {
   const [language, setLanguage] = useState(() => {
     return localStorage.getItem('insuminder_language') || 'en';
   });
-  const [telegramConfigs, setTelegramConfigs] = useState([]);
+  const [telegramConfigs, setTelegramConfigs] = useState(() => {
+    try {
+      const cached = localStorage.getItem('insuminder_telegram_configs');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [telegramLabel, setTelegramLabel] = useState('');
-  const [telegramBotToken, setTelegramBotToken] = useState(() => {
-    return localStorage.getItem('insuminder_telegram_bot_token') || '';
-  });
-  const [telegramChatId, setTelegramChatId] = useState(() => {
-    return localStorage.getItem('insuminder_telegram_chat_id') || '';
-  });
+  const [telegramBotToken, setTelegramBotToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
   const [deleteModalConfig, setDeleteModalConfig] = useState(null);
+  const [reminderModalData, setReminderModalData] = useState(null);
 
   const latestLog = logs.length > 0 ? logs[0] : null;
   const isTelegramConfigured = telegramConfigs.length > 0
     ? telegramConfigs.some(c => c.isDefault)
-    : Boolean(telegramBotToken.trim() && telegramChatId.trim());
+    : Boolean(
+        localStorage.getItem('insuminder_telegram_configured') === 'true' ||
+        (localStorage.getItem('insuminder_telegram_bot_token') && localStorage.getItem('insuminder_telegram_chat_id')) ||
+        (telegramBotToken.trim() && telegramChatId.trim())
+      );
+  const latest2h = getReminderStatus(latestLog, '2h', isTelegramConfigured);
+  const latest3h = getReminderStatus(latestLog, '3h', isTelegramConfigured);
+
+  const handleOpenReminderModal = (log, type) => {
+    if (!log) return;
+    const statusInfo = getReminderStatus(log, type, isTelegramConfigured);
+    setReminderModalData({
+      ...statusInfo,
+      logId: log.id,
+      title: type === '2h' ? '2-Hour Reminder' : '3-Hour Reminder',
+      formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime) : ''
+    });
+  };
+
+  const handleCloseReminderModal = () => {
+    setReminderModalData(null);
+  };
 
   const fetchTelegramConfigs = () => {
     fetch('/api/telegram-configs')
@@ -199,10 +224,23 @@ function App() {
       .then(data => {
         if (data.success && Array.isArray(data.configs)) {
           setTelegramConfigs(data.configs);
-          const defaultCfg = data.configs.find(c => c.isDefault);
-          if (defaultCfg) {
-            localStorage.setItem('insuminder_telegram_bot_token', defaultCfg.botToken);
-            localStorage.setItem('insuminder_telegram_chat_id', defaultCfg.chatId);
+          if (data.configs.length > 0) {
+            try {
+              localStorage.setItem('insuminder_telegram_configs', JSON.stringify(data.configs));
+            } catch {
+              // ignore storage errors
+            }
+            const hasDefault = data.configs.some(c => c.isDefault);
+            if (hasDefault) {
+              localStorage.setItem('insuminder_telegram_configured', 'true');
+            } else {
+              localStorage.removeItem('insuminder_telegram_configured');
+            }
+            localStorage.removeItem('insuminder_telegram_bot_token');
+            localStorage.removeItem('insuminder_telegram_chat_id');
+          } else {
+            localStorage.removeItem('insuminder_telegram_configs');
+            localStorage.removeItem('insuminder_telegram_configured');
           }
         }
       })
@@ -225,17 +263,23 @@ function App() {
       .catch(error => console.error('Error fetching logs:', error));
   }, []);
 
-  // Keyboard navigation: Close nav drawer on Escape key
+  // Keyboard navigation: Close modals or nav drawer on Escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isNavOpen) {
-        setIsNavOpen(false);
+      if (e.key === 'Escape') {
+        if (reminderModalData) {
+          setReminderModalData(null);
+        } else if (deleteModalConfig) {
+          setDeleteModalConfig(null);
+        } else if (isNavOpen) {
+          setIsNavOpen(false);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNavOpen]);
+  }, [isNavOpen, deleteModalConfig, reminderModalData]);
 
   // Auto-dismiss notification after 4.5 seconds
   useEffect(() => {
@@ -340,6 +384,8 @@ function App() {
         setTelegramLabel('');
         setTelegramBotToken('');
         setTelegramChatId('');
+        localStorage.removeItem('insuminder_telegram_bot_token');
+        localStorage.removeItem('insuminder_telegram_chat_id');
         fetchTelegramConfigs();
       } else {
         setNotification({
@@ -829,9 +875,15 @@ function App() {
                     <div className="reminder-title-row">
                       <span className="reminder-title">2-Hour Reminder</span>
                       {latestLog && (
-                        <span className={`reminder-badge ${isPast(latestLog.notify_2h_at) ? 'badge-past' : 'badge-upcoming'}`}>
-                          {isPast(latestLog.notify_2h_at) ? 'Sent' : 'Upcoming'}
-                        </span>
+                        <button
+                          type="button"
+                          className={`reminder-badge reminder-badge-btn ${latest2h.badgeClass}`}
+                          onClick={() => handleOpenReminderModal(latestLog, '2h')}
+                          title={latest2h.title}
+                          aria-label={`2-Hour Reminder: ${latest2h.label}. Click to view details.`}
+                        >
+                          {latest2h.label}
+                        </button>
                       )}
                     </div>
                     {latestLog ? (
@@ -863,9 +915,15 @@ function App() {
                     <div className="reminder-title-row">
                       <span className="reminder-title">3-Hour Reminder</span>
                       {latestLog && (
-                        <span className={`reminder-badge ${isPast(latestLog.notify_3h_at) ? 'badge-past' : 'badge-upcoming'}`}>
-                          {isPast(latestLog.notify_3h_at) ? 'Sent' : 'Upcoming'}
-                        </span>
+                        <button
+                          type="button"
+                          className={`reminder-badge reminder-badge-btn ${latest3h.badgeClass}`}
+                          onClick={() => handleOpenReminderModal(latestLog, '3h')}
+                          title={latest3h.title}
+                          aria-label={`3-Hour Reminder: ${latest3h.label}. Click to view details.`}
+                        >
+                          {latest3h.label}
+                        </button>
                       )}
                     </div>
                     {latestLog ? (
@@ -957,15 +1015,27 @@ function App() {
 
                     {/* Reminder Status Badges */}
                     <div className="latest-reminders-list">
-                      <div className={`latest-reminder-pill ${isPast(latestLog.notify_2h_at) ? 'sent' : 'pending'}`}>
-                        <span className="pill-icon">{isPast(latestLog.notify_2h_at) ? '✅' : '⏳'}</span>
-                        <span className="pill-text">2-Hour Reminder: {isPast(latestLog.notify_2h_at) ? 'Sent' : 'Pending'}</span>
-                      </div>
+                      <button
+                        type="button"
+                        className={`latest-reminder-pill latest-reminder-pill-btn ${latest2h.pillClass}`}
+                        onClick={() => handleOpenReminderModal(latestLog, '2h')}
+                        title={latest2h.title}
+                        aria-label={`2-Hour Reminder: ${latest2h.pillLabel}. Click to view details.`}
+                      >
+                        <span className="pill-icon">{latest2h.icon}</span>
+                        <span className="pill-text">2-Hour Reminder: {latest2h.pillLabel}</span>
+                      </button>
 
-                      <div className={`latest-reminder-pill ${isPast(latestLog.notify_3h_at) ? 'sent' : 'pending'}`}>
-                        <span className="pill-icon">{isPast(latestLog.notify_3h_at) ? '✅' : '⏳'}</span>
-                        <span className="pill-text">3-Hour Reminder: {isPast(latestLog.notify_3h_at) ? 'Sent' : 'Pending'}</span>
-                      </div>
+                      <button
+                        type="button"
+                        className={`latest-reminder-pill latest-reminder-pill-btn ${latest3h.pillClass}`}
+                        onClick={() => handleOpenReminderModal(latestLog, '3h')}
+                        title={latest3h.title}
+                        aria-label={`3-Hour Reminder: ${latest3h.pillLabel}. Click to view details.`}
+                      >
+                        <span className="pill-icon">{latest3h.icon}</span>
+                        <span className="pill-text">3-Hour Reminder: {latest3h.pillLabel}</span>
+                      </button>
                     </div>
 
                     {/* Expanded details */}
@@ -979,10 +1049,34 @@ function App() {
                           <span className="expanded-label">2h Target Time:</span>
                           <span className="expanded-value">{formatDateTime(latestLog.notify_2h_at)}</span>
                         </div>
+                        {latest2h.status === 'failed' && (
+                          <div
+                            className="expanded-row expanded-error-row"
+                            onClick={() => handleOpenReminderModal(latestLog, '2h')}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to view details"
+                          >
+                            <span className="expanded-label">2h Delivery:</span>
+                            <span className="expanded-value error-text">⚠️ Not Sent — {latest2h.friendlyError?.category || latest2h.title}</span>
+                          </div>
+                        )}
                         <div className="expanded-row">
                           <span className="expanded-label">3h Target Time:</span>
                           <span className="expanded-value">{formatDateTime(latestLog.notify_3h_at)}</span>
                         </div>
+                        {latest3h.status === 'failed' && (
+                          <div
+                            className="expanded-row expanded-error-row"
+                            onClick={() => handleOpenReminderModal(latestLog, '3h')}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to view details"
+                          >
+                            <span className="expanded-label">3h Delivery:</span>
+                            <span className="expanded-value error-text">⚠️ Not Sent — {latest3h.friendlyError?.category || latest3h.title}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1213,14 +1307,44 @@ function App() {
                                 )}
                               </div>
                             </div>
-                            <div className="log-field">
-                              <span className="log-label">2h Reminder:</span>
-                              <span className="log-value">{formatTimeOnly(log.notify_2h_at)}</span>
-                            </div>
-                            <div className="log-field">
-                              <span className="log-label">3h Reminder:</span>
-                              <span className="log-value">{formatTimeOnly(log.notify_3h_at)}</span>
-                            </div>
+                            {(() => {
+                              const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured);
+                              const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured);
+                              return (
+                                <>
+                                  <div className="log-field">
+                                    <span className="log-label">2h Reminder:</span>
+                                    <div className="log-value-row">
+                                      <span className="log-value">{formatTimeOnly(log.notify_2h_at)}</span>
+                                      <button
+                                        type="button"
+                                        className={`log-status-pill log-status-pill-btn ${logRem2h.pillClass}`}
+                                        onClick={() => handleOpenReminderModal(log, '2h')}
+                                        title={logRem2h.title}
+                                        aria-label={`2-Hour Reminder: ${logRem2h.label}. Click to view details.`}
+                                      >
+                                        {logRem2h.icon} {logRem2h.label}
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="log-field">
+                                    <span className="log-label">3h Reminder:</span>
+                                    <div className="log-value-row">
+                                      <span className="log-value">{formatTimeOnly(log.notify_3h_at)}</span>
+                                      <button
+                                        type="button"
+                                        className={`log-status-pill log-status-pill-btn ${logRem3h.pillClass}`}
+                                        onClick={() => handleOpenReminderModal(log, '3h')}
+                                        title={logRem3h.title}
+                                        aria-label={`3-Hour Reminder: ${logRem3h.label}. Click to view details.`}
+                                      >
+                                        {logRem3h.icon} {logRem3h.label}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </li>
                         );
                       })}
@@ -1540,6 +1664,93 @@ function App() {
                 onClick={handleConfirmDelete}
               >
                 Delete Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reminder Status Details Modal */}
+      {reminderModalData && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseReminderModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reminder-modal-title"
+        >
+          <div className="modal-card reminder-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header reminder-modal-header">
+              <div className="reminder-modal-header-left">
+                <div className={`modal-icon-wrapper reminder-status-icon-wrapper ${reminderModalData.status}`}>
+                  {reminderModalData.icon || 'ℹ️'}
+                </div>
+                <h3 id="reminder-modal-title" className="modal-title">
+                  {reminderModalData.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-x-btn"
+                onClick={handleCloseReminderModal}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body reminder-modal-body">
+              <div className="reminder-modal-row">
+                <span className="reminder-modal-label">Status:</span>
+                <span className={`reminder-modal-badge ${reminderModalData.badgeClass}`}>
+                  {reminderModalData.label}
+                </span>
+              </div>
+
+              <div className="reminder-modal-row">
+                <span className="reminder-modal-label">
+                  {reminderModalData.status === 'sent' ? 'Sent Date & Time:' : 'Attempt / Target Time:'}
+                </span>
+                <span className="reminder-modal-value">
+                  {reminderModalData.formattedTime || '—'}
+                </span>
+              </div>
+
+              <div className="reminder-modal-message-box">
+                {reminderModalData.status === 'sent' ? (
+                  <p className="reminder-modal-success-text">
+                    Sent successfully to your configured Telegram destination.
+                  </p>
+                ) : reminderModalData.status === 'failed' ? (
+                  <div className="reminder-modal-error-content">
+                    <p className="reminder-modal-error-category">
+                      {reminderModalData.friendlyError?.category || 'Delivery Issue'}
+                    </p>
+                    <p className="reminder-modal-error-text">
+                      {reminderModalData.friendlyError?.message || 'The reminder could not be delivered to Telegram.'}
+                    </p>
+                    {reminderModalData.rawError &&
+                     reminderModalData.rawError !== reminderModalData.friendlyError?.message && (
+                      <p className="reminder-modal-error-raw">
+                        Details: {reminderModalData.rawError}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="reminder-modal-upcoming-text">
+                    This reminder is scheduled for {reminderModalData.formattedTime}.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={handleCloseReminderModal}
+              >
+                Close
               </button>
             </div>
           </div>

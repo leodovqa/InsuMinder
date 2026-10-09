@@ -17,8 +17,14 @@ db.serialize(() => {
     + "notify_2h_at TIMESTAMP NOT NULL,"
     + "notify_3h_at TIMESTAMP NOT NULL,"
     + "status_2h_sent BOOLEAN DEFAULT 0,"
-    + "status_3h_sent BOOLEAN DEFAULT 0"
-    + ")");
+    + "status_3h_sent BOOLEAN DEFAULT 0,"
+    + "error_2h TEXT,"
+    + "error_3h TEXT"
+    + ")", () => {
+      // Auto-migrate error columns if table already existed
+      db.run("ALTER TABLE injection_logs ADD COLUMN error_2h TEXT", () => {});
+      db.run("ALTER TABLE injection_logs ADD COLUMN error_3h TEXT", () => {});
+    });
 
   db.run("CREATE TABLE IF NOT EXISTS settings ("
     + "key TEXT PRIMARY KEY,"
@@ -232,27 +238,36 @@ function deleteTelegramConfig(id, callback) {
 }
 
 function getDueNotifications(callback) {
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const cutoff24hAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   db.all(
-    "SELECT * FROM injection_logs WHERE (status_2h_sent = 0 AND notify_2h_at <= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ?) ORDER BY injected_at ASC",
-    [now, now],
+    "SELECT * FROM injection_logs WHERE ((status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ?)) ORDER BY injected_at ASC",
+    [nowIso, cutoff24hAgo, nowIso, cutoff24hAgo],
     callback
   );
 }
 
 function markNotificationSent(id, type, callback) {
-  const column = type === '2h' ? 'status_2h_sent' : 'status_3h_sent';
-  db.run(`UPDATE injection_logs SET ${column} = 1 WHERE id = ?`, [id], callback);
+  const statusColumn = type === '2h' ? 'status_2h_sent' : 'status_3h_sent';
+  const errorColumn = type === '2h' ? 'error_2h' : 'error_3h';
+  db.run(`UPDATE injection_logs SET ${statusColumn} = 1, ${errorColumn} = NULL WHERE id = ?`, [id], callback);
+}
+
+function recordNotificationError(id, type, errorMsg, callback) {
+  const errorColumn = type === '2h' ? 'error_2h' : 'error_3h';
+  const cleanMsg = (errorMsg && String(errorMsg).trim()) || 'Unknown error occurred while delivering Telegram reminder.';
+  db.run(`UPDATE injection_logs SET ${errorColumn} = ? WHERE id = ?`, [cleanMsg, id], callback);
 }
 
 function expireAncientNotifications(cutoffIso, callback) {
   db.run(
-    "UPDATE injection_logs SET status_2h_sent = 1 WHERE status_2h_sent = 0 AND notify_2h_at < ?",
+    "UPDATE injection_logs SET error_2h = COALESCE(error_2h, 'Notification expired without delivery.') WHERE status_2h_sent = 0 AND notify_2h_at < ?",
     [cutoffIso],
     (err1) => {
       if (err1) return callback(err1);
       db.run(
-        "UPDATE injection_logs SET status_3h_sent = 1 WHERE status_3h_sent = 0 AND notify_3h_at < ?",
+        "UPDATE injection_logs SET error_3h = COALESCE(error_3h, 'Notification expired without delivery.') WHERE status_3h_sent = 0 AND notify_3h_at < ?",
         [cutoffIso],
         callback
       );
@@ -273,5 +288,6 @@ module.exports = {
   deleteTelegramConfig,
   getDueNotifications,
   markNotificationSent,
+  recordNotificationError,
   expireAncientNotifications
 };

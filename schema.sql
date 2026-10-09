@@ -4,7 +4,9 @@ CREATE TABLE IF NOT EXISTS injection_logs (
     notify_2h_at TIMESTAMP NOT NULL,
     notify_3h_at TIMESTAMP NOT NULL,
     status_2h_sent BOOLEAN DEFAULT 0,
-    status_3h_sent BOOLEAN DEFAULT 0
+    status_3h_sent BOOLEAN DEFAULT 0,
+    error_2h TEXT,
+    error_3h TEXT
 );
 
 CREATE TABLE IF NOT EXISTS telegram_configs (

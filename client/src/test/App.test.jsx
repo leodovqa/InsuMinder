@@ -271,6 +271,95 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
 
+    it('displays "Sent" only when status_sent is 1, and "Not Sent" with error tooltip on delivery failure', async () => {
+      const pastTime = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+      const statusMockLogs = [
+        {
+          id: 99,
+          injected_at: pastTime,
+          notify_2h_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          notify_3h_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+          status_2h_sent: 1,
+          status_3h_sent: 0,
+          error_3h: 'Bad Request: chat not found'
+        }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/logs') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, logs: statusMockLogs })
+          });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, configs: [{ id: 1, name: 'Main', botToken: 'tok', chatId: '123', isDefault: true }] })
+          });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      // On Logs tab: 2h is Sent, 3h is Not Sent
+      await waitFor(() => {
+        expect(screen.getByText('2-Hour Reminder: Sent')).toBeInTheDocument();
+        const failedPill = screen.getByText('3-Hour Reminder: Not Sent');
+        expect(failedPill).toBeInTheDocument();
+        expect(failedPill.closest('.latest-reminder-pill')).toHaveAttribute('title', expect.stringContaining('bot token or chat ID'));
+      });
+
+      // Navigate back to Home tab via back button
+      const backBtn = screen.getByRole('button', { name: /back to home/i });
+      fireEvent.click(backBtn);
+
+      // On Home tab: check badges and tooltips
+      await waitFor(() => {
+        const sentBadge = screen.getByText('Sent');
+        expect(sentBadge).toBeInTheDocument();
+        expect(sentBadge).toHaveAttribute('title', 'Reminder delivered to Telegram.');
+
+        const notSentBadge = screen.getByText('Not Sent');
+        expect(notSentBadge).toBeInTheDocument();
+        expect(notSentBadge).toHaveAttribute('title', expect.stringContaining('bot token or chat ID'));
+      });
+
+      // Click Not Sent button to open details modal
+      const notSentBtn = screen.getByText('Not Sent');
+      fireEvent.click(notSentBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 3, name: '3-Hour Reminder' })).toBeInTheDocument();
+        expect(screen.getByText('Telegram Configuration Issue')).toBeInTheDocument();
+        expect(screen.getByText(/bot token or chat ID is invalid, missing, or could not be found/i)).toBeInTheDocument();
+      });
+
+      // Close modal using Close button
+      const closeBtn = screen.getByRole('button', { name: 'Close' });
+      fireEvent.click(closeBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('heading', { level: 3, name: '3-Hour Reminder' })).not.toBeInTheDocument();
+      });
+
+      // Click Sent button to open details modal
+      const sentBtn = screen.getByText('Sent');
+      fireEvent.click(sentBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 3, name: '2-Hour Reminder' })).toBeInTheDocument();
+        expect(screen.getByText(/Sent successfully to your configured Telegram destination/i)).toBeInTheDocument();
+      });
+
+      // Close modal using top-right '×' button
+      const closeXBtn = screen.getByRole('button', { name: 'Close modal' });
+      fireEvent.click(closeXBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('heading', { level: 3, name: '2-Hour Reminder' })).not.toBeInTheDocument();
+      });
+    });
+
     it('renders Israeli Calendar Weekly Injections chart (Sun-Sat) with week navigation', async () => {
       render(<App />);
 
@@ -389,17 +478,19 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
 
-    it('submits and saves Telegram settings to the backend', async () => {
+    it('submits and saves Telegram settings to the backend and clears inputs', async () => {
       render(<App />);
 
       await waitFor(() => {
         expect(screen.getByLabelText(/Bot Token/i)).toBeInTheDocument();
       });
 
+      const labelInput = screen.getByLabelText(/Configuration Name/i);
       const tokenInput = screen.getByLabelText(/Bot Token/i);
       const chatIdInput = screen.getByLabelText(/Chat ID/i);
       const saveBtn = screen.getByRole('button', { name: /Save & Set as Default/i });
 
+      fireEvent.change(labelInput, { target: { value: 'My Phone' } });
       fireEvent.change(tokenInput, { target: { value: '12345:NEW_TOKEN' } });
       fireEvent.change(chatIdInput, { target: { value: '98765432' } });
       fireEvent.click(saveBtn);
@@ -407,6 +498,49 @@ describe('App Component - Home & Logs UI Tests', () => {
       await waitFor(() => {
         expect(screen.getByText(/Telegram configuration saved and set as default!/i)).toBeInTheDocument();
       });
+
+      // Inputs must be cleared immediately after saving
+      expect(labelInput.value).toBe('');
+      expect(tokenInput.value).toBe('');
+      expect(chatIdInput.value).toBe('');
+    });
+
+    it('keeps form inputs empty upon page refresh/remount even when default configs exist', async () => {
+      const mockSavedConfigs = [
+        { id: 1, name: 'Personal Bot', botToken: '1111:TOKEN_A', chatId: '12345678', isDefault: true }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
+        }
+        if (url === '/api/settings') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, settings: {} }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: mockSavedConfigs }) });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      });
+
+      // Simulate existing cache in localStorage
+      localStorage.setItem('insuminder_telegram_configs', JSON.stringify(mockSavedConfigs));
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Saved Configurations')).toBeInTheDocument();
+        expect(screen.getByText('Personal Bot')).toBeInTheDocument();
+      });
+
+      const labelInput = screen.getByLabelText(/Configuration Name/i);
+      const tokenInput = screen.getByLabelText(/Bot Token/i);
+      const chatIdInput = screen.getByLabelText(/Chat ID/i);
+
+      // Verify input fields remain empty, not repopulated with default config credentials
+      expect(labelInput.value).toBe('');
+      expect(tokenInput.value).toBe('');
+      expect(chatIdInput.value).toBe('');
     });
 
     it('displays error notification when test telegram call fails', async () => {
