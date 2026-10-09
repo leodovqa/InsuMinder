@@ -22,12 +22,17 @@ Once Docker Desktop is installed and running:
 ```powershell
 .\start-docker.ps1
 ```
-*(or run `docker compose up --build`)*
 
 * **Frontend Client:** `http://localhost:5173`
 * **Backend API:** `http://localhost:5000`
-* **Database:** Isolated inside named Docker volume (`insuminder-db-data`).
-* **Reset Database (Fresh Start):** `docker compose down -v`.
+* **Hot Reloading:** Editing files in `client/src` or `server/src` updates instantly without restarting containers.
+* **Stop:** Press `Ctrl + C` or run `docker compose down`.
+
+### Complete Re-Setup (Wipe Old Containers, Images & Volumes, then Rebuild Fresh):
+```powershell
+.\reset-docker.ps1
+```
+*(or run `.\start-docker.ps1 -Reset`)*
 
 ---
 

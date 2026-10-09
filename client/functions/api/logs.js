@@ -30,10 +30,9 @@ export async function onRequestGet(context) {
       )`
     ).run();
 
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // Retrieve all historical logs ordered by most recent first
     const { results } = await db
-      .prepare("SELECT * FROM injection_logs WHERE injected_at >= ? ORDER BY injected_at DESC")
-      .bind(twentyFourHoursAgo)
+      .prepare("SELECT * FROM injection_logs ORDER BY injected_at DESC")
       .all();
 
     return new Response(
@@ -73,4 +72,3 @@ export async function onRequestOptions() {
     }
   });
 }
-
