@@ -29,11 +29,15 @@
    - **D1 database:** Select `insuminder-db`.
 4. Click **Save**.
 
-Your production API endpoints (`/api/injections` and `/api/logs`) will now run automatically on Cloudflare Pages with zero external servers!
+Your production API endpoints (`/api/injections`, `/api/logs`, `/api/telegram-configs`, `/api/telegram/test`, and `/api/cron`) run automatically on Cloudflare Pages Functions with zero external servers!
+
+### 3. Telegram Notifications in Cloudflare Production
+* **Opportunistic Dispatch:** Whenever you or any user opens the app or logs an injection, Cloudflare Functions automatically checks and sends any due 2h or 3h Telegram notifications in the background via `context.waitUntil()`.
+* **Automated Cron Trigger (Optional):** You can also ping `https://insuminder.pages.dev/api/cron` every minute or 5 minutes (using a free Cloudflare Worker with a Cron Trigger or an external pinger like cron-job.org) to dispatch reminders on time even when the app is closed.
 
 ---
 
-## 3. Local Development (Unchanged)
+## 4. Local Development (Unchanged)
 
 Run locally with either:
 * **Single Terminal:** `.\start-dev.ps1` (or `npm run dev`)
