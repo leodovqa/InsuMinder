@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-import { formatDate } from './utils';
+
+const formatDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return date.toLocaleString('en-IL', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
 
 function App() {
   const [logs, setLogs] = useState([]);

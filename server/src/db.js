@@ -4,7 +4,7 @@ const db = new sqlite3.Database('server/insuminder.db');
 db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS injection_logs ("
     + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-    + "injected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+    + "injected_at TIMESTAMP NOT NULL,"
     + "notify_2h_at TIMESTAMP NOT NULL,"
     + "notify_3h_at TIMESTAMP NOT NULL,"
     + "status_2h_sent BOOLEAN DEFAULT 0,"
@@ -24,7 +24,8 @@ function insertInjectionLog(callback) {
 }
 
 function getLogsFromLast24Hours(callback) {
-  db.all("SELECT * FROM injection_logs WHERE injected_at >= datetime('now', '-24 hours') ORDER BY injected_at DESC", [], callback);
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  db.all("SELECT * FROM injection_logs WHERE injected_at >= ? ORDER BY injected_at DESC", [twentyFourHoursAgo], callback);
 }
 
 module.exports = {
