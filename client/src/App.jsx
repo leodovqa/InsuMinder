@@ -1,6 +1,51 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 
+const pad2 = (num) => String(num).padStart(2, '0');
+
+function LiveClock() {
+  const [time, setTime] = useState(() => {
+    const now = new Date();
+    return {
+      hours: pad2(now.getHours()),
+      minutes: pad2(now.getMinutes()),
+      seconds: pad2(now.getSeconds()),
+      hundredths: pad2(Math.floor(now.getMilliseconds() / 10))
+    };
+  });
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      setTime({
+        hours: pad2(now.getHours()),
+        minutes: pad2(now.getMinutes()),
+        seconds: pad2(now.getSeconds()),
+        hundredths: pad2(Math.floor(now.getMilliseconds() / 10))
+      });
+    };
+
+    updateClock();
+    const timer = setInterval(updateClock, 40);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div
+      className="live-clock"
+      title="Current Local Time"
+      aria-label={`Current time ${time.hours}:${time.minutes}:${time.seconds}.${time.hundredths}`}
+    >
+      <span className="clock-digits">{time.hours}</span>
+      <span className="clock-colon">:</span>
+      <span className="clock-digits">{time.minutes}</span>
+      <span className="clock-colon">:</span>
+      <span className="clock-digits">{time.seconds}</span>
+      <span className="clock-millis">.{time.hundredths}</span>
+    </div>
+  );
+}
+
 const formatDateOnly = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -23,13 +68,155 @@ const formatTimeOnly = (value) => {
   });
 };
 
+const formatDateTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const datePart = date.toLocaleDateString('en-IL', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const timePart = date.toLocaleTimeString('en-IL', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  return `${datePart}, ${timePart}`;
+};
+
+const formatRelativeTime = (value) => {
+  if (!value) return '';
+  const now = Date.now();
+  const time = new Date(value).getTime();
+  const diffMs = now - time;
+
+  if (diffMs < 0) {
+    const futureMs = -diffMs;
+    const futureSec = Math.floor(futureMs / 1000);
+    const futureMin = Math.floor(futureSec / 60);
+    const futureHours = Math.floor(futureMin / 60);
+    const remMin = futureMin % 60;
+
+    if (futureHours > 0) {
+      return `in ${futureHours}h ${remMin > 0 ? `${remMin}m` : ''}`.trim();
+    }
+    if (futureMin > 0) {
+      return `in ${futureMin} min`;
+    }
+    return 'in less than a min';
+  }
+
+  const pastSec = Math.floor(diffMs / 1000);
+  const pastMin = Math.floor(pastSec / 60);
+  const pastHours = Math.floor(pastMin / 60);
+  const pastDays = Math.floor(pastHours / 24);
+
+  if (pastSec < 60) return 'Just now';
+  if (pastMin < 60) return `${pastMin} ${pastMin === 1 ? 'minute' : 'minutes'} ago`;
+  if (pastHours < 24) return `${pastHours} ${pastHours === 1 ? 'hour' : 'hours'} ago`;
+  if (pastDays === 1) return 'Yesterday';
+  return `${pastDays} days ago`;
+};
+
+const isPast = (value) => {
+  if (!value) return false;
+  return new Date(value).getTime() <= Date.now();
+};
+
+function InjectionEligibility({ latestLog }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!latestLog) {
+    return (
+      <div className="eligibility-card eligible">
+        <div className="eligibility-icon-wrapper">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <div className="eligibility-content">
+          <div className="eligibility-title">Ready to Inject</div>
+          <p className="eligibility-message">
+            You can inject now. No previous injections have been recorded.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const target3hMs = new Date(latestLog.notify_3h_at).getTime();
+  const diffMs = target3hMs - now;
+  const canInject = diffMs < 0;
+
+  if (canInject) {
+    return (
+      <div className="eligibility-card eligible">
+        <div className="eligibility-icon-wrapper">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <div className="eligibility-content">
+          <div className="eligibility-title">Ready to Inject</div>
+          <p className="eligibility-message">
+            You can inject now. More than 3 hours have passed since your last injection.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const remSec = Math.max(0, Math.floor(diffMs / 1000));
+  const remHours = Math.floor(remSec / 3600);
+  const remMin = Math.floor((remSec % 3600) / 60);
+  const remSeconds = remSec % 60;
+
+  const countdownText = remHours > 0
+    ? `${remHours}h ${remMin}m ${remSeconds}s remaining`
+    : remMin > 0
+      ? `${remMin}m ${remSeconds}s remaining`
+      : `${remSeconds}s remaining`;
+
+  return (
+    <div className="eligibility-card locked">
+      <div className="eligibility-icon-wrapper">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      </div>
+      <div className="eligibility-content">
+        <div className="eligibility-title-row">
+          <span className="eligibility-title">Wait Before Injecting</span>
+          <span className="eligibility-countdown">{countdownText}</span>
+        </div>
+        <p className="eligibility-message">
+          You cannot inject yet. Please wait until at least 3 hours have passed since your last injection.
+        </p>
+        <div className="eligibility-time-note">
+          Next injection available at <strong>{formatTimeOnly(latestLog.notify_3h_at)}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [logs, setLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'logs' | 'settings'
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [expandedDates, setExpandedDates] = useState({});
   const [notification, setNotification] = useState(null);
-  const [currentTime, setCurrentTime] = useState('');
   const [isLoggedIn] = useState(false); // Auth state placeholder (future login logic)
 
   // Settings State
@@ -43,24 +230,8 @@ function App() {
     return localStorage.getItem('insuminder_telegram_chat_id') || '';
   });
 
-  // Live real-time clock ticking every second (Asia/Jerusalem / local timezone)
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('en-IL', {
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      setCurrentTime(timeStr);
-    };
-
-    updateClock();
-    const timer = setInterval(updateClock, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const latestLog = logs.length > 0 ? logs[0] : null;
+  const isTelegramConfigured = Boolean(telegramBotToken.trim() && telegramChatId.trim());
 
   useEffect(() => {
     fetch('/api/logs')
@@ -223,7 +394,6 @@ function App() {
               aria-label="Back to Home"
             >
               <span className="back-arrow">←</span>
-              <span className="back-text">Back</span>
             </button>
           ) : (
             <div className="header-spacer" />
@@ -337,24 +507,181 @@ function App() {
       {/* VIEW 1: HOME */}
       {activeTab === 'home' && (
         <section className="tab-view home-view">
-          {/* Real-time Clock */}
-          {currentTime && (
-            <div className="live-clock" title="Current Local Time">
-              <span className="clock-icon">🕒</span>
-              <span className="clock-time">{currentTime}</span>
-            </div>
-          )}
+          <div className="home-container">
+            {/* Real-time Digital Clock */}
+            <LiveClock />
 
-          <div className="actions-container">
-            <button className="primary-btn" onClick={handleLogInjection}>
-              Log Insulin Injection
-            </button>
+            {/* Telegram Configuration Notice Banner */}
+            {!isTelegramConfigured && (
+              <div
+                className="telegram-alert-card"
+                onClick={() => setActiveTab('settings')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('settings');
+                  }
+                }}
+              >
+                <span className="telegram-alert-icon">⚠️</span>
+                <div className="telegram-alert-content">
+                  <span className="telegram-alert-text">Telegram not configured.</span>
+                  <span className="telegram-alert-action">Go to Settings to set it up.</span>
+                </div>
+              </div>
+            )}
+
+            {/* Big Action Button: Log Injection */}
             <button
-              className="secondary-btn"
-              onClick={() => setActiveTab('logs')}
+              type="button"
+              className="log-injection-btn"
+              onClick={handleLogInjection}
             >
-              📋 View Injection Logs {logs.length > 0 && <span className="badge">{logs.length}</span>}
+              <span className="log-injection-plus">+</span>
+              <span className="log-injection-title">Log Injection</span>
+              <span className="log-injection-subtitle">Record the current time as your injection time</span>
             </button>
+
+            {/* Dashboard Tiles Grid: Total Injections & Last Injection */}
+            <div className="stats-grid">
+              {/* Tile 1: Total Injections */}
+              <div
+                className="stat-card"
+                onClick={() => setActiveTab('logs')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('logs');
+                  }
+                }}
+                title="View all logs"
+              >
+                <div className="stat-card-header">
+                  <span className="stat-icon-wrapper stat-pulse-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                  </span>
+                </div>
+                <div className="stat-label">Total Injections</div>
+                <div className="stat-value">{logs.length}</div>
+              </div>
+
+              {/* Tile 2: Last Injection */}
+              <div
+                className="stat-card"
+                onClick={() => setActiveTab('logs')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('logs');
+                  }
+                }}
+                title="View injection details"
+              >
+                <div className="stat-card-header">
+                  <span className="stat-icon-wrapper stat-clock-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </span>
+                </div>
+                <div className="stat-label">Last Injection</div>
+                {latestLog ? (
+                  <div className="stat-datetime-group">
+                    <div className="stat-datetime">{formatDateTime(latestLog.injected_at)}</div>
+                    <div className="stat-relative">{formatRelativeTime(latestLog.injected_at)}</div>
+                  </div>
+                ) : (
+                  <div className="stat-datetime-group">
+                    <div className="stat-datetime empty">None</div>
+                    <div className="stat-relative">No injections yet</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Notifications Scheduled Section */}
+            <div className="notifications-section">
+              <h2 className="section-title">Notifications Scheduled</h2>
+
+              <div className="reminder-cards-list">
+                {/* 2-Hour Reminder */}
+                <div className="reminder-card">
+                  <div className="reminder-icon-wrapper">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                  </div>
+                  <div className="reminder-details">
+                    <div className="reminder-title-row">
+                      <span className="reminder-title">2-Hour Reminder</span>
+                      {latestLog && (
+                        <span className={`reminder-badge ${isPast(latestLog.notify_2h_at) ? 'badge-past' : 'badge-upcoming'}`}>
+                          {isPast(latestLog.notify_2h_at) ? 'Sent' : 'Upcoming'}
+                        </span>
+                      )}
+                    </div>
+                    {latestLog ? (
+                      <div className="reminder-time-info">
+                        <span className="reminder-timestamp">{formatDateTime(latestLog.notify_2h_at)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_2h_at)})</span>
+                      </div>
+                    ) : (
+                      <div className="reminder-time-info">
+                        <span className="reminder-timestamp empty">—</span>
+                        <span className="reminder-relative">(No injections logged yet)</span>
+                      </div>
+                    )}
+                    <p className="reminder-description">
+                      You will be reminded 2 hours after injection
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3-Hour Reminder */}
+                <div className="reminder-card">
+                  <div className="reminder-icon-wrapper">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                  </div>
+                  <div className="reminder-details">
+                    <div className="reminder-title-row">
+                      <span className="reminder-title">3-Hour Reminder</span>
+                      {latestLog && (
+                        <span className={`reminder-badge ${isPast(latestLog.notify_3h_at) ? 'badge-past' : 'badge-upcoming'}`}>
+                          {isPast(latestLog.notify_3h_at) ? 'Sent' : 'Upcoming'}
+                        </span>
+                      )}
+                    </div>
+                    {latestLog ? (
+                      <div className="reminder-time-info">
+                        <span className="reminder-timestamp">{formatDateTime(latestLog.notify_3h_at)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_3h_at)})</span>
+                      </div>
+                    ) : (
+                      <div className="reminder-time-info">
+                        <span className="reminder-timestamp empty">—</span>
+                        <span className="reminder-relative">(No injections logged yet)</span>
+                      </div>
+                    )}
+                    <p className="reminder-description">
+                      You will be reminded 3 hours after injection
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Injection Eligibility Status (Below Notifications Scheduled) */}
+            <InjectionEligibility latestLog={latestLog} />
           </div>
         </section>
       )}
@@ -554,6 +881,13 @@ function App() {
           </div>
         </section>
       )}
+
+      {/* Application Footer */}
+      <footer className="app-footer">
+        <p className="footer-copyright">
+          &copy; {new Date().getFullYear()} Dovgans
+        </p>
+      </footer>
     </div>
   );
 }
