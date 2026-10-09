@@ -1,5 +1,14 @@
+const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('server/insuminder.db');
+
+const dbPath = process.env.DB_PATH || path.resolve(__dirname, '../insuminder.db');
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS injection_logs ("

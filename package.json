@@ -1,5 +1,14 @@
 {
+  "name": "insuminder",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"node server/src/index.js\" \"npm run dev --prefix client\"",
+    "docker": "docker compose up --build"
+  },
   "dependencies": {
     "moment-timezone": "^0.6.5"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }
