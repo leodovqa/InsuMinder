@@ -11,7 +11,8 @@ app.use(express.json());
 app.post('/api/injections', (req, res) => {
   db.insertInjectionLog(function(err) {
     if (err) {
-      res.status(500).json({ success: false, error: err.message });
+      const status = err.status || 500;
+      res.status(status).json({ success: false, error: err.message });
     } else {
       res.json({ success: true, id: this.lastID });
     }

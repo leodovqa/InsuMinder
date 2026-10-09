@@ -1,3 +1,7 @@
+param(
+    [switch]$Reset
+)
+
 # Auto-resolve Docker in PATH if installed recently in user session
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     $dockerPaths = @(
@@ -17,5 +21,12 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-Write-Host "Starting InsuMinder (Client + Server) via Docker Compose..." -ForegroundColor Cyan
-docker compose up --build
+if ($Reset) {
+    Write-Host "Re-setting up: Removing old containers, volumes, and local images..." -ForegroundColor Yellow
+    docker compose down --volumes --rmi local --remove-orphans
+    Write-Host "Building fresh containers and starting InsuMinder..." -ForegroundColor Cyan
+    docker compose up --build
+} else {
+    Write-Host "Starting InsuMinder (Client + Server) via Docker Compose..." -ForegroundColor Cyan
+    docker compose up --build
+}
