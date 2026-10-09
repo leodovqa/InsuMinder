@@ -2,52 +2,39 @@
 
 ## Architecture Summary
 * **Frontend:** Hosted globally on Cloudflare Pages (`https://insuminder.pages.dev`).
-* **Backend:** Hosted on a Node.js-compatible container host (e.g., Render, Railway, or VPS).
-* **Database:** SQLite (local/single-container) or PostgreSQL (e.g., Supabase / Neon free tier for cloud).
+* **Production Database & API:** Cloudflare Pages Functions + Cloudflare D1 (Serverless SQLite, 100% free).
+* **Local Development:** Local Node.js Express server + SQLite (`npm run dev` or `docker compose up`).
 
 ---
 
 ## 1. Cloudflare Pages Configuration
 
-When the `client/` React app is initialized and pushed to GitHub:
-
+### Build Configurations
 1. Open **Cloudflare Dashboard** > **Workers & Pages** > **insuminder**.
 2. Go to **Settings** > **Builds & deployments** > **Build configurations**:
-   * **Framework preset:** `Vite`
+   * **Framework preset:** `None`
    * **Build command:** `npm run build`
    * **Build output directory:** `dist`
    * **Root directory (Advanced):** `client`
 3. Click **Save**.
 
-### Environment Variables on Cloudflare
-1. Go to **Settings** > **Environment variables**.
-2. Add a variable:
-   * **Variable name:** `VITE_API_URL`
-   * **Value:** `https://your-backend-service-url.com` (leave blank until backend is deployed online).
-3. Click **Save**.
+### 2. Cloudflare D1 Database Binding (Free Database Setup)
+
+1. In Cloudflare Dashboard, go to **Storage & Databases** > **D1 SQL Database**.
+2. Click **Create database** > name it `insuminder-db` > Click **Create**.
+3. Now link it to your Pages project:
+   - Go to **Workers & Pages** > **insuminder** > **Settings** > **Functions**.
+   - Scroll down to **D1 database bindings** > Click **Add binding**.
+   - **Variable name:** `DB` (must be uppercase `DB`).
+   - **D1 database:** Select `insuminder-db`.
+4. Click **Save**.
+
+Your production API endpoints (`/api/injections` and `/api/logs`) will now run automatically on Cloudflare Pages with zero external servers!
 
 ---
 
-## 2. Git & Production Sync Routine
+## 3. Local Development (Unchanged)
 
-Whenever you finish a working feature locally, push it from your terminal:
-
-```powershell
-# 1. Check current status
-git status
-
-# 2. Stage all modifications
-git add .
-
-# 3. Create a clean commit
-git commit -m "feat: describe the change here"
-
-# 4. Push to GitHub (Cloudflare will automatically rebuild and redeploy)
-git push origin main
-```
-
-### Recommended Free Backend Hosts
-Because Cloudflare Pages only hosts static frontend files, host the Node.js server using:
-
-- **Render.com:** Free Web Service tier (supports Node.js Express).
-- **Railway.app:** Generous free trial credits for running full-stack Docker/Node containers.
+Run locally with either:
+* **Single Terminal:** `.\start-dev.ps1` (or `npm run dev`)
+* **Docker Compose:** `.\start-docker.ps1` (or `docker compose up --build`)
