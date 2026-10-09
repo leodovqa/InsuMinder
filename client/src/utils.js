@@ -1,3 +1,262 @@
-export function formatDate(value) {
-    return new Date(Number(value) || value).toLocaleString([], { hour: '2-digit', minute: '2-digit', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit' });
-}
+export const pad2 = (num) => String(num).padStart(2, '0');
+
+export const getTabFromUrl = (search = typeof window !== 'undefined' ? window.location.search : '') => {
+  const params = new URLSearchParams(search);
+  const page = params.get('page') || params.get('tab');
+  if (page === 'logs' || page === 'settings') {
+    return page;
+  }
+  return 'home';
+};
+
+export const updateUrlForTab = (tab) => {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (tab === 'logs' || tab === 'settings') {
+    url.searchParams.set('page', tab);
+  } else {
+    url.searchParams.delete('page');
+    url.searchParams.delete('tab');
+  }
+  const searchStr = url.searchParams.toString();
+  const newRelativePathQuery = url.pathname + (searchStr ? `?${searchStr}` : '') + url.hash;
+  const currentSearchStr = new URLSearchParams(window.location.search).toString();
+
+  if (searchStr !== currentSearchStr) {
+    window.history.pushState({ page: tab }, '', newRelativePathQuery);
+  }
+};
+
+export const formatDateOnly = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return date.toLocaleDateString('en-IL', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+};
+
+export const formatTimeOnly = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return date.toLocaleTimeString('en-IL', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+export const formatDateTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const datePart = date.toLocaleDateString('en-IL', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const timePart = date.toLocaleTimeString('en-IL', {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  return `${datePart}, ${timePart}`;
+};
+
+export const formatRelativeTime = (value) => {
+  if (!value) return '';
+  const now = Date.now();
+  const time = new Date(value).getTime();
+  const diffMs = now - time;
+
+  if (diffMs < 0) {
+    const futureMs = -diffMs;
+    const futureSec = Math.floor(futureMs / 1000);
+    const futureMin = Math.floor(futureSec / 60);
+    const futureHours = Math.floor(futureMin / 60);
+    const remMin = futureMin % 60;
+
+    if (futureHours > 0) {
+      return `in ${futureHours}h ${remMin > 0 ? `${remMin}m` : ''}`.trim();
+    }
+    if (futureMin > 0) {
+      return `in ${futureMin} min`;
+    }
+    return 'in less than a min';
+  }
+
+  const pastSec = Math.floor(diffMs / 1000);
+  const pastMin = Math.floor(pastSec / 60);
+  const pastHours = Math.floor(pastMin / 60);
+  const pastDays = Math.floor(pastHours / 24);
+
+  if (pastSec < 60) return 'Just now';
+  if (pastMin < 60) return `${pastMin} ${pastMin === 1 ? 'minute' : 'minutes'} ago`;
+  if (pastHours < 24) return `${pastHours} ${pastHours === 1 ? 'hour' : 'hours'} ago`;
+  if (pastDays === 1) return 'Yesterday';
+  return `${pastDays} days ago`;
+};
+
+export const isPast = (value) => {
+  if (!value) return false;
+  return new Date(value).getTime() <= Date.now();
+};
+
+export const getStartOfWeek = (d) => {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = date.getDay(); // 0 is Sunday, 6 is Saturday (Israel calendar: Sun to Sat)
+  date.setDate(date.getDate() - day);
+  return date;
+};
+
+export const getWeeksBelongingToMonth = (year, monthIndex) => {
+  // In Sunday-to-Saturday weeks, Wednesday (4th day, +3) defines the anchor month
+  const weeks = [];
+  const firstOfMonth = new Date(year, monthIndex, 1);
+  let cur = getStartOfWeek(firstOfMonth);
+
+  for (let i = 0; i < 6; i++) {
+    const wednesday = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 3);
+    if (wednesday.getMonth() === monthIndex && wednesday.getFullYear() === year) {
+      weeks.push(new Date(cur));
+    }
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+};
+
+export const getWeekDisplayInfo = (selectedWeekStart) => {
+  const wednesday = new Date(
+    selectedWeekStart.getFullYear(),
+    selectedWeekStart.getMonth(),
+    selectedWeekStart.getDate() + 3
+  );
+  const anchorYear = wednesday.getFullYear();
+  const anchorMonth = wednesday.getMonth();
+
+  const monthWeeks = getWeeksBelongingToMonth(anchorYear, anchorMonth);
+  const startIso = selectedWeekStart.toISOString().slice(0, 10);
+  let activeWeekIndex = monthWeeks.findIndex(w => w.toISOString().slice(0, 10) === startIso);
+  if (activeWeekIndex === -1) {
+    activeWeekIndex = 0;
+  }
+
+  const monthName = wednesday.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric'
+  });
+
+  return {
+    anchorYear,
+    anchorMonth,
+    monthName,
+    activeWeekIndex,
+    weekNumber: activeWeekIndex + 1,
+    totalWeeks: monthWeeks.length,
+    monthWeeks
+  };
+};
+
+export const getWeeklyTrendData = (logsList, selectedWeekStart) => {
+  const days = [];
+  const todayStr = formatDateOnly(new Date().toISOString());
+  const anchorWednesday = new Date(
+    selectedWeekStart.getFullYear(),
+    selectedWeekStart.getMonth(),
+    selectedWeekStart.getDate() + 3
+  );
+  const anchorMonth = anchorWednesday.getMonth();
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(
+      selectedWeekStart.getFullYear(),
+      selectedWeekStart.getMonth(),
+      selectedWeekStart.getDate() + i,
+      12,
+      0,
+      0
+    );
+    const dateStr = formatDateOnly(d.toISOString());
+    const dayName = d.toLocaleDateString('en-IL', { weekday: 'short' });
+    const dayNum = d.getDate();
+    const monthNum = d.getMonth() + 1;
+    const isToday = dateStr === todayStr;
+    const isOtherMonth = d.getMonth() !== anchorMonth;
+
+    const count = logsList.filter(log => formatDateOnly(log.injected_at) === dateStr).length;
+
+    days.push({
+      date: d,
+      dateStr,
+      dayName,
+      shortDate: `${dayNum}/${monthNum}`,
+      count,
+      isToday,
+      isOtherMonth
+    });
+  }
+
+  const totalWeekInjections = days.reduce((sum, d) => sum + d.count, 0);
+  const maxCount = Math.max(3, ...days.map(d => d.count));
+  const activeDaysCount = days.filter(d => d.count > 0).length;
+  const dailyAvg = (totalWeekInjections / 7).toFixed(1);
+
+  const startDay = days[0].date;
+  const endDay = days[6].date;
+  const startDayMonth = `${startDay.getDate()}/${startDay.getMonth() + 1}`;
+  const endDayMonth = `${endDay.getDate()}/${endDay.getMonth() + 1}`;
+  const weekRangeStr = `${startDayMonth} – ${endDayMonth}`;
+
+  const todayWeekStart = getStartOfWeek(new Date());
+  const isCurrentWeek =
+    selectedWeekStart.getFullYear() === todayWeekStart.getFullYear() &&
+    selectedWeekStart.getMonth() === todayWeekStart.getMonth() &&
+    selectedWeekStart.getDate() === todayWeekStart.getDate();
+
+  return {
+    days,
+    totalWeekInjections,
+    maxCount,
+    activeDaysCount,
+    dailyAvg,
+    weekRangeStr,
+    isCurrentWeek
+  };
+};
+
+export const getRapidInjections = (logsList) => {
+  const rapidList = [];
+  const rapidIds = new Set();
+
+  for (let i = 0; i < logsList.length - 1; i++) {
+    const current = logsList[i];
+    const previous = logsList[i + 1];
+    const currentMs = new Date(current.injected_at).getTime();
+    const prevMs = new Date(previous.injected_at).getTime();
+    const diffMs = currentMs - prevMs;
+    const threeHoursMs = 3 * 60 * 60 * 1000;
+
+    if (diffMs > 0 && diffMs < threeHoursMs) {
+      const diffMinutes = Math.round(diffMs / (60 * 1000));
+      const hours = Math.floor(diffMinutes / 60);
+      const mins = diffMinutes % 60;
+      const intervalStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+      rapidList.push({
+        currentId: current.id,
+        currentInjectedAt: current.injected_at,
+        previousInjectedAt: previous.injected_at,
+        intervalStr,
+        diffMinutes
+      });
+      rapidIds.add(current.id);
+    }
+  }
+
+  return { rapidList, rapidIds };
+};

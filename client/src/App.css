@@ -310,12 +310,14 @@
 
 /* Back Button (Top-Right, Icon Only) */
 .back-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
   padding: 0;
+  margin: 0;
+  box-sizing: border-box;
   background-color: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -339,10 +341,10 @@
   }
 }
 
-.back-arrow {
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1;
+.back-arrow-svg {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 /* Title Divider (Line Separation) */
