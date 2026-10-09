@@ -19,3 +19,4 @@ These rules outline the guidelines for developing the web-based application.
    - Before creating a branch, ask for a branch naming and get my agreement.
    - Only create a branch if I agree.
    - Before committing or pushing, ask me to commit or push.
+   - When asked to create a pull request (PR), you must output the full URL to the PR so the user can easily review and merge it.
