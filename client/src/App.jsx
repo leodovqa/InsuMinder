@@ -13,7 +13,9 @@ import {
   getWeeksBelongingToMonth,
   getWeekDisplayInfo,
   getWeeklyTrendData,
-  getRapidInjections
+  getRapidInjections,
+  maskBotToken,
+  isCustomConfigName
 } from './utils';
 
 function LiveClock() {
@@ -174,15 +176,43 @@ function App() {
   const [language, setLanguage] = useState(() => {
     return localStorage.getItem('insuminder_language') || 'en';
   });
+  const [telegramConfigs, setTelegramConfigs] = useState([]);
+  const [telegramLabel, setTelegramLabel] = useState('');
   const [telegramBotToken, setTelegramBotToken] = useState(() => {
     return localStorage.getItem('insuminder_telegram_bot_token') || '';
   });
   const [telegramChatId, setTelegramChatId] = useState(() => {
     return localStorage.getItem('insuminder_telegram_chat_id') || '';
   });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [deleteModalConfig, setDeleteModalConfig] = useState(null);
 
   const latestLog = logs.length > 0 ? logs[0] : null;
-  const isTelegramConfigured = Boolean(telegramBotToken.trim() && telegramChatId.trim());
+  const isTelegramConfigured = telegramConfigs.length > 0
+    ? telegramConfigs.some(c => c.isDefault)
+    : Boolean(telegramBotToken.trim() && telegramChatId.trim());
+
+  const fetchTelegramConfigs = () => {
+    fetch('/api/telegram-configs')
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.configs)) {
+          setTelegramConfigs(data.configs);
+          const defaultCfg = data.configs.find(c => c.isDefault);
+          if (defaultCfg) {
+            localStorage.setItem('insuminder_telegram_bot_token', defaultCfg.botToken);
+            localStorage.setItem('insuminder_telegram_chat_id', defaultCfg.chatId);
+          }
+        }
+      })
+      .catch(error => console.error('Error fetching telegram configs:', error));
+  };
+
+  // Fetch configs and settings from server on mount
+  useEffect(() => {
+    fetchTelegramConfigs();
+  }, []);
 
   useEffect(() => {
     fetch('/api/logs')
@@ -273,14 +303,167 @@ function App() {
     localStorage.setItem('insuminder_language', langCode);
   };
 
-  const handleSaveTelegramSettings = (e) => {
+  const handleSaveTelegramSettings = async (e) => {
     e.preventDefault();
-    localStorage.setItem('insuminder_telegram_bot_token', telegramBotToken.trim());
-    localStorage.setItem('insuminder_telegram_chat_id', telegramChatId.trim());
-    setNotification({
-      type: 'success',
-      message: 'Telegram settings saved successfully!'
-    });
+    const cleanToken = telegramBotToken.trim();
+    const rawChatId = telegramChatId.trim().replace(/^-+/, '');
+    const cleanChatId = rawChatId ? `-${rawChatId}` : '';
+    const cleanLabel = telegramLabel.trim();
+
+    if (!cleanToken || !cleanChatId) {
+      setNotification({
+        type: 'warning',
+        message: 'Please provide both Bot Token and Chat ID.'
+      });
+      return;
+    }
+
+    setIsSavingSettings(true);
+    try {
+      const response = await fetch('/api/telegram-configs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: cleanLabel,
+          botToken: cleanToken,
+          chatId: cleanChatId
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotification({
+          type: 'success',
+          message: 'Telegram configuration saved and set as default!'
+        });
+        setTelegramLabel('');
+        setTelegramBotToken('');
+        setTelegramChatId('');
+        fetchTelegramConfigs();
+      } else {
+        setNotification({
+          type: 'warning',
+          message: data.error || 'Failed to save configuration.'
+        });
+      }
+    } catch {
+      setNotification({
+        type: 'warning',
+        message: 'Failed to reach server to save configuration.'
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleSetDefaultConfig = async (configId) => {
+    try {
+      const response = await fetch(`/api/telegram-configs/${configId}/default`, {
+        method: 'PUT',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotification({
+          type: 'success',
+          message: 'Default notification destination updated!'
+        });
+        fetchTelegramConfigs();
+      } else {
+        setNotification({
+          type: 'warning',
+          message: data.error || 'Failed to update default configuration.'
+        });
+      }
+    } catch {
+      setNotification({
+        type: 'warning',
+        message: 'Failed to reach server to update default configuration.'
+      });
+    }
+  };
+
+  const handleOpenDeleteModal = (config) => {
+    setDeleteModalConfig(config);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setDeleteModalConfig(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModalConfig) return;
+    try {
+      const response = await fetch(`/api/telegram-configs/${deleteModalConfig.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotification({
+          type: 'success',
+          message: `Configuration "${deleteModalConfig.name}" deleted successfully.`
+        });
+        setDeleteModalConfig(null);
+        fetchTelegramConfigs();
+      } else {
+        setNotification({
+          type: 'warning',
+          message: data.error || 'Failed to delete configuration.'
+        });
+      }
+    } catch {
+      setNotification({
+        type: 'warning',
+        message: 'Failed to reach server to delete configuration.'
+      });
+    }
+  };
+
+  const handleTestTelegramNotification = async (overrideToken, overrideChatId) => {
+    const cleanToken = (overrideToken !== undefined ? overrideToken : telegramBotToken).trim();
+    const rawChatId = (overrideChatId !== undefined ? overrideChatId : telegramChatId).trim().replace(/^-+/, '');
+    const cleanChatId = rawChatId ? `-${rawChatId}` : '';
+
+    if (!cleanToken || !cleanChatId) {
+      setNotification({
+        type: 'warning',
+        message: 'Please enter both Bot Token and Chat ID before sending a test notification.'
+      });
+      return;
+    }
+
+    setIsTestingTelegram(true);
+    try {
+      const response = await fetch('/api/telegram/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegramBotToken: cleanToken,
+          telegramChatId: cleanChatId
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setNotification({
+          type: 'success',
+          message: 'Test notification sent! Check your Telegram chat.'
+        });
+      } else {
+        setNotification({
+          type: 'warning',
+          message: `Telegram test failed: ${data.error || 'Could not send message'}`
+        });
+      }
+    } catch {
+      setNotification({
+        type: 'warning',
+        message: 'Failed to reach server to test Telegram notification.'
+      });
+    } finally {
+      setIsTestingTelegram(false);
+    }
   };
 
   const handlePrevWeek = () => {
@@ -1130,7 +1313,24 @@ function App() {
                 </div>
               </div>
 
+              {/* 1. Add Configuration Form */}
               <form onSubmit={handleSaveTelegramSettings} className="settings-form">
+                <div className="form-group">
+                  <label htmlFor="config-label" className="form-label">
+                    Configuration Name <span className="label-optional">(Optional)</span>
+                  </label>
+                  <input
+                    id="config-label"
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. My Phone, Channel"
+                    value={telegramLabel}
+                    onChange={(e) => setTelegramLabel(e.target.value)}
+                    autoComplete="off"
+                    spellCheck="false"
+                  />
+                </div>
+
                 <div className="form-group">
                   <label htmlFor="bot-token" className="form-label">Bot Token</label>
                   <input
@@ -1147,36 +1347,203 @@ function App() {
 
                 <div className="form-group">
                   <label htmlFor="chat-id" className="form-label">Chat ID</label>
-                  <input
-                    id="chat-id"
-                    type="text"
-                    className="form-input"
-                    placeholder="Enter your Telegram chat ID"
-                    value={telegramChatId}
-                    onChange={(e) => setTelegramChatId(e.target.value)}
-                    autoComplete="off"
-                    spellCheck="false"
-                  />
+                  <div className="input-prefix-group">
+                    <span className="input-prefix" aria-hidden="true">-</span>
+                    <input
+                      id="chat-id"
+                      type="text"
+                      className="form-input with-prefix"
+                      placeholder="e.g. 4304245048 or 1004304245048"
+                      value={telegramChatId.replace(/^-+/, '')}
+                      onChange={(e) => setTelegramChatId(e.target.value.replace(/^-+/, ''))}
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </div>
                 </div>
 
                 <p className="settings-note">
-                  Notifications are sent 2 and 3 hours after each injection via Telegram.
+                  Notifications are sent 2 and 3 hours after each injection via Telegram. Newly saved destinations are automatically marked as default.
                 </p>
 
-                <button type="submit" className="save-btn">
-                  <span className="btn-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                      <polyline points="17 21 17 13 7 13 7 21" />
-                      <polyline points="7 3 7 8 15 8" />
-                    </svg>
-                  </span>
-                  Save
-                </button>
+                <div className="form-actions">
+                  <button type="submit" className="save-btn" disabled={isSavingSettings || !telegramBotToken.trim() || !telegramChatId.trim()}>
+                    <span className="btn-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                      </svg>
+                    </span>
+                    {isSavingSettings ? 'Saving...' : 'Save & Set as Default'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="test-btn"
+                    onClick={() => handleTestTelegramNotification()}
+                    disabled={isTestingTelegram || !telegramBotToken.trim() || !telegramChatId.trim()}
+                  >
+                    <span className="btn-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    </span>
+                    {isTestingTelegram ? 'Sending Test...' : 'Send Test Notification'}
+                  </button>
+                </div>
               </form>
+
+              {/* 2. Saved Configurations List with Default Radio Button & Delete */}
+              <div className="configs-section">
+                <div className="configs-header">
+                  <h3 className="configs-title">Saved Configurations</h3>
+                  <span className="configs-count-badge">
+                    {telegramConfigs.length} {telegramConfigs.length === 1 ? 'destination' : 'destinations'}
+                  </span>
+                </div>
+
+                {telegramConfigs.length === 0 ? (
+                  <div className="configs-empty-card">
+                    <span className="configs-empty-text">No configurations saved yet. Enter details above to add one.</span>
+                  </div>
+                ) : (
+                  <ul className="configs-list">
+                    {telegramConfigs.map((cfg) => {
+                      const hasCustom = isCustomConfigName(cfg.name, cfg.chatId);
+                      return (
+                        <li key={cfg.id} className={`config-item ${cfg.isDefault ? 'is-default' : ''}`}>
+                          <label className="config-radio-label">
+                            <input
+                              type="radio"
+                              name="default-telegram-config"
+                              checked={cfg.isDefault}
+                              onChange={() => handleSetDefaultConfig(cfg.id)}
+                              className="config-radio"
+                            />
+                            <div className="config-info">
+                              {hasCustom ? (
+                                <>
+                                  <div className="config-title-row">
+                                    <span className="config-name">{cfg.name}</span>
+                                  </div>
+                                  <div className="config-details">
+                                    <span className="config-detail-item">
+                                      <span className="config-chat-group">
+                                        <strong>Chat:</strong> {cfg.chatId}
+                                        {cfg.isDefault && (
+                                          <span className="default-pill">DEFAULT</span>
+                                        )}
+                                      </span>
+                                    </span>
+                                    <span className="config-detail-item">
+                                      <strong>Token:</strong> {maskBotToken(cfg.botToken)}
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="config-title-row">
+                                    <span className="config-chat-group config-chat-title">
+                                      <strong className="config-chat-prefix">Chat:</strong>
+                                      <span className="config-chat-id-text">{cfg.chatId}</span>
+                                      {cfg.isDefault && (
+                                        <span className="default-pill">DEFAULT</span>
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="config-details">
+                                    <span className="config-detail-item">
+                                      <strong>Token:</strong> {maskBotToken(cfg.botToken)}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </label>
+
+                          <div className="config-item-actions">
+                            <button
+                              type="button"
+                              className="config-row-test-btn"
+                              title="Test this configuration"
+                              onClick={() => handleTestTelegramNotification(cfg.botToken, cfg.chatId)}
+                              disabled={isTestingTelegram}
+                            >
+                              Test
+                            </button>
+                            <button
+                              type="button"
+                              className="config-row-delete-btn"
+                              title={hasCustom ? `Delete ${cfg.name}` : `Delete configuration for ${cfg.chatId}`}
+                              onClick={() => handleOpenDeleteModal(cfg)}
+                              aria-label={hasCustom ? `Delete ${cfg.name}` : `Delete configuration for ${cfg.chatId}`}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             </div>
           </div>
         </section>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalConfig && (
+        <div className="modal-overlay" onClick={handleCloseDeleteModal} role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+          <div className="modal-card delete-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon-wrapper delete-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </div>
+              <h3 id="delete-modal-title" className="modal-title">Delete Telegram Configuration?</h3>
+            </div>
+            <div className="modal-body">
+              <p className="delete-modal-text">
+                {isCustomConfigName(deleteModalConfig.name, deleteModalConfig.chatId) ? (
+                  <>Are you sure you want to delete <strong>{deleteModalConfig.name}</strong> ({deleteModalConfig.chatId})?</>
+                ) : (
+                  <>Are you sure you want to delete configuration for chat <strong>{deleteModalConfig.chatId}</strong>?</>
+                )}
+              </p>
+              {deleteModalConfig.isDefault && (
+                <p className="delete-modal-warning">
+                  This is currently the default destination. If deleted, another saved destination will automatically become active.
+                </p>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={handleCloseDeleteModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-delete-btn"
+                onClick={handleConfirmDelete}
+              >
+                Delete Configuration
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Application Footer */}

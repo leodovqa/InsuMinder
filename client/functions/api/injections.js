@@ -1,3 +1,5 @@
+import { dispatchDueNotifications } from './_telegram.js';
+
 export async function onRequestPost(context) {
   try {
     const db = context.env.DB;
@@ -61,6 +63,11 @@ export async function onRequestPost(context) {
       .prepare("INSERT INTO injection_logs (injected_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?)")
       .bind(injected_at, notify_2h_at, notify_3h_at)
       .run();
+
+    // Opportunistically check and dispatch notifications in background
+    if (context.waitUntil) {
+      context.waitUntil(dispatchDueNotifications(db));
+    }
 
     return new Response(
       JSON.stringify({

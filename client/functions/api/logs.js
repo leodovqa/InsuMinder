@@ -1,3 +1,5 @@
+import { dispatchDueNotifications } from './_telegram.js';
+
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
@@ -34,6 +36,11 @@ export async function onRequestGet(context) {
     const { results } = await db
       .prepare("SELECT * FROM injection_logs ORDER BY injected_at DESC")
       .all();
+
+    // Opportunistically check and dispatch due notifications in background
+    if (context.waitUntil) {
+      context.waitUntil(dispatchDueNotifications(db));
+    }
 
     return new Response(
       JSON.stringify({

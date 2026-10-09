@@ -260,3 +260,25 @@ export const getRapidInjections = (logsList) => {
 
   return { rapidList, rapidIds };
 };
+
+export const maskBotToken = (token) => {
+  if (!token || typeof token !== 'string') return '';
+  const trimmed = token.trim();
+  if (trimmed.length <= 10) return '••••••••';
+  return `${trimmed.slice(0, 5)}••••${trimmed.slice(-4)}`;
+};
+
+export const isCustomConfigName = (name, chatId) => {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  const cleanChatId = chatId ? String(chatId).trim() : '';
+  if (cleanChatId && (trimmed === cleanChatId || trimmed === `Chat (${cleanChatId})`)) {
+    return false;
+  }
+  if (/^Chat \(-?\d+\)$/i.test(trimmed)) {
+    return false;
+  }
+  return true;
+};
+

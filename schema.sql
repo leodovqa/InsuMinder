@@ -7,3 +7,11 @@ CREATE TABLE IF NOT EXISTS injection_logs (
     status_3h_sent BOOLEAN DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS telegram_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    bot_token TEXT NOT NULL,
+    chat_id TEXT NOT NULL,
+    is_default INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

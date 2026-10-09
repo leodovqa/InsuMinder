@@ -12,7 +12,9 @@ import {
   getWeeksBelongingToMonth,
   getWeekDisplayInfo,
   getWeeklyTrendData,
-  getRapidInjections
+  getRapidInjections,
+  maskBotToken,
+  isCustomConfigName
 } from '../utils';
 
 describe('Utility Functions & Helpers', () => {
@@ -207,6 +209,49 @@ describe('Utility Functions & Helpers', () => {
 
       expect(rapidList).toHaveLength(0);
       expect(rapidIds.size).toBe(0);
+    });
+  });
+
+  describe('maskBotToken', () => {
+    it('returns empty string for null, undefined, or empty token', () => {
+      expect(maskBotToken(null)).toBe('');
+      expect(maskBotToken(undefined)).toBe('');
+      expect(maskBotToken('')).toBe('');
+    });
+
+    it('masks short tokens with bullets', () => {
+      expect(maskBotToken('short')).toBe('••••••••');
+    });
+
+    it('masks long bot tokens showing first 5 and last 4 characters', () => {
+      const token = '123456789:ABC-DEF-GHIJKLMNOP';
+      expect(maskBotToken(token)).toBe('12345••••MNOP');
+    });
+  });
+
+  describe('isCustomConfigName', () => {
+    it('returns false for null, undefined, or empty names', () => {
+      expect(isCustomConfigName(null, '-4304245048')).toBe(false);
+      expect(isCustomConfigName(undefined, '-4304245048')).toBe(false);
+      expect(isCustomConfigName('', '-4304245048')).toBe(false);
+      expect(isCustomConfigName('   ', '-4304245048')).toBe(false);
+    });
+
+    it('returns false when name equals the chatId', () => {
+      expect(isCustomConfigName('-4304245048', '-4304245048')).toBe(false);
+      expect(isCustomConfigName('12345678', '12345678')).toBe(false);
+    });
+
+    it('returns false when name matches default generated Chat (chatId) pattern', () => {
+      expect(isCustomConfigName('Chat (-4304245048)', '-4304245048')).toBe(false);
+      expect(isCustomConfigName('Chat (-4304245048)', '-1004304245048')).toBe(false);
+      expect(isCustomConfigName('Chat (98765)', '98765')).toBe(false);
+    });
+
+    it('returns true when a custom user-defined label is provided', () => {
+      expect(isCustomConfigName('Personal Bot', '-4304245048')).toBe(true);
+      expect(isCustomConfigName('Family Channel', '-1004304245048')).toBe(true);
+      expect(isCustomConfigName('Office Alerts', '12345678')).toBe(true);
     });
   });
 });
