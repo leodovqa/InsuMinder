@@ -126,6 +126,161 @@ const isPast = (value) => {
   return new Date(value).getTime() <= Date.now();
 };
 
+const getStartOfWeek = (d) => {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = date.getDay(); // 0 is Sunday, 6 is Saturday (Israel calendar: Sun to Sat)
+  date.setDate(date.getDate() - day);
+  return date;
+};
+
+const getWeeksBelongingToMonth = (year, monthIndex) => {
+  // In Sunday-to-Saturday weeks, Wednesday (4th day, +3) defines the anchor month
+  const weeks = [];
+  const firstOfMonth = new Date(year, monthIndex, 1);
+  let cur = getStartOfWeek(firstOfMonth);
+
+  for (let i = 0; i < 6; i++) {
+    const wednesday = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 3);
+    if (wednesday.getMonth() === monthIndex && wednesday.getFullYear() === year) {
+      weeks.push(new Date(cur));
+    }
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+};
+
+const getWeekDisplayInfo = (selectedWeekStart) => {
+  const wednesday = new Date(
+    selectedWeekStart.getFullYear(),
+    selectedWeekStart.getMonth(),
+    selectedWeekStart.getDate() + 3
+  );
+  const anchorYear = wednesday.getFullYear();
+  const anchorMonth = wednesday.getMonth();
+
+  const monthWeeks = getWeeksBelongingToMonth(anchorYear, anchorMonth);
+  const startIso = selectedWeekStart.toISOString().slice(0, 10);
+  let activeWeekIndex = monthWeeks.findIndex(w => w.toISOString().slice(0, 10) === startIso);
+  if (activeWeekIndex === -1) {
+    activeWeekIndex = 0;
+  }
+
+  const monthName = wednesday.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric'
+  });
+
+  return {
+    anchorYear,
+    anchorMonth,
+    monthName,
+    activeWeekIndex,
+    weekNumber: activeWeekIndex + 1,
+    totalWeeks: monthWeeks.length,
+    monthWeeks
+  };
+};
+
+const getWeeklyTrendData = (logsList, selectedWeekStart) => {
+  const days = [];
+  const todayStr = formatDateOnly(new Date().toISOString());
+  const anchorWednesday = new Date(
+    selectedWeekStart.getFullYear(),
+    selectedWeekStart.getMonth(),
+    selectedWeekStart.getDate() + 3
+  );
+  const anchorMonth = anchorWednesday.getMonth();
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(
+      selectedWeekStart.getFullYear(),
+      selectedWeekStart.getMonth(),
+      selectedWeekStart.getDate() + i,
+      12,
+      0,
+      0
+    );
+    const dateStr = formatDateOnly(d.toISOString());
+    const dayName = d.toLocaleDateString('en-IL', { weekday: 'short' });
+    const dayNum = d.getDate();
+    const monthNum = d.getMonth() + 1;
+    const isToday = dateStr === todayStr;
+    const isOtherMonth = d.getMonth() !== anchorMonth;
+
+    const count = logsList.filter(log => formatDateOnly(log.injected_at) === dateStr).length;
+
+    days.push({
+      date: d,
+      dateStr,
+      dayName,
+      shortDate: `${dayNum}/${monthNum}`,
+      count,
+      isToday,
+      isOtherMonth
+    });
+  }
+
+  const totalWeekInjections = days.reduce((sum, d) => sum + d.count, 0);
+  const maxCount = Math.max(3, ...days.map(d => d.count));
+  const activeDaysCount = days.filter(d => d.count > 0).length;
+  const dailyAvg = (totalWeekInjections / 7).toFixed(1);
+
+  const startDay = days[0].date;
+  const endDay = days[6].date;
+  const startDayMonth = `${startDay.getDate()}/${startDay.getMonth() + 1}`;
+  const endDayMonth = `${endDay.getDate()}/${endDay.getMonth() + 1}`;
+  const weekRangeStr = `${startDayMonth} – ${endDayMonth}`;
+
+  const todayWeekStart = getStartOfWeek(new Date());
+  const isCurrentWeek =
+    selectedWeekStart.getFullYear() === todayWeekStart.getFullYear() &&
+    selectedWeekStart.getMonth() === todayWeekStart.getMonth() &&
+    selectedWeekStart.getDate() === todayWeekStart.getDate();
+
+  return {
+    days,
+    totalWeekInjections,
+    maxCount,
+    activeDaysCount,
+    dailyAvg,
+    weekRangeStr,
+    isCurrentWeek
+  };
+};
+
+const getRapidInjections = (logsList) => {
+  const rapidList = [];
+  const rapidIds = new Set();
+
+  // logsList is ordered descending (latest first)
+  for (let i = 0; i < logsList.length - 1; i++) {
+    const current = logsList[i];
+    const previous = logsList[i + 1];
+    const currentMs = new Date(current.injected_at).getTime();
+    const prevMs = new Date(previous.injected_at).getTime();
+    const diffMs = currentMs - prevMs;
+    const threeHoursMs = 3 * 60 * 60 * 1000;
+
+    if (diffMs > 0 && diffMs < threeHoursMs) {
+      const diffMinutes = Math.round(diffMs / (60 * 1000));
+      const hours = Math.floor(diffMinutes / 60);
+      const mins = diffMinutes % 60;
+      const intervalStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+      rapidList.push({
+        currentId: current.id,
+        currentInjectedAt: current.injected_at,
+        previousInjectedAt: previous.injected_at,
+        intervalStr,
+        diffMinutes
+      });
+      rapidIds.add(current.id);
+    }
+  }
+
+  return { rapidList, rapidIds };
+};
+
 function InjectionEligibility({ latestLog }) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -215,9 +370,12 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'logs' | 'settings'
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const [expandedDates, setExpandedDates] = useState({});
   const [notification, setNotification] = useState(null);
+  const [isLatestExpanded, setIsLatestExpanded] = useState(false);
   const [isLoggedIn] = useState(false); // Auth state placeholder (future login logic)
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() => getStartOfWeek(new Date()));
+  const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
 
   // Settings State
   const [language, setLanguage] = useState(() => {
@@ -332,24 +490,84 @@ function App() {
     });
   };
 
-  const toggleDate = (dateKey) => {
-    setExpandedDates(prev => ({
-      ...prev,
-      [dateKey]: !(prev[dateKey] ?? false)
-    }));
+  const handlePrevWeek = () => {
+    setSelectedWeekStart(prev => {
+      const next = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() - 7, 12, 0, 0);
+      return getStartOfWeek(next);
+    });
   };
 
-  // Group logs by date
-  const groupedLogs = logs.reduce((acc, log) => {
-    const dateKey = formatDateOnly(log.injected_at);
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
-    }
-    acc[dateKey].push(log);
-    return acc;
-  }, {});
+  const handleNextWeek = () => {
+    setSelectedWeekStart(prev => {
+      const next = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + 7, 12, 0, 0);
+      return getStartOfWeek(next);
+    });
+  };
 
-  const dateKeys = Object.keys(groupedLogs);
+  const handleSelectWeek = (targetStart) => {
+    setSelectedWeekStart(targetStart);
+  };
+
+  const handlePrevMonth = () => {
+    const info = getWeekDisplayInfo(selectedWeekStart);
+    let targetYear = info.anchorYear;
+    let targetMonth = info.anchorMonth - 1;
+    if (targetMonth < 0) {
+      targetMonth = 11;
+      targetYear--;
+    }
+    const prevWeeks = getWeeksBelongingToMonth(targetYear, targetMonth);
+    const targetIdx = Math.min(info.activeWeekIndex, prevWeeks.length - 1);
+    setSelectedWeekStart(prevWeeks[targetIdx]);
+  };
+
+  const handleNextMonth = () => {
+    const info = getWeekDisplayInfo(selectedWeekStart);
+    let targetYear = info.anchorYear;
+    let targetMonth = info.anchorMonth + 1;
+    if (targetMonth > 11) {
+      targetMonth = 0;
+      targetYear++;
+    }
+    const nextWeeks = getWeeksBelongingToMonth(targetYear, targetMonth);
+    const targetIdx = Math.min(info.activeWeekIndex, nextWeeks.length - 1);
+    setSelectedWeekStart(nextWeeks[targetIdx]);
+  };
+
+  const handleResetToCurrentWeek = () => {
+    setSelectedWeekStart(getStartOfWeek(new Date()));
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      setTouchStartX(e.touches[0].clientX);
+      setTouchStartY(e.touches[0].clientY);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX === null || touchStartY === null || !e.changedTouches || !e.changedTouches[0]) {
+      return;
+    }
+    const diffX = touchStartX - e.changedTouches[0].clientX;
+    const diffY = touchStartY - e.changedTouches[0].clientY;
+
+    if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX > 0) {
+        handleNextWeek();
+      } else {
+        handlePrevWeek();
+      }
+    }
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  const todayDateKey = formatDateOnly(new Date().toISOString());
+  const todayLogs = logs.filter(log => formatDateOnly(log.injected_at) === todayDateKey);
+  const weekInfo = getWeekDisplayInfo(selectedWeekStart);
+  const weeklyData = getWeeklyTrendData(logs, selectedWeekStart);
+  const rapidInjections = getRapidInjections(logs);
 
   const getPageTitle = () => {
     switch (activeTab) {
@@ -686,7 +904,7 @@ function App() {
         </section>
       )}
 
-      {/* VIEW 2: INJECTION LOGS (Dedicated Page) */}
+      {/* VIEW 2: INJECTION LOGS & TRENDS (Dedicated Page) */}
       {activeTab === 'logs' && (
         <section className="tab-view logs-view">
           <div className="page-content-wrapper">
@@ -702,52 +920,325 @@ function App() {
                 </button>
               </div>
             ) : (
-              <div className="date-groups-container">
-                {dateKeys.map((dateKey, index) => {
-                  const dateLogs = groupedLogs[dateKey];
-                  const isExpanded = expandedDates[dateKey] ?? (index === 0);
+              <>
+                {/* 1. Header with Total Injections Count */}
+                <div className="logs-header-banner">
+                  <div className="logs-header-badge">
+                    <span className="logs-total-count">{logs.length}</span>
+                    <span className="logs-total-label">Total Injections</span>
+                  </div>
+                </div>
 
-                  return (
-                    <div key={dateKey} className="date-group">
+                {/* 2. Latest Injection Tile (Matching Reference Card) */}
+                {latestLog && (
+                  <div className="latest-log-card">
+                    <div
+                      className="latest-log-header"
+                      onClick={() => setIsLatestExpanded(!isLatestExpanded)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setIsLatestExpanded(!isLatestExpanded);
+                        }
+                      }}
+                      aria-expanded={isLatestExpanded}
+                    >
+                      <div className="latest-log-icon-wrapper" title="Latest Injection">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m18 2 4 4" />
+                          <path d="m17 7 3-3" />
+                          <path d="M19 9 8.7 19.3c-.4.4-1 .6-1.6.6H3v-4.1c0-.6.2-1.2.6-1.6L14 3.9" />
+                          <path d="m9 14 5 5" />
+                          <path d="m5 18-3 3" />
+                        </svg>
+                      </div>
+
+                      <div className="latest-log-meta">
+                        <div className="latest-log-timestamp">{formatDateTime(latestLog.injected_at)}</div>
+                        <div className="latest-log-relative">{formatRelativeTime(latestLog.injected_at)}</div>
+                      </div>
+
+                      <div className={`latest-chevron ${isLatestExpanded ? 'open' : ''}`}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Reminder Status Badges */}
+                    <div className="latest-reminders-list">
+                      <div className={`latest-reminder-pill ${isPast(latestLog.notify_2h_at) ? 'sent' : 'pending'}`}>
+                        <span className="pill-icon">{isPast(latestLog.notify_2h_at) ? '✅' : '⏳'}</span>
+                        <span className="pill-text">2-Hour Reminder: {isPast(latestLog.notify_2h_at) ? 'Sent' : 'Pending'}</span>
+                      </div>
+
+                      <div className={`latest-reminder-pill ${isPast(latestLog.notify_3h_at) ? 'sent' : 'pending'}`}>
+                        <span className="pill-icon">{isPast(latestLog.notify_3h_at) ? '✅' : '⏳'}</span>
+                        <span className="pill-text">3-Hour Reminder: {isPast(latestLog.notify_3h_at) ? 'Sent' : 'Pending'}</span>
+                      </div>
+                    </div>
+
+                    {/* Expanded details */}
+                    {isLatestExpanded && (
+                      <div className="latest-expanded-panel">
+                        <div className="expanded-row">
+                          <span className="expanded-label">Injected At:</span>
+                          <span className="expanded-value">{formatDateTime(latestLog.injected_at)}</span>
+                        </div>
+                        <div className="expanded-row">
+                          <span className="expanded-label">2h Target Time:</span>
+                          <span className="expanded-value">{formatDateTime(latestLog.notify_2h_at)}</span>
+                        </div>
+                        <div className="expanded-row">
+                          <span className="expanded-label">3h Target Time:</span>
+                          <span className="expanded-value">{formatDateTime(latestLog.notify_3h_at)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Weekly Trends Chart Card (Month Scoped with Weekly Navigation & Swipe) */}
+                <div
+                  className="trends-chart-card"
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  <div className="chart-card-header">
+                    <div className="chart-title-group">
+                      <h3 className="chart-title">Weekly Injections</h3>
+                      <span className="chart-subtitle">Daily count for selected week</span>
+                    </div>
+                    <div className="chart-stats-badge">
+                      <span className="chart-stat-number">{weeklyData.totalWeekInjections}</span>
+                      <span className="chart-stat-label">week total</span>
+                    </div>
+                  </div>
+
+                  {/* Month Navigation & Week Pagination */}
+                  <div className="chart-nav-bar">
+                    {/* Month Row */}
+                    <div className="chart-month-row">
                       <button
                         type="button"
-                        className="date-group-header"
-                        onClick={() => toggleDate(dateKey)}
-                        aria-expanded={isExpanded}
+                        className="chart-nav-btn chart-nav-month-btn"
+                        onClick={handlePrevMonth}
+                        aria-label="Previous Month"
+                        title="Go to previous month"
                       >
-                        <div className="date-group-title">
-                          <span className={`date-arrow ${isExpanded ? 'open' : ''}`}>▶</span>
-                          <span className="date-text">{dateKey}</span>
-                        </div>
-                        <span className="date-count-badge">
-                          {dateLogs.length} {dateLogs.length === 1 ? 'injection' : 'injections'}
-                        </span>
+                        ‹
+                      </button>
+                      <span className="chart-month-label">{weekInfo.monthName}</span>
+                      <button
+                        type="button"
+                        className="chart-nav-btn chart-nav-month-btn"
+                        onClick={handleNextMonth}
+                        aria-label="Next Month"
+                        title="Go to next month"
+                      >
+                        ›
+                      </button>
+                    </div>
+
+                    {/* Week Row */}
+                    <div className="chart-week-row">
+                      <button
+                        type="button"
+                        className="chart-nav-btn chart-nav-week-btn"
+                        onClick={handlePrevWeek}
+                        aria-label="Previous Week"
+                        title="Go to previous week (or swipe right)"
+                      >
+                        ←
                       </button>
 
-                      {isExpanded && (
-                        <ul className="logs-list">
-                          {dateLogs.map(log => (
-                            <li key={log.id} className="log-item">
-                              <div className="log-field">
-                                <span className="log-label">Injected:</span>
-                                <span className="log-value">{formatTimeOnly(log.injected_at)}</span>
-                              </div>
-                              <div className="log-field">
-                                <span className="log-label">2h Reminder:</span>
-                                <span className="log-value">{formatTimeOnly(log.notify_2h_at)}</span>
-                              </div>
-                              <div className="log-field">
-                                <span className="log-label">3h Reminder:</span>
-                                <span className="log-value">{formatTimeOnly(log.notify_3h_at)}</span>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
+                      <div className="chart-week-info">
+                        <span className="chart-week-title">Week {weekInfo.weekNumber}</span>
+                        <span className="chart-week-dates">({weeklyData.weekRangeStr})</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="chart-nav-btn chart-nav-week-btn"
+                        onClick={handleNextWeek}
+                        aria-label="Next Week"
+                        title="Go to next week (or swipe left)"
+                      >
+                        →
+                      </button>
+                    </div>
+
+                    {/* Week Pills for Current Month */}
+                    <div className="chart-week-pills" role="tablist" aria-label="Weeks of the month">
+                      {weekInfo.monthWeeks.map((wDate, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`week-pill-btn ${idx === weekInfo.activeWeekIndex ? 'active' : ''}`}
+                          onClick={() => handleSelectWeek(wDate)}
+                          role="tab"
+                          aria-selected={idx === weekInfo.activeWeekIndex}
+                          title={`Week ${idx + 1}`}
+                        >
+                          W{idx + 1}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Jump back to Current Week if browsing other weeks */}
+                    {!weeklyData.isCurrentWeek && (
+                      <div className="chart-today-reset-row">
+                        <button
+                          type="button"
+                          className="chart-reset-today-btn"
+                          onClick={handleResetToCurrentWeek}
+                          title="Jump back to current week"
+                        >
+                          ↺ Jump to Current Week
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="chart-metrics-row">
+                    <div className="metric-chip">
+                      <span className="metric-chip-label">Daily Avg:</span>
+                      <span className="metric-chip-value">{weeklyData.dailyAvg} / day</span>
+                    </div>
+                    <div className="metric-chip">
+                      <span className="metric-chip-label">Active Days:</span>
+                      <span className="metric-chip-value">{weeklyData.activeDaysCount} of 7</span>
+                    </div>
+                  </div>
+
+                  {/* 7-Day Bar Chart */}
+                  <div className="bars-container">
+                    {weeklyData.days.map((day, idx) => {
+                      const heightPercent = weeklyData.maxCount > 0
+                        ? Math.round((day.count / weeklyData.maxCount) * 100)
+                        : 0;
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`bar-col ${day.isToday ? 'is-today' : ''} ${day.isOtherMonth ? 'is-other-month' : ''}`}
+                        >
+                          <div className="bar-count-label">{day.count > 0 ? day.count : ''}</div>
+                          <div className="bar-track">
+                            <div
+                              className={`bar-fill ${day.count > 0 ? 'has-data' : 'empty-data'}`}
+                              style={{ height: `${Math.max(6, heightPercent)}%` }}
+                              title={`${day.dateStr}: ${day.count} injections`}
+                            />
+                          </div>
+                          <div className="bar-day-name">{day.dayName}</div>
+                          <div className="bar-short-date">{day.shortDate}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 4. Rapid Injection Trend Warning (< 3h) */}
+                <div className="rapid-trend-card">
+                  <div className="rapid-card-header">
+                    <div className={`rapid-icon-wrapper ${rapidInjections.rapidList.length > 0 ? 'warning' : 'safe'}`}>
+                      {rapidInjections.rapidList.length > 0 ? (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                      ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="rapid-header-text">
+                      <h3 className="rapid-title">Rapid Injection Trend</h3>
+                      <span className="rapid-subtitle">Intervals under the recommended 3-hour spacing</span>
+                    </div>
+                  </div>
+
+                  {rapidInjections.rapidList.length > 0 ? (
+                    <div className="rapid-content">
+                      <p className="rapid-guidance">
+                        ⚠️ <strong>{rapidInjections.rapidList.length} dose{rapidInjections.rapidList.length === 1 ? '' : 's'}</strong> recorded less than 3 hours after a prior injection. If logged by mistake, take note; if intentional correction, monitor blood glucose closely.
+                      </p>
+                      <div className="rapid-incidents-list">
+                        {rapidInjections.rapidList.map((item, idx) => (
+                          <div key={idx} className="rapid-incident-item">
+                            <div className="incident-time-row">
+                              <span className="incident-time">{formatDateTime(item.currentInjectedAt)}</span>
+                              <span className="incident-interval-badge">+{item.intervalStr} after prior dose</span>
+                            </div>
+                            <div className="incident-prior-info">
+                              Prior injection was at {formatTimeOnly(item.previousInjectedAt)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rapid-clear-content">
+                      <span className="rapid-clear-text">
+                        All recorded injections have maintained the recommended 3+ hour spacing. No premature doses detected.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Today's Injection Logs (Daily View) */}
+                <div className="daily-logs-section">
+                  <div className="daily-logs-header">
+                    <div className="daily-logs-title-group">
+                      <h3 className="daily-logs-title">Today's Injections</h3>
+                      <span className="daily-logs-subtitle">{todayDateKey}</span>
+                    </div>
+                    <span className="daily-count-badge">
+                      {todayLogs.length} {todayLogs.length === 1 ? 'injection' : 'injections'}
+                    </span>
+                  </div>
+
+                  {todayLogs.length === 0 ? (
+                    <div className="daily-empty-card">
+                      <span className="daily-empty-text">No injections recorded today yet.</span>
+                    </div>
+                  ) : (
+                    <ul className="logs-list">
+                      {todayLogs.map(log => {
+                        const isRapid = rapidInjections.rapidIds.has(log.id);
+
+                        return (
+                          <li key={log.id} className={`log-item ${isRapid ? 'rapid-log-item' : ''}`}>
+                            <div className="log-field">
+                              <span className="log-label">Injected:</span>
+                              <div className="log-value-group">
+                                <span className="log-value">{formatTimeOnly(log.injected_at)}</span>
+                                {isRapid && (
+                                  <span className="log-rapid-pill" title="Logged under 3h after prior dose">
+                                    ⚠️ &lt; 3h
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="log-field">
+                              <span className="log-label">2h Reminder:</span>
+                              <span className="log-value">{formatTimeOnly(log.notify_2h_at)}</span>
+                            </div>
+                            <div className="log-field">
+                              <span className="log-label">3h Reminder:</span>
+                              <span className="log-value">{formatTimeOnly(log.notify_3h_at)}</span>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </section>
