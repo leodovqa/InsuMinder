@@ -205,8 +205,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
 
       // Sidebar badge shows 2 (daily count), not 3 (total)
-      const sidebarBadge = document.querySelector('.nav-item .badge');
-      expect(sidebarBadge).toHaveTextContent('2');
+      await waitFor(() => {
+        const sidebarBadge = document.querySelector('.nav-item .badge');
+        expect(sidebarBadge).toHaveTextContent('2');
+      });
 
       // Navigate to logs: verify top Total Injections banner is gone and weekly chart is present
       const dailyCard = screen.getByTitle('View daily logs');
