@@ -29,19 +29,65 @@ export async function onRequestPost(context) {
 
     const user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(cleanEmail).first();
 
-    if (!user || !user.is_verified || !user.password_hash) {
+    if (!user) {
       return new Response(JSON.stringify({ success: false, error: 'Invalid email or password' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    const isMatch = await verifyPassword(String(password), user.password_hash);
+    // Check account lockout (10 minutes after 5 failed attempts)
+    if (user.locked_until) {
+      const lockExpiry = new Date(user.locked_until).getTime();
+      const now = Date.now();
+      if (lockExpiry > now) {
+        const remainingMinutes = Math.max(1, Math.ceil((lockExpiry - now) / 60000));
+        return new Response(JSON.stringify({
+          success: false,
+          locked: true,
+          error: `Too many failed login attempts. Your account has been locked. Please try again in ${remainingMinutes} minute(s).`
+        }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    const isMatch = (user.is_verified && user.password_hash)
+      ? await verifyPassword(String(password), user.password_hash)
+      : false;
+
     if (!isMatch) {
-      return new Response(JSON.stringify({ success: false, error: 'Invalid email or password' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const attempts = (user.failed_login_attempts || 0) + 1;
+      if (attempts >= 5) {
+        const lockedUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        await db.prepare('UPDATE users SET failed_login_attempts = ?, locked_until = ? WHERE id = ?')
+          .bind(attempts, lockedUntil, user.id)
+          .run();
+        return new Response(JSON.stringify({
+          success: false,
+          locked: true,
+          error: 'Too many failed login attempts. Your account has been locked for 10 minutes.'
+        }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } else {
+        await db.prepare('UPDATE users SET failed_login_attempts = ? WHERE id = ?')
+          .bind(attempts, user.id)
+          .run();
+        return new Response(JSON.stringify({ success: false, error: 'Invalid email or password' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Reset failed attempts upon successful login
+    if (user.failed_login_attempts > 0 || user.locked_until) {
+      await db.prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?')
+        .bind(user.id)
+        .run();
     }
 
     if (!user.share_code) {

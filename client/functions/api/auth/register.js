@@ -43,12 +43,12 @@ export async function onRequestPost(context) {
     }
 
     const existingUser = await db
-      .prepare('SELECT id, is_verified FROM users WHERE email = ?')
+      .prepare('SELECT id, is_verified, auth_provider, google_id FROM users WHERE email = ?')
       .bind(cleanEmail)
       .first();
 
-    if (existingUser && existingUser.is_verified) {
-      return new Response(JSON.stringify({ success: false, error: 'An account with this email already exists. Please log in.' }), {
+    if (existingUser) {
+      return new Response(JSON.stringify({ success: false, error: 'This email is already registered. Please log in.' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });

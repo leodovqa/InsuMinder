@@ -45,10 +45,18 @@ Database Schema (SQLite & Cloudflare D1)
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
+    password_hash TEXT,
+    google_id TEXT,
+    auth_provider TEXT DEFAULT 'email',
     first_name TEXT,
     last_name TEXT,
     phone TEXT,
     name TEXT,
+    avatar TEXT,
+    is_verified BOOLEAN DEFAULT 0,
+    share_code TEXT UNIQUE,
+    failed_login_attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

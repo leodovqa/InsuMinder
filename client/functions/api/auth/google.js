@@ -20,12 +20,18 @@ export async function onRequestPost(context) {
 
     let userEmail = '';
     let userName = '';
+    let userFirstName = '';
+    let userLastName = '';
+    let userPhone = '';
     let userAvatar = '';
     let googleId = '';
 
-    if (dev || !credential || credential === 'dev-google-login') {
+    if (dev || credential === 'dev-google-login') {
       userEmail = (devEmail && String(devEmail).trim().toLowerCase()) || 'google.user@insuminder.app';
-      userName = devName || 'Google User';
+      userFirstName = body.firstName || (devName ? String(devName).split(' ')[0] : 'Google');
+      userLastName = body.lastName || (devName && String(devName).split(' ').length > 1 ? String(devName).split(' ').slice(1).join(' ') : 'User');
+      userName = devName || `${userFirstName} ${userLastName}`.trim();
+      userPhone = body.phone || '';
       userAvatar = devAvatar || '';
       googleId = 'dev-google-' + userEmail;
     } else {
@@ -34,7 +40,10 @@ export async function onRequestPost(context) {
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
           userEmail = payload.email ? payload.email.toLowerCase() : '';
-          userName = payload.name || payload.given_name || '';
+          userFirstName = payload.given_name || (payload.name ? payload.name.split(' ')[0] : '');
+          userLastName = payload.family_name || (payload.name && payload.name.split(' ').length > 1 ? payload.name.split(' ').slice(1).join(' ') : '');
+          userName = payload.name || `${userFirstName} ${userLastName}`.trim() || 'Google User';
+          userPhone = payload.phone_number || body.phone || '';
           userAvatar = payload.picture || '';
           googleId = payload.sub || '';
         }
@@ -43,7 +52,10 @@ export async function onRequestPost(context) {
         const tokenInfo = await resp.json().catch(() => null);
         if (tokenInfo && tokenInfo.email) {
           userEmail = tokenInfo.email.toLowerCase();
-          userName = tokenInfo.name || '';
+          userFirstName = tokenInfo.given_name || (tokenInfo.name ? tokenInfo.name.split(' ')[0] : '');
+          userLastName = tokenInfo.family_name || (tokenInfo.name && tokenInfo.name.split(' ').length > 1 ? tokenInfo.name.split(' ').slice(1).join(' ') : '');
+          userName = tokenInfo.name || `${userFirstName} ${userLastName}`.trim() || 'Google User';
+          userPhone = tokenInfo.phone_number || body.phone || '';
           userAvatar = tokenInfo.picture || '';
           googleId = tokenInfo.sub || '';
         }
@@ -60,21 +72,36 @@ export async function onRequestPost(context) {
     let user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(userEmail).first();
 
     if (user) {
+      // PRESERVE CUSTOM USER PROFILE:
+      // If user has customized their profile, do not overwrite their name with Google default
       await db
-        .prepare('UPDATE users SET google_id = ?, name = COALESCE(NULLIF(?, ""), name), avatar = COALESCE(NULLIF(?, ""), avatar), is_verified = 1 WHERE id = ?')
-        .bind(googleId, userName, userAvatar, user.id)
+        .prepare(`UPDATE users SET 
+          google_id = ?, 
+          avatar = COALESCE(NULLIF(?, ""), avatar), 
+          first_name = COALESCE(first_name, NULLIF(?, "")),
+          last_name = COALESCE(last_name, NULLIF(?, "")),
+          name = COALESCE(name, NULLIF(?, "")),
+          phone = COALESCE(phone, NULLIF(?, "")),
+          failed_login_attempts = 0,
+          locked_until = NULL,
+          is_verified = 1 
+          WHERE id = ?`)
+        .bind(googleId, userAvatar, userFirstName, userLastName, userName, userPhone, user.id)
         .run();
       user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
     } else {
       const initialShareCode = generateShareCode();
       const result = await db
-        .prepare('INSERT INTO users (email, google_id, name, avatar, is_verified, share_code) VALUES (?, ?, ?, ?, 1, ?)')
-        .bind(userEmail, googleId, userName, userAvatar, initialShareCode)
+        .prepare('INSERT INTO users (email, google_id, auth_provider, name, first_name, last_name, phone, avatar, is_verified, share_code) VALUES (?, ?, "google", ?, ?, ?, ?, ?, 1, ?)')
+        .bind(userEmail, googleId, userName, userFirstName, userLastName, userPhone, userAvatar, initialShareCode)
         .run();
       user = {
         id: result.meta.last_row_id,
         email: userEmail,
         name: userName,
+        first_name: userFirstName,
+        last_name: userLastName,
+        phone: userPhone,
         avatar: userAvatar,
         is_verified: 1,
         share_code: initialShareCode

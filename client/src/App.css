@@ -3301,6 +3301,14 @@
   margin-bottom: 16px;
 }
 
+.google-gis-btn-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+}
+
 .google-signin-btn {
   width: 100%;
   display: flex;

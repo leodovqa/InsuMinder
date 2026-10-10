@@ -17,6 +17,9 @@ db.serialize(() => {
     + "email TEXT UNIQUE NOT NULL,"
     + "password_hash TEXT,"
     + "google_id TEXT,"
+    + "auth_provider TEXT DEFAULT 'email',"
+    + "failed_login_attempts INTEGER DEFAULT 0,"
+    + "locked_until TIMESTAMP,"
     + "name TEXT,"
     + "first_name TEXT,"
     + "last_name TEXT,"
@@ -24,7 +27,12 @@ db.serialize(() => {
     + "avatar TEXT,"
     + "is_verified BOOLEAN DEFAULT 0,"
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-    + ")");
+    + ")", () => {
+      // Auto-migrate new columns
+      db.run("ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'email'", () => {});
+      db.run("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0", () => {});
+      db.run("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP", () => {});
+    });
 
   // Verification codes table
   db.run("CREATE TABLE IF NOT EXISTS verification_codes ("
@@ -123,18 +131,19 @@ function generateShareCode() {
   return code;
 }
 
-function createUser({ email, password_hash, google_id, name, first_name, last_name, phone, avatar, is_verified = 0, share_code }, callback) {
+function createUser({ email, password_hash, google_id, auth_provider = 'email', name, first_name, last_name, phone, avatar, is_verified = 0, share_code }, callback) {
   const cleanEmail = String(email).trim().toLowerCase();
   const code = share_code || generateShareCode();
   const cleanFirst = first_name ? String(first_name).trim() : null;
   const cleanLast = last_name ? String(last_name).trim() : null;
   const cleanPhone = phone ? String(phone).trim() : null;
   const fullName = name || [cleanFirst, cleanLast].filter(Boolean).join(' ') || '';
+  const provider = auth_provider || (google_id ? 'google' : 'email');
 
   const stmt = db.prepare(
-    "INSERT INTO users (email, password_hash, google_id, name, first_name, last_name, phone, avatar, is_verified, share_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO users (email, password_hash, google_id, auth_provider, name, first_name, last_name, phone, avatar, is_verified, share_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
-  stmt.run(cleanEmail, password_hash || null, google_id || null, fullName, cleanFirst, cleanLast, cleanPhone, avatar || '', is_verified ? 1 : 0, code, function(err) {
+  stmt.run(cleanEmail, password_hash || null, google_id || null, provider, fullName, cleanFirst, cleanLast, cleanPhone, avatar || '', is_verified ? 1 : 0, code, function(err) {
     if (err) return callback(err);
     callback(null, {
       id: this.lastID,
@@ -145,7 +154,8 @@ function createUser({ email, password_hash, google_id, name, first_name, last_na
       phone: cleanPhone,
       avatar: avatar || '',
       is_verified: Boolean(is_verified),
-      share_code: code
+      share_code: code,
+      auth_provider: provider
     });
   });
   stmt.finalize();
@@ -158,7 +168,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -197,6 +207,18 @@ function updateUser(id, updates, callback) {
   if (updates.google_id !== undefined) {
     fields.push("google_id = ?");
     values.push(updates.google_id);
+  }
+  if (updates.auth_provider !== undefined) {
+    fields.push("auth_provider = ?");
+    values.push(updates.auth_provider);
+  }
+  if (updates.failed_login_attempts !== undefined) {
+    fields.push("failed_login_attempts = ?");
+    values.push(updates.failed_login_attempts);
+  }
+  if (updates.locked_until !== undefined) {
+    fields.push("locked_until = ?");
+    values.push(updates.locked_until);
   }
   if (updates.is_verified !== undefined) {
     fields.push("is_verified = ?");

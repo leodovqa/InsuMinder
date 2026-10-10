@@ -43,11 +43,15 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Dynamic State Cards:** Real-time countdowns for 10-minute meal window, 2-hour check, and 3-hour eligibility status.
 - **Daily Metrics:** Real-time summary tiles showing today's injection count and the exact time of the last dose.
 
-### 2. Passwordless Authentication & Profile Management
+### 2. Authentication, Google OAuth & Security Controls
 - **Magic Code Authentication:** Passwordless login and registration via 6-digit email verification codes (10-minute expiry).
+- **Google Identity Services (GIS) Sign-In & Sign-Up:** Authentic Google OAuth popup / One Tap prompt in Google Chrome and modern browsers, providing one-click authentication and automated account creation.
+- **Provider Tracking & Duplicate Email Protection:** Tracks `auth_provider` (`google` vs `email`) in the database. If a user registered with Google attempts to register with email/password (or vice-versa), registration is rejected with `"This email is already registered. Please log in."` without disclosing the underlying registration provider.
+- **Brute-Force Protection & Account Lockout:** Tracks consecutive failed login attempts (`failed_login_attempts`). After 5 consecutive incorrect passwords, the account is locked for 10 minutes (`locked_until` in DB), returning a 429 status code with the remaining lockout duration. Counter resets to 0 upon successful login.
+- **Profile Name Synchronization & Preservation:** When registering via Google, initial profile details (`first_name`, `last_name`, `phone`) are populated from Google. When a user customizes their name in Profile, the customized name is permanently preserved and prioritized across all navigation surfaces (sidebar drawer, user badge, and header) without being overwritten on subsequent Google logins.
 - **User Scoping:** All injection logs, configurations, and groups are strictly scoped to the authenticated user.
 - **User Profile:** Dedicated Profile management screen allowing users to update their First Name, Last Name, and Phone number with input validation (letters-only for names).
-- **Drawer Navigation:** Displays the user's full name, email, and quick access navigation.
+- **Drawer Navigation:** Displays the user's prioritized display name, email, and quick access navigation.
 
 ### 3. Caregiver & Family Shared Access (Groups)
 - **Shared Access System:** Patients and caregivers can share tracking data seamlessly.

@@ -357,6 +357,48 @@ describe('Authentication & User Experience Tests', () => {
       });
     });
 
+    it('displays lockout error banner when account is locked after 5 failed attempts', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          success: false,
+          locked: true,
+          error: 'Too many failed login attempts. Your account has been locked for 10 minutes.'
+        })
+      });
+
+      render(<AuthModal isOpen={true} initialMode="login" onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+      const emailInput = screen.getByLabelText(/Email Address/i);
+      const passwordInput = screen.getByLabelText(/Password/i);
+      const submitBtn = screen.getByRole('button', { name: /^Sign In$/i });
+
+      fireEvent.change(emailInput, { target: { value: 'locked@example.com' } });
+      fireEvent.change(passwordInput, { target: { value: 'WrongPass123' } });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Too many failed login attempts\. Your account has been locked for 10 minutes/i)).toBeInTheDocument();
+      });
+    });
+
+    it('displays error banner when Google authentication fails', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          success: false,
+          error: 'This email is already registered. Please log in.'
+        })
+      });
+
+      render(<AuthModal isOpen={true} initialMode="login" onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+      const googleBtn = screen.getByRole('button', { name: /Continue with Google/i });
+      fireEvent.click(googleBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/This email is already registered\. Please log in\./i)).toBeInTheDocument();
+      });
+    });
+
     it('does not close AuthModal on backdrop click, only when X button is clicked', () => {
       const onCloseMock = vi.fn();
       render(<AuthModal isOpen={true} initialMode="login" onClose={onCloseMock} onSuccess={vi.fn()} />);

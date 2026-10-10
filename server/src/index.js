@@ -44,15 +44,15 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long.' });
     }
 
-    // Check if verified user already exists
+    // Check if user already exists (registered via Google or email)
     const existingUser = await new Promise((resolve, reject) => {
       db.getUserByEmail(cleanEmail, (err, user) => (err ? reject(err) : resolve(user)));
     });
 
-    if (existingUser && existingUser.is_verified) {
+    if (existingUser) {
       return res.status(400).json({
         success: false,
-        error: 'An account with this email already exists. Please log in.'
+        error: 'This email is already registered. Please log in.'
       });
     }
 
@@ -164,9 +164,17 @@ app.post('/api/auth/verify', async (req, res) => {
       db.getUserByEmail(cleanEmail, (err, u) => (err ? reject(err) : resolve(u)));
     });
 
+    if (user && (user.is_verified || user.google_id || user.password_hash)) {
+      return res.status(400).json({
+        success: false,
+        error: 'This email is already registered. Please log in.'
+      });
+    }
+
     if (user) {
       const updates = {
         password_hash: record.password_hash,
+        auth_provider: 'email',
         is_verified: 1
       };
       if (cleanFirst) updates.first_name = cleanFirst;
@@ -185,6 +193,7 @@ app.post('/api/auth/verify', async (req, res) => {
         db.createUser({
           email: cleanEmail,
           password_hash: record.password_hash,
+          auth_provider: 'email',
           name: fullName,
           first_name: cleanFirst,
           last_name: cleanLast,
@@ -238,13 +247,47 @@ app.post('/api/auth/login', async (req, res) => {
       db.getUserByEmail(cleanEmail, (err, u) => (err ? reject(err) : resolve(u)));
     });
 
-    if (!user || !user.is_verified || !user.password_hash) {
+    if (!user) {
       return res.status(400).json({ success: false, error: 'Invalid email or password' });
     }
 
-    const isMatch = verifyPassword(String(password), user.password_hash);
+    // Check account lockout (10 minutes after 5 failed attempts)
+    if (user.locked_until) {
+      const lockExpiry = new Date(user.locked_until).getTime();
+      const now = Date.now();
+      if (lockExpiry > now) {
+        const remainingMinutes = Math.max(1, Math.ceil((lockExpiry - now) / 60000));
+        return res.status(429).json({
+          success: false,
+          locked: true,
+          error: `Too many failed login attempts. Your account has been locked. Please try again in ${remainingMinutes} minute(s).`
+        });
+      }
+    }
+
+    const isMatch = (user.is_verified && user.password_hash)
+      ? verifyPassword(String(password), user.password_hash)
+      : false;
+
     if (!isMatch) {
-      return res.status(400).json({ success: false, error: 'Invalid email or password' });
+      const attempts = (user.failed_login_attempts || 0) + 1;
+      if (attempts >= 5) {
+        const lockedUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        await new Promise((resolve) => db.updateUser(user.id, { failed_login_attempts: attempts, locked_until: lockedUntil }, resolve));
+        return res.status(429).json({
+          success: false,
+          locked: true,
+          error: 'Too many failed login attempts. Your account has been locked for 10 minutes.'
+        });
+      } else {
+        await new Promise((resolve) => db.updateUser(user.id, { failed_login_attempts: attempts }, resolve));
+        return res.status(400).json({ success: false, error: 'Invalid email or password' });
+      }
+    }
+
+    // Login successful: reset failed attempts and lockout
+    if (user.failed_login_attempts > 0 || user.locked_until) {
+      await new Promise((resolve) => db.updateUser(user.id, { failed_login_attempts: 0, locked_until: null }, resolve));
     }
 
     if (shareCode) {
@@ -281,13 +324,19 @@ app.post('/api/auth/google', async (req, res) => {
 
     let userEmail = '';
     let userName = '';
+    let userFirstName = '';
+    let userLastName = '';
+    let userPhone = '';
     let userAvatar = '';
     let googleId = '';
 
-    if (dev || !credential || credential === 'dev-google-login') {
+    if (dev || credential === 'dev-google-login') {
       // Local dev / test Google sign-in
       userEmail = (devEmail && String(devEmail).trim().toLowerCase()) || 'google.user@insuminder.app';
-      userName = devName || 'Google User';
+      userFirstName = req.body.firstName || (devName ? String(devName).split(' ')[0] : 'Google');
+      userLastName = req.body.lastName || (devName && String(devName).split(' ').length > 1 ? String(devName).split(' ').slice(1).join(' ') : 'User');
+      userName = devName || `${userFirstName} ${userLastName}`.trim();
+      userPhone = req.body.phone || '';
       userAvatar = devAvatar || '';
       googleId = 'dev-google-' + userEmail;
     } else {
@@ -297,7 +346,10 @@ app.post('/api/auth/google', async (req, res) => {
         if (parts.length === 3) {
           const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
           userEmail = payload.email ? payload.email.toLowerCase() : '';
-          userName = payload.name || payload.given_name || '';
+          userFirstName = payload.given_name || (payload.name ? payload.name.split(' ')[0] : '');
+          userLastName = payload.family_name || (payload.name && payload.name.split(' ').length > 1 ? payload.name.split(' ').slice(1).join(' ') : '');
+          userName = payload.name || `${userFirstName} ${userLastName}`.trim() || 'Google User';
+          userPhone = payload.phone_number || req.body.phone || '';
           userAvatar = payload.picture || '';
           googleId = payload.sub || '';
         }
@@ -307,7 +359,10 @@ app.post('/api/auth/google', async (req, res) => {
         const tokenInfo = await resp.json().catch(() => null);
         if (tokenInfo && tokenInfo.email) {
           userEmail = tokenInfo.email.toLowerCase();
-          userName = tokenInfo.name || '';
+          userFirstName = tokenInfo.given_name || (tokenInfo.name ? tokenInfo.name.split(' ')[0] : '');
+          userLastName = tokenInfo.family_name || (tokenInfo.name && tokenInfo.name.split(' ').length > 1 ? tokenInfo.name.split(' ').slice(1).join(' ') : '');
+          userName = tokenInfo.name || `${userFirstName} ${userLastName}`.trim() || 'Google User';
+          userPhone = tokenInfo.phone_number || req.body.phone || '';
           userAvatar = tokenInfo.picture || '';
           googleId = tokenInfo.sub || '';
         }
@@ -324,13 +379,31 @@ app.post('/api/auth/google', async (req, res) => {
     });
 
     if (user) {
+      // PRESERVE USER CUSTOM PROFILE:
+      // If user has customized their profile, do NOT overwrite their name with Google default
+      const updates = {
+        google_id: googleId || user.google_id,
+        avatar: userAvatar || user.avatar,
+        is_verified: 1,
+        failed_login_attempts: 0,
+        locked_until: null
+      };
+
+      if (!user.first_name && userFirstName) {
+        updates.first_name = userFirstName;
+      }
+      if (!user.last_name && userLastName) {
+        updates.last_name = userLastName;
+      }
+      if (!user.phone && userPhone) {
+        updates.phone = userPhone;
+      }
+      if (!user.name) {
+        updates.name = userName;
+      }
+
       await new Promise((resolve, reject) => {
-        db.updateUser(user.id, {
-          google_id: googleId,
-          name: userName || user.name,
-          avatar: userAvatar || user.avatar,
-          is_verified: 1
-        }, (err) => (err ? reject(err) : resolve()));
+        db.updateUser(user.id, updates, (err) => (err ? reject(err) : resolve()));
       });
       user = await new Promise((resolve, reject) => {
         db.getUserById(user.id, (err, u) => (err ? reject(err) : resolve(u)));
@@ -340,7 +413,11 @@ app.post('/api/auth/google', async (req, res) => {
         db.createUser({
           email: userEmail,
           google_id: googleId,
+          auth_provider: 'google',
           name: userName,
+          first_name: userFirstName,
+          last_name: userLastName,
+          phone: userPhone,
           avatar: userAvatar,
           is_verified: 1
         }, (err, u) => (err ? reject(err) : resolve(u)));

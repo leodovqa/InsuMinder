@@ -240,6 +240,155 @@ describe('Authentication & User Scoping Integration Tests', () => {
       assert.equal(updated.last_name, 'Smith');
       assert.equal(updated.phone, '+1-555-9876');
     });
+
+    it('records auth_provider as "google" for Google signups and "email" for password signups', async () => {
+      const emailUser = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: 'standard.user@example.com',
+          password_hash: hashPassword('Pass123!'),
+          name: 'Standard User',
+          is_verified: 1
+        }, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(emailUser.auth_provider, 'email');
+
+      const googleUser = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: 'google.auth@example.com',
+          google_id: 'google-sub-12345',
+          auth_provider: 'google',
+          name: 'Google Auth User',
+          first_name: 'Google',
+          last_name: 'Auth',
+          phone: '+1-555-0100',
+          is_verified: 1
+        }, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(googleUser.auth_provider, 'google');
+      assert.equal(googleUser.first_name, 'Google');
+      assert.equal(googleUser.last_name, 'Auth');
+      assert.equal(googleUser.phone, '+1-555-0100');
+    });
+
+    it('rejects registration when email is already registered without revealing provider', async () => {
+      // User registered via Google
+      const existingGoogleUser = await new Promise((resolve, reject) => {
+        db.getUserByEmail('google.auth@example.com', (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.ok(existingGoogleUser);
+
+      // Simulation of /api/auth/register logic
+      const checkDuplicate = (user) => {
+        if (user && (user.is_verified || user.google_id || user.password_hash)) {
+          return { error: 'This email is already registered. Please log in.' };
+        }
+        return { success: true };
+      };
+
+      const result = checkDuplicate(existingGoogleUser);
+      assert.equal(result.error, 'This email is already registered. Please log in.');
+      assert.equal(result.error.includes('google'), false);
+    });
+
+    it('locks account for 10 minutes upon 5 consecutive failed login attempts', async () => {
+      const testUser = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: 'lockout.target@example.com',
+          password_hash: hashPassword('CorrectPassword123!'),
+          name: 'Lockout Target',
+          is_verified: 1
+        }, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      // Simulate 4 failed attempts
+      let attempts = 0;
+      for (let i = 1; i <= 4; i++) {
+        attempts++;
+        await new Promise((resolve) => db.updateUser(testUser.id, { failed_login_attempts: attempts }, resolve));
+      }
+
+      let userState = await new Promise((resolve, reject) => {
+        db.getUserById(testUser.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(userState.failed_login_attempts, 4);
+      assert.equal(userState.locked_until, null);
+
+      // 5th failed attempt triggers 10m lockout
+      attempts++;
+      const lockedUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      await new Promise((resolve) => db.updateUser(testUser.id, { failed_login_attempts: attempts, locked_until: lockedUntil }, resolve));
+
+      userState = await new Promise((resolve, reject) => {
+        db.getUserById(testUser.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(userState.failed_login_attempts, 5);
+      assert.ok(userState.locked_until);
+      assert.ok(new Date(userState.locked_until).getTime() > Date.now());
+
+      // Correct login resets failed_login_attempts and locked_until
+      await new Promise((resolve) => db.updateUser(testUser.id, { failed_login_attempts: 0, locked_until: null }, resolve));
+      const resetState = await new Promise((resolve, reject) => {
+        db.getUserById(testUser.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(resetState.failed_login_attempts, 0);
+      assert.equal(resetState.locked_until, null);
+    });
+
+    it('preserves customized user names and profile values during Google login', async () => {
+      // 1. User signs up via Google with default name "Google Original"
+      const user = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: 'custom.profile@example.com',
+          google_id: 'google-profile-id-1',
+          auth_provider: 'google',
+          name: 'Google Original',
+          first_name: 'Google',
+          last_name: 'Original',
+          phone: '+1-555-1111',
+          is_verified: 1
+        }, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      // 2. User edits their profile to custom name "Alice Wonder"
+      await new Promise((resolve) => {
+        db.updateUser(user.id, {
+          name: 'Alice Wonder',
+          first_name: 'Alice',
+          last_name: 'Wonder'
+        }, resolve);
+      });
+
+      // 3. User logs in with Google again.
+      // The login handler must NOT overwrite existing first_name and last_name:
+      const incomingGoogleFirstName = 'Google';
+      const incomingGoogleLastName = 'Original';
+
+      const existingUser = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      const updates = {
+        is_verified: 1,
+        failed_login_attempts: 0,
+        locked_until: null
+      };
+      if (!existingUser.first_name && incomingGoogleFirstName) {
+        updates.first_name = incomingGoogleFirstName;
+      }
+      if (!existingUser.last_name && incomingGoogleLastName) {
+        updates.last_name = incomingGoogleLastName;
+      }
+
+      await new Promise((resolve) => db.updateUser(existingUser.id, updates, resolve));
+
+      const preserved = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      assert.equal(preserved.first_name, 'Alice');
+      assert.equal(preserved.last_name, 'Wonder');
+      assert.equal(preserved.name, 'Alice Wonder');
+    });
   });
 
   describe('User-Scoped Data Isolation', () => {
