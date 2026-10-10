@@ -49,9 +49,14 @@ describe('Utility Functions & Helpers', () => {
       expect(getTabFromUrl('?tab=settings')).toBe('settings');
     });
 
+    it('returns "profile" when page=profile or tab=profile is present', () => {
+      expect(getTabFromUrl('?page=profile')).toBe('profile');
+      expect(getTabFromUrl('?tab=profile')).toBe('profile');
+    });
+
     it('falls back to "home" for unknown page values', () => {
       expect(getTabFromUrl('?page=unknown')).toBe('home');
-      expect(getTabFromUrl('?page=profile')).toBe('home');
+      expect(getTabFromUrl('?page=billing')).toBe('home');
     });
   });
 
@@ -68,6 +73,11 @@ describe('Utility Functions & Helpers', () => {
     it('updates URL search params to ?page=settings for settings tab', () => {
       updateUrlForTab('settings');
       expect(window.location.search).toContain('page=settings');
+    });
+
+    it('updates URL search params to ?page=profile for profile tab', () => {
+      updateUrlForTab('profile');
+      expect(window.location.search).toContain('page=profile');
     });
 
     it('removes page parameter when navigating to home', () => {

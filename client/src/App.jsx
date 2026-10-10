@@ -18,6 +18,7 @@ import {
   getReminderStatus
 } from './utils';
 import AuthModal from './AuthModal';
+import Profile from './Profile';
 import { authService } from './authService';
 
 function LiveClock() {
@@ -900,6 +901,8 @@ function App() {
     switch (activeTab) {
       case 'logs':
         return 'Injection Logs';
+      case 'profile':
+        return 'Profile';
       case 'settings':
         return 'Settings';
       case 'home':
@@ -1016,6 +1019,18 @@ function App() {
 
           <button
             type="button"
+            className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('profile');
+              setIsNavOpen(false);
+            }}
+          >
+            <span className="nav-icon" role="img" aria-label="profile">👤</span>
+            <span className="nav-label">Profile</span>
+          </button>
+
+          <button
+            type="button"
             className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('settings');
@@ -1030,7 +1045,22 @@ function App() {
         {/* Bottom of sidebar: Log In / Sign Out button */}
         <div className="nav-footer">
           {isLoggedIn && user ? (
-            <div className="nav-user-badge">
+            <div
+              className="nav-user-badge"
+              onClick={() => {
+                setActiveTab('profile');
+                setIsNavOpen(false);
+              }}
+              role="button"
+              tabIndex={0}
+              title="View Profile"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setActiveTab('profile');
+                  setIsNavOpen(false);
+                }
+              }}
+            >
               <div className="nav-user-avatar">
                 {((user.firstName || user.name || user.email || 'U')[0]).toUpperCase()}
               </div>
@@ -1067,9 +1097,22 @@ function App() {
 
       {/* Common Notification Banner */}
       {notification && (
-        <div className={`alert-banner alert-${notification.type}`} role="alert">
-          <span className="alert-icon">{notification.type === 'success' ? '✅' : '⚠️'}</span>
-          <span className="alert-text">{notification.message}</span>
+        <div
+          className={`alert-banner alert-${
+            typeof notification === 'object' ? notification.type : 'info'
+          }`}
+          role="alert"
+        >
+          <span className="alert-icon">
+            {typeof notification === 'object' && notification.type === 'success'
+              ? '✅'
+              : typeof notification === 'object' && notification.type === 'error'
+              ? '❌'
+              : '⚠️'}
+          </span>
+          <span className="alert-text">
+            {typeof notification === 'object' ? notification.message : notification}
+          </span>
           <button
             type="button"
             className="alert-close-btn"
@@ -1855,6 +1898,21 @@ function App() {
             )}
           </div>
         </section>
+      )}
+
+      {/* VIEW 2.5: PROFILE */}
+      {activeTab === 'profile' && (
+        <Profile
+          user={user}
+          onUpdateUser={(updatedUser) => {
+            setUser(updatedUser);
+          }}
+          isLoggedIn={isLoggedIn}
+          onOpenLogin={() => {
+            setAuthModalMode('login');
+            setIsAuthModalOpen(true);
+          }}
+        />
       )}
 
       {/* VIEW 3: SETTINGS (Language & Telegram) */}

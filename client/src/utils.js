@@ -3,7 +3,7 @@ export const pad2 = (num) => String(num).padStart(2, '0');
 export const getTabFromUrl = (search = typeof window !== 'undefined' ? window.location.search : '') => {
   const params = new URLSearchParams(search);
   const page = params.get('page') || params.get('tab');
-  if (page === 'logs' || page === 'settings') {
+  if (page === 'logs' || page === 'settings' || page === 'profile') {
     return page;
   }
   return 'home';
@@ -12,7 +12,7 @@ export const getTabFromUrl = (search = typeof window !== 'undefined' ? window.lo
 export const updateUrlForTab = (tab) => {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  if (tab === 'logs' || tab === 'settings') {
+  if (tab === 'logs' || tab === 'settings' || tab === 'profile') {
     url.searchParams.set('page', tab);
   } else {
     url.searchParams.delete('page');
