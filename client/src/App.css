@@ -2871,9 +2871,9 @@
 .auth-required-banner {
   position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.82) 100%);
   border: 1px solid rgba(56, 189, 248, 0.28);
   border-radius: 16px;
@@ -2903,7 +2903,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
@@ -2951,8 +2951,9 @@
 .auth-hero-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
 }
 
 .auth-hero-btn {
@@ -2996,10 +2997,8 @@
 @media (max-width: 640px) {
   .auth-hero-banner,
   .auth-required-banner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
     padding: 18px 16px;
+    gap: 14px;
   }
 
   .auth-hero-content {
@@ -3009,6 +3008,7 @@
   .auth-hero-actions {
     width: 100%;
     display: flex;
+    justify-content: center;
     gap: 10px;
   }
 
