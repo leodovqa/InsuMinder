@@ -75,8 +75,8 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 
 ### 6. Automated Background Delivery & Cloud Cron
 - **Production Serverless Architecture:** Hosted on Cloudflare Pages Functions with zero cold-start costs.
-- **Automated Cron Trigger:** Scheduled GitHub Actions workflow ([`.github/workflows/cron.yml`](.github/workflows/cron.yml)) pings the `/api/cron` endpoint every 5 minutes 24/7.
-- **Automated Run Cleanup:** Scheduled workflow ([`.github/workflows/cleanup-runs.yml`](.github/workflows/cleanup-runs.yml)) runs every 6 hours (4 times daily) to purge accumulated cron logs and keep the GitHub Actions tab clean.
+- **Dedicated Cloud Cron Trigger:** Scheduled via high-precision external cloud cron (e.g. cron-job.org) pinging the `/api/cron` endpoint every 5 minutes 24/7 with zero queue delay.
+- **Opportunistic Edge Dispatch:** Reminders are also verified and dispatched opportunistically on the edge on every injection log via `context.waitUntil()`.
 
 ---
 
@@ -111,8 +111,7 @@ InsuMinder/
 │   │   └── index.js            # Server entrypoint (Port 5000)
 │   └── test/                   # Node.js built-in runner integration tests
 ├── .github/workflows/
-│   ├── cron.yml                # 5-minute production cron trigger
-│   └── cleanup-runs.yml        # 6-hour automated run history cleanup
+│   └── ci.yml                  # CI pipeline: lint, functions parity & automated tests
 ├── DEVELOPMENT.md              # Cloudflare Pages & D1 deployment manual
 ├── WORKFLOW.md                 # Agent coding standards & schema specification
 └── rules.md                    # Core project governance & collaboration rules
