@@ -1,8 +1,10 @@
-import { dispatchDueNotifications } from './_telegram.js';
+import { ensureTablesExist, dispatchDueNotifications } from './_telegram.js';
+import { getAuthUser, getEffectiveUserId } from './_auth.js';
 
 export async function onRequestPost(context) {
   try {
-    const db = context.env.DB;
+    const { request, env } = context;
+    const db = env.DB;
     if (!db) {
       return new Response(
         JSON.stringify({
@@ -19,55 +21,33 @@ export async function onRequestPost(context) {
       );
     }
 
-    // Ensure table exists
-    await db.prepare(
-      `CREATE TABLE IF NOT EXISTS injection_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        injected_at TIMESTAMP NOT NULL,
-        notify_10m_at TIMESTAMP,
-        notify_2h_at TIMESTAMP NOT NULL,
-        notify_3h_at TIMESTAMP NOT NULL,
-        status_10m_sent BOOLEAN DEFAULT 0,
-        status_2h_sent BOOLEAN DEFAULT 0,
-        status_3h_sent BOOLEAN DEFAULT 0,
-        error_10m TEXT,
-        error_2h TEXT,
-        error_3h TEXT
-      )`
-    ).run();
+    await ensureTablesExist(db);
 
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN notify_10m_at TIMESTAMP`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN status_10m_sent BOOLEAN DEFAULT 0`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_10m TEXT`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_2h TEXT`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_3h TEXT`).run();
-    } catch (err) {
-      void err;
+    const authUser = await getAuthUser(request, env);
+    if (!authUser || !authUser.userId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Authentication required. Please sign in.'
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
     }
 
+    const userId = await getEffectiveUserId(request, env, authUser, db);
     const now = new Date();
     const currentMinute = now.toISOString().slice(0, 16);
 
-    // Check if an injection was already logged this same minute
+    // Check if an injection was already logged this same minute by this user
     const latest = await db
-      .prepare("SELECT injected_at FROM injection_logs ORDER BY injected_at DESC LIMIT 1")
+      .prepare("SELECT injected_at FROM injection_logs WHERE user_id = ? ORDER BY injected_at DESC LIMIT 1")
+      .bind(userId)
       .first();
 
     if (latest && latest.injected_at && latest.injected_at.slice(0, 16) === currentMinute) {
@@ -92,8 +72,8 @@ export async function onRequestPost(context) {
     const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
 
     const info = await db
-      .prepare("INSERT INTO injection_logs (injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?)")
-      .bind(injected_at, notify_10m_at, notify_2h_at, notify_3h_at)
+      .prepare("INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at)
       .run();
 
     // Opportunistically check and dispatch notifications in background
@@ -104,7 +84,7 @@ export async function onRequestPost(context) {
     return new Response(
       JSON.stringify({
         success: true,
-        id: info.meta?.last_row_id || 1
+        id: info.meta.last_row_id
       }),
       {
         status: 200,
@@ -116,7 +96,10 @@ export async function onRequestPost(context) {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ success: false, error: err.message }),
+      JSON.stringify({
+        success: false,
+        error: err.message
+      }),
       {
         status: 500,
         headers: {
@@ -134,7 +117,8 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-auth-token, x-active-context, x-active-owner-id'
     }
   });
 }
+

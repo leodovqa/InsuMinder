@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '../App';
+import { authService } from '../authService';
 
 describe('App Component - Home & Logs UI Tests', () => {
   const mockLogs = [
@@ -26,11 +27,19 @@ describe('App Component - Home & Logs UI Tests', () => {
     }
   ];
 
+  const mockUser = { id: 1, email: 'patient@health.org', name: 'Test Patient' };
+
   beforeEach(() => {
     localStorage.clear();
+    authService.setSession('test-token', mockUser);
     window.history.pushState({}, '', '/');
 
     globalThis.fetch = vi.fn().mockImplementation((url, options) => {
+      if (url === '/api/auth/me') {
+        return Promise.resolve({
+          json: () => Promise.resolve({ success: true, user: mockUser })
+        });
+      }
       if (url === '/api/logs') {
         return Promise.resolve({
           json: () => Promise.resolve({ success: true, logs: mockLogs })
@@ -81,6 +90,7 @@ describe('App Component - Home & Logs UI Tests', () => {
   });
 
   afterEach(() => {
+    authService.clearSession();
     vi.restoreAllMocks();
   });
 
@@ -166,6 +176,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       ];
 
       globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({
             json: () => Promise.resolve({ success: true, logs: multiDayLogs })
@@ -229,6 +242,9 @@ describe('App Component - Home & Logs UI Tests', () => {
 
     it('displays Ready to Inject when no injections exist or > 3h have passed', async () => {
       globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({
             json: () => Promise.resolve({ success: true, logs: [] })
@@ -376,6 +392,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       ];
 
       globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({
             json: () => Promise.resolve({ success: true, logs: statusMockLogs })
@@ -508,6 +527,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       };
 
       globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({
             json: () => Promise.resolve({ success: true, logs: [yesterdayLog2, yesterdayLog1] })
@@ -545,6 +567,9 @@ describe('App Component - Home & Logs UI Tests', () => {
 
     it('renders empty state when no injections are recorded at all', async () => {
       globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({
             json: () => Promise.resolve({ success: true, logs: [] })
@@ -653,6 +678,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       ];
 
       globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
         }
@@ -687,6 +715,9 @@ describe('App Component - Home & Logs UI Tests', () => {
 
     it('displays error notification when test telegram call fails', async () => {
       globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({
             json: () => Promise.resolve({ success: true, logs: mockLogs })
@@ -736,6 +767,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       ];
 
       globalThis.fetch = vi.fn().mockImplementation((url, options) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
         }
@@ -779,6 +813,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       ];
 
       globalThis.fetch = vi.fn().mockImplementation((url, options) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
         }
@@ -840,6 +877,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       ];
 
       globalThis.fetch = vi.fn().mockImplementation((url, options) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
         if (url === '/api/logs') {
           return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
         }

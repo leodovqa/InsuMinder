@@ -25,28 +25,40 @@ async function checkAndDispatchNotifications() {
       db.expireAncientNotifications(cutoff24hAgo, () => resolve());
     });
 
-    // 1. Retrieve current default Telegram configuration
-    const activeConfig = await new Promise((resolve, reject) => {
-      db.getDefaultTelegramConfig((err, res) => (err ? reject(err) : resolve(res)));
-    });
-
-    const isTelegramConfigured = Boolean(
-      activeConfig &&
-      activeConfig.bot_token &&
-      activeConfig.chat_id &&
-      activeConfig.bot_token.trim() &&
-      activeConfig.chat_id.trim()
-    );
-
-    // 2. Fetch pending due injection notifications
+    // Fetch pending due injection notifications
     const dueLogs = await new Promise((resolve, reject) => {
       db.getDueNotifications((err, rows) => (err ? reject(err) : resolve(rows || [])));
     });
 
-    // If Telegram is not configured, record descriptive error on due logs
-    if (!isTelegramConfigured) {
-      const unconfiguredError = "Telegram is not configured. Go to Settings to set up your destination.";
-      for (const log of dueLogs) {
+    if (!dueLogs || dueLogs.length === 0) {
+      isChecking = false;
+      return;
+    }
+
+    const unconfiguredError = "Telegram is not configured. Go to Settings to set up your destination.";
+
+    for (const log of dueLogs) {
+      // Find the user's specific Telegram config, or global fallback
+      const activeConfig = await new Promise((resolve) => {
+        if (log.user_id) {
+          db.getDefaultTelegramConfig(log.user_id, (err, cfg) => {
+            if (!err && cfg) return resolve(cfg);
+            db.getDefaultTelegramConfig((gErr, gCfg) => resolve(gCfg || null));
+          });
+        } else {
+          db.getDefaultTelegramConfig((err, cfg) => resolve(cfg || null));
+        }
+      });
+
+      const isTelegramConfigured = Boolean(
+        activeConfig &&
+        activeConfig.bot_token &&
+        activeConfig.chat_id &&
+        activeConfig.bot_token.trim() &&
+        activeConfig.chat_id.trim()
+      );
+
+      if (!isTelegramConfigured) {
         if (!log.status_10m_sent && log.notify_10m_at <= nowIso && (!log.error_10m || log.error_10m !== unconfiguredError)) {
           await new Promise((resolve) => db.recordNotificationError(log.id, '10m', unconfiguredError, resolve));
         }
@@ -56,15 +68,12 @@ async function checkAndDispatchNotifications() {
         if (!log.status_3h_sent && log.notify_3h_at <= nowIso && (!log.error_3h || log.error_3h !== unconfiguredError)) {
           await new Promise((resolve) => db.recordNotificationError(log.id, '3h', unconfiguredError, resolve));
         }
+        continue;
       }
-      isChecking = false;
-      return;
-    }
 
-    const botToken = activeConfig.bot_token.trim();
-    const chatId = activeConfig.chat_id.trim();
+      const botToken = activeConfig.bot_token.trim();
+      const chatId = activeConfig.chat_id.trim();
 
-    for (const log of dueLogs) {
       // 10-minute meal notification
       if (!log.status_10m_sent && log.notify_10m_at <= nowIso) {
         console.log(`[Scheduler] Dispatching 10m meal reminder for injection #${log.id}...`);
@@ -111,28 +120,35 @@ async function checkAndDispatchNotifications() {
   }
 }
 
+/**
+ * Start the polling scheduler at a given interval
+ * @param {number} intervalMs - Poll interval in milliseconds (default: 30000)
+ */
 function startScheduler(intervalMs = 30000) {
   if (schedulerInterval) return;
+
   console.log(`[Scheduler] Starting notification scheduler (interval: ${intervalMs / 1000}s)`);
-  // Run an immediate check on startup
+  // Run once immediately on start
   checkAndDispatchNotifications();
   schedulerInterval = setInterval(checkAndDispatchNotifications, intervalMs);
 }
 
+/**
+ * Stop the polling scheduler
+ */
 function stopScheduler() {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('[Scheduler] Notification scheduler stopped');
+    console.log('[Scheduler] Notification scheduler stopped.');
   }
 }
 
 module.exports = {
-  startScheduler,
-  stopScheduler,
-  checkAndDispatchNotifications,
   MESSAGE_10M,
   MESSAGE_2H,
-  MESSAGE_3H
+  MESSAGE_3H,
+  checkAndDispatchNotifications,
+  startScheduler,
+  stopScheduler
 };
-
