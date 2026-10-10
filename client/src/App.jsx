@@ -1099,50 +1099,14 @@ function App() {
                           <span className="expanded-label">10m Meal Target:</span>
                           <span className="expanded-value">{formatDateTime(latest10m.targetTime)}</span>
                         </div>
-                        {latest10m.status === 'failed' && (
-                          <div
-                            className="expanded-row expanded-error-row"
-                            onClick={() => handleOpenReminderModal(latestLog, '10m')}
-                            role="button"
-                            tabIndex={0}
-                            title="Click to view details"
-                          >
-                            <span className="expanded-label">10m Delivery:</span>
-                            <span className="expanded-value error-text">⚠️ Not Sent — {latest10m.friendlyError?.category || latest10m.title}</span>
-                          </div>
-                        )}
                         <div className="expanded-row">
                           <span className="expanded-label">2h Target Time:</span>
                           <span className="expanded-value">{formatDateTime(latestLog.notify_2h_at)}</span>
                         </div>
-                        {latest2h.status === 'failed' && (
-                          <div
-                            className="expanded-row expanded-error-row"
-                            onClick={() => handleOpenReminderModal(latestLog, '2h')}
-                            role="button"
-                            tabIndex={0}
-                            title="Click to view details"
-                          >
-                            <span className="expanded-label">2h Delivery:</span>
-                            <span className="expanded-value error-text">⚠️ Not Sent — {latest2h.friendlyError?.category || latest2h.title}</span>
-                          </div>
-                        )}
                         <div className="expanded-row">
                           <span className="expanded-label">3h Target Time:</span>
                           <span className="expanded-value">{formatDateTime(latestLog.notify_3h_at)}</span>
                         </div>
-                        {latest3h.status === 'failed' && (
-                          <div
-                            className="expanded-row expanded-error-row"
-                            onClick={() => handleOpenReminderModal(latestLog, '3h')}
-                            role="button"
-                            tabIndex={0}
-                            title="Click to view details"
-                          >
-                            <span className="expanded-label">3h Delivery:</span>
-                            <span className="expanded-value error-text">⚠️ Not Sent — {latest3h.friendlyError?.category || latest3h.title}</span>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
