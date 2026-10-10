@@ -260,19 +260,66 @@ describe('Telegram Notification Integration Tests', () => {
   });
 
   describe('Scheduler Messages Specification', () => {
-    it('has exact notification message formats as requested', () => {
+    it('has enhanced notification message formats with icons, local prefix, and dose time', () => {
+      // Local defaults (without specific dose time)
       assert.strictEqual(
         scheduler.MESSAGE_10M,
-        'From InsuMinder:\n10 minutes have passed since your injection. You can now start your meal.'
+        '🍽️ From InsuMinder (Local):\n⏰ Meal Time Reminder\n\n10 minutes have passed since your injection. You can now start your meal!'
       );
       assert.strictEqual(
         scheduler.MESSAGE_2H,
-        'From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.'
+        '🩸 From InsuMinder (Local):\n⏰ 2-Hour Glucose Check\n\nPlease go and check your Glucose level after 2 Hours.'
       );
       assert.strictEqual(
         scheduler.MESSAGE_3H,
-        'From InsuMinder:\nPlease go and check your Glucose level after 3 Hours.'
+        '🎯 From InsuMinder (Local):\n⏰ 3-Hour Injection Eligibility\n\n3 hours have passed since your injection. Safe window reached for your next dose if needed.'
       );
+
+      // Production builder with dose time (ISO timestamp)
+      const testIso = '2026-10-10T14:30:00.000Z';
+      const expectedTime = scheduler.formatDoseTime(testIso);
+      const prodMsg10m = scheduler.buildMessage10m(testIso, false);
+      assert.match(prodMsg10m, /🍽️ From InsuMinder:/);
+      assert.doesNotMatch(prodMsg10m, /\(Local\)/);
+      assert.match(prodMsg10m, new RegExp(`💉 Dose logged at: ${expectedTime}`));
+
+      const prodMsg2h = scheduler.buildMessage2h(testIso, false);
+      assert.match(prodMsg2h, /🩸 From InsuMinder:/);
+      assert.match(prodMsg2h, new RegExp(`💉 Dose logged at: ${expectedTime}`));
+
+      const prodMsg3h = scheduler.buildMessage3h(testIso, false);
+      assert.match(prodMsg3h, /🎯 From InsuMinder:/);
+      assert.match(prodMsg3h, new RegExp(`💉 Dose logged at: ${expectedTime}`));
+    });
+
+    it('expires stale notifications overdue by more than the threshold to prevent flooding', async () => {
+      // Test stale expiration logic
+      const ancientTime = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // 60 mins overdue (> 45m threshold)
+      const logId = await new Promise((resolve, reject) => {
+        db.db.run(
+          "INSERT INTO injection_logs (injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?)",
+          [ancientTime, ancientTime, ancientTime, ancientTime],
+          function(err) {
+            if (err) return reject(err);
+            resolve(this.lastID);
+          }
+        );
+      });
+
+      // Configure a valid bot
+      await new Promise((resolve, reject) => {
+        db.addTelegramConfig({ name: 'Stale Test', bot_token: 'TOKEN', chat_id: '12345' }, (err) => (err ? reject(err) : resolve()));
+      });
+
+      await scheduler.checkAndDispatchNotifications();
+
+      const logs = await new Promise((resolve, reject) => {
+        db.getLogsFromLast24Hours((err, rows) => (err ? reject(err) : resolve(rows)));
+      });
+      const staleLog = logs.find(l => l.id === logId);
+      // 10m should NOT be sent because it was > 45 minutes overdue
+      assert.strictEqual(staleLog.status_10m_sent, 0);
+      assert.match(staleLog.error_10m, /expired.*overdue/i);
     });
   });
 });

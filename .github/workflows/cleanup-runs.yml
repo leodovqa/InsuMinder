@@ -1,0 +1,24 @@
+name: Cleanup Old Cron Runs
+
+on:
+  schedule:
+    # Run every 12 hours (at 00:00 and 12:00 UTC) to purge accumulated cron run history
+    - cron: '0 0,12 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions UI
+
+jobs:
+  delete-runs:
+    name: Delete Stale Cron Runs
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Delete old cron workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          delete_workflow_pattern: 'cron.yml|cleanup-runs.yml'
+          retain_days: 0
+          keep_minimum_runs: 6
