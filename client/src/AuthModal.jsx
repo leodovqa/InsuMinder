@@ -398,7 +398,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                 id="auth-first-name-input"
                 type="text"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={(e) => setFirstName(e.target.value.replace(/[^\p{L}\s'-]/gu, ''))}
                 placeholder="e.g. Test Name"
                 className="auth-input"
                 required
@@ -416,7 +416,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                 id="auth-last-name-input"
                 type="text"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={(e) => setLastName(e.target.value.replace(/[^\p{L}\s'-]/gu, ''))}
                 placeholder="e.g. Test Last Name"
                 className="auth-input"
                 required
