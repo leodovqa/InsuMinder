@@ -200,16 +200,22 @@ function App() {
         (localStorage.getItem('insuminder_telegram_bot_token') && localStorage.getItem('insuminder_telegram_chat_id')) ||
         (telegramBotToken.trim() && telegramChatId.trim())
       );
+  const latest10m = getReminderStatus(latestLog, '10m', isTelegramConfigured);
   const latest2h = getReminderStatus(latestLog, '2h', isTelegramConfigured);
   const latest3h = getReminderStatus(latestLog, '3h', isTelegramConfigured);
 
   const handleOpenReminderModal = (log, type) => {
     if (!log) return;
     const statusInfo = getReminderStatus(log, type, isTelegramConfigured);
+    const title = type === '10m'
+      ? '10-Minute Meal Reminder'
+      : type === '2h'
+      ? '2-Hour Reminder'
+      : '3-Hour Reminder';
     setReminderModalData({
       ...statusInfo,
       logId: log.id,
-      title: type === '2h' ? '2-Hour Reminder' : '3-Hour Reminder',
+      title,
       formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime) : ''
     });
   };
@@ -589,7 +595,7 @@ function App() {
   const todayLogs = logs.filter(log => formatDateOnly(log.injected_at) === todayDateKey);
   const weekInfo = getWeekDisplayInfo(selectedWeekStart);
   const weeklyData = getWeeklyTrendData(logs, selectedWeekStart);
-  const rapidInjections = getRapidInjections(logs);
+  const rapidInjections = getRapidInjections(logs, todayDateKey);
 
   const getPageTitle = () => {
     switch (activeTab) {
@@ -706,7 +712,7 @@ function App() {
           >
             <span className="nav-icon" role="img" aria-label="logs">📋</span>
             <span className="nav-label">Injection Logs</span>
-            {logs.length > 0 && <span className="badge">{logs.length}</span>}
+            {todayLogs.length > 0 && <span className="badge">{todayLogs.length}</span>}
           </button>
 
           <button
@@ -796,9 +802,9 @@ function App() {
               <span className="log-injection-subtitle">Record the current time as your injection time</span>
             </button>
 
-            {/* Dashboard Tiles Grid: Total Injections & Last Injection */}
+            {/* Dashboard Tiles Grid: Daily Injections & Last Injection */}
             <div className="stats-grid">
-              {/* Tile 1: Total Injections */}
+              {/* Tile 1: Daily Injections */}
               <div
                 className="stat-card"
                 onClick={() => setActiveTab('logs')}
@@ -809,7 +815,7 @@ function App() {
                     setActiveTab('logs');
                   }
                 }}
-                title="View all logs"
+                title="View daily logs"
               >
                 <div className="stat-card-header">
                   <span className="stat-icon-wrapper stat-pulse-icon">
@@ -818,8 +824,8 @@ function App() {
                     </svg>
                   </span>
                 </div>
-                <div className="stat-label">Total Injections</div>
-                <div className="stat-value">{logs.length}</div>
+                <div className="stat-label">Daily Injections</div>
+                <div className="stat-value">{todayLogs.length}</div>
               </div>
 
               {/* Tile 2: Last Injection */}
@@ -863,6 +869,47 @@ function App() {
               <h2 className="section-title">Notifications Scheduled</h2>
 
               <div className="reminder-cards-list">
+                {/* 10-Minute Meal Reminder */}
+                <div className="reminder-card">
+                  <div className="reminder-icon-wrapper meal-icon-wrapper">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+                      <path d="M7 2v20" />
+                      <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+                    </svg>
+                  </div>
+                  <div className="reminder-details">
+                    <div className="reminder-title-row">
+                      <span className="reminder-title">10-Minute Meal Reminder</span>
+                      {latestLog && (
+                        <button
+                          type="button"
+                          className={`reminder-badge reminder-badge-btn ${latest10m.badgeClass}`}
+                          onClick={() => handleOpenReminderModal(latestLog, '10m')}
+                          title={latest10m.title}
+                          aria-label={`10-Minute Meal Reminder: ${latest10m.label}. Click to view details.`}
+                        >
+                          {latest10m.label}
+                        </button>
+                      )}
+                    </div>
+                    {latestLog ? (
+                      <div className="reminder-time-info">
+                        <span className="reminder-timestamp">{formatDateTime(latest10m.targetTime)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latest10m.targetTime)})</span>
+                      </div>
+                    ) : (
+                      <div className="reminder-time-info">
+                        <span className="reminder-timestamp empty">—</span>
+                        <span className="reminder-relative">(No injections logged yet)</span>
+                      </div>
+                    )}
+                    <p className="reminder-description">
+                      You will be reminded 10 minutes after injection that you can start your meal
+                    </p>
+                  </div>
+                </div>
+
                 {/* 2-Hour Reminder */}
                 <div className="reminder-card">
                   <div className="reminder-icon-wrapper">
@@ -968,15 +1015,7 @@ function App() {
               </div>
             ) : (
               <>
-                {/* 1. Header with Total Injections Count */}
-                <div className="logs-header-banner">
-                  <div className="logs-header-badge">
-                    <span className="logs-total-count">{logs.length}</span>
-                    <span className="logs-total-label">Total Injections</span>
-                  </div>
-                </div>
-
-                {/* 2. Latest Injection Tile (Matching Reference Card) */}
+                {/* 1. Latest Injection Tile (Matching Reference Card) */}
                 {latestLog && (
                   <div className="latest-log-card">
                     <div
@@ -1017,6 +1056,17 @@ function App() {
                     <div className="latest-reminders-list">
                       <button
                         type="button"
+                        className={`latest-reminder-pill latest-reminder-pill-btn ${latest10m.pillClass}`}
+                        onClick={() => handleOpenReminderModal(latestLog, '10m')}
+                        title={latest10m.title}
+                        aria-label={`10-Minute Meal Reminder: ${latest10m.pillLabel}. Click to view details.`}
+                      >
+                        <span className="pill-icon">{latest10m.icon}</span>
+                        <span className="pill-text">10m Meal Reminder: {latest10m.pillLabel}</span>
+                      </button>
+
+                      <button
+                        type="button"
                         className={`latest-reminder-pill latest-reminder-pill-btn ${latest2h.pillClass}`}
                         onClick={() => handleOpenReminderModal(latestLog, '2h')}
                         title={latest2h.title}
@@ -1045,6 +1095,22 @@ function App() {
                           <span className="expanded-label">Injected At:</span>
                           <span className="expanded-value">{formatDateTime(latestLog.injected_at)}</span>
                         </div>
+                        <div className="expanded-row">
+                          <span className="expanded-label">10m Meal Target:</span>
+                          <span className="expanded-value">{formatDateTime(latest10m.targetTime)}</span>
+                        </div>
+                        {latest10m.status === 'failed' && (
+                          <div
+                            className="expanded-row expanded-error-row"
+                            onClick={() => handleOpenReminderModal(latestLog, '10m')}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to view details"
+                          >
+                            <span className="expanded-label">10m Delivery:</span>
+                            <span className="expanded-value error-text">⚠️ Not Sent — {latest10m.friendlyError?.category || latest10m.title}</span>
+                          </div>
+                        )}
                         <div className="expanded-row">
                           <span className="expanded-label">2h Target Time:</span>
                           <span className="expanded-value">{formatDateTime(latestLog.notify_2h_at)}</span>
@@ -1082,7 +1148,7 @@ function App() {
                   </div>
                 )}
 
-                {/* 3. Weekly Trends Chart Card (Month Scoped with Weekly Navigation & Swipe) */}
+                {/* 2. Weekly Trends Chart Card (Month Scoped with Weekly Navigation & Swipe) */}
                 <div
                   className="trends-chart-card"
                   onTouchStart={handleTouchStart}
@@ -1223,7 +1289,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* 4. Rapid Injection Trend Warning (< 3h) */}
+                {/* 3. Rapid Injection Trend Warning (< 3h) */}
                 <div className="rapid-trend-card">
                   <div className="rapid-card-header">
                     <div className={`rapid-icon-wrapper ${rapidInjections.rapidList.length > 0 ? 'warning' : 'safe'}`}>
@@ -1248,7 +1314,7 @@ function App() {
                   {rapidInjections.rapidList.length > 0 ? (
                     <div className="rapid-content">
                       <p className="rapid-guidance">
-                        ⚠️ <strong>{rapidInjections.rapidList.length} dose{rapidInjections.rapidList.length === 1 ? '' : 's'}</strong> recorded less than 3 hours after a prior injection. If logged by mistake, take note; if intentional correction, monitor blood glucose closely.
+                        ⚠️ <strong>{rapidInjections.rapidList.length} dose{rapidInjections.rapidList.length === 1 ? '' : 's'}</strong> recorded today less than 3 hours after a prior injection. If logged by mistake, take note; if intentional correction, monitor blood glucose closely.
                       </p>
                       <div className="rapid-incidents-list">
                         {rapidInjections.rapidList.map((item, idx) => (
@@ -1267,13 +1333,13 @@ function App() {
                   ) : (
                     <div className="rapid-clear-content">
                       <span className="rapid-clear-text">
-                        All recorded injections have maintained the recommended 3+ hour spacing. No premature doses detected.
+                        All recorded injections today have maintained the recommended 3+ hour spacing. No premature doses detected.
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* 5. Today's Injection Logs (Daily View) */}
+                {/* 4. Today's Injection Logs (Daily View) */}
                 <div className="daily-logs-section">
                   <div className="daily-logs-header">
                     <div className="daily-logs-title-group">
@@ -1308,10 +1374,26 @@ function App() {
                               </div>
                             </div>
                             {(() => {
+                              const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured);
                               const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured);
                               const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured);
                               return (
                                 <>
+                                  <div className="log-field">
+                                    <span className="log-label">10m Meal:</span>
+                                    <div className="log-value-row">
+                                      <span className="log-value">{formatTimeOnly(logRem10m.targetTime)}</span>
+                                      <button
+                                        type="button"
+                                        className={`log-status-pill log-status-pill-btn ${logRem10m.pillClass}`}
+                                        onClick={() => handleOpenReminderModal(log, '10m')}
+                                        title={logRem10m.title}
+                                        aria-label={`10-Minute Meal Reminder: ${logRem10m.label}. Click to view details.`}
+                                      >
+                                        {logRem10m.icon} {logRem10m.label}
+                                      </button>
+                                    </div>
+                                  </div>
                                   <div className="log-field">
                                     <span className="log-label">2h Reminder:</span>
                                     <div className="log-value-row">
@@ -1487,7 +1569,7 @@ function App() {
                 </div>
 
                 <p className="settings-note">
-                  Notifications are sent 2 and 3 hours after each injection via Telegram. Newly saved destinations are automatically marked as default.
+                  Notifications are sent 10 minutes, 2 hours, and 3 hours after each injection via Telegram. Newly saved destinations are automatically marked as default.
                 </p>
 
                 <div className="form-actions">

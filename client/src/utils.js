@@ -229,7 +229,7 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart) => {
   };
 };
 
-export const getRapidInjections = (logsList) => {
+export const getRapidInjections = (logsList, targetDateKey = null) => {
   const rapidList = [];
   const rapidIds = new Set();
 
@@ -242,6 +242,10 @@ export const getRapidInjections = (logsList) => {
     const threeHoursMs = 3 * 60 * 60 * 1000;
 
     if (diffMs > 0 && diffMs < threeHoursMs) {
+      if (targetDateKey && formatDateOnly(current.injected_at) !== targetDateKey) {
+        continue;
+      }
+
       const diffMinutes = Math.round(diffMs / (60 * 1000));
       const hours = Math.floor(diffMinutes / 60);
       const mins = diffMinutes % 60;
@@ -350,14 +354,23 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true)
     };
   }
 
-  const is2h = type === '2h';
-  const targetTime = is2h ? log.notify_2h_at : log.notify_3h_at;
-  const isSent = Boolean(
-    is2h
-      ? log.status_2h_sent === 1 || log.status_2h_sent === true || log.status_2h_sent === '1'
-      : log.status_3h_sent === 1 || log.status_3h_sent === true || log.status_3h_sent === '1'
-  );
-  const rawError = is2h ? log.error_2h : log.error_3h;
+  let targetTime;
+  let isSent;
+  let rawError;
+
+  if (type === '10m') {
+    targetTime = log.notify_10m_at || (log.injected_at ? new Date(new Date(log.injected_at).getTime() + 10 * 60 * 1000).toISOString() : null);
+    isSent = Boolean(log.status_10m_sent === 1 || log.status_10m_sent === true || log.status_10m_sent === '1');
+    rawError = log.error_10m;
+  } else if (type === '3h') {
+    targetTime = log.notify_3h_at;
+    isSent = Boolean(log.status_3h_sent === 1 || log.status_3h_sent === true || log.status_3h_sent === '1');
+    rawError = log.error_3h;
+  } else {
+    targetTime = log.notify_2h_at;
+    isSent = Boolean(log.status_2h_sent === 1 || log.status_2h_sent === true || log.status_2h_sent === '1');
+    rawError = log.error_2h;
+  }
 
   if (isSent) {
     return {

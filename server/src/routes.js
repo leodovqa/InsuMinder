@@ -5,10 +5,11 @@ const db = new sqlite3.Database('./insuminder.db');
 
 router.post('/api/injections', (req, res) => {
   const now = new Date();
+  const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000);
   const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000);
   const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
-  db.run('INSERT INTO injection_logs (injected_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?)', [now, notify_2h_at, notify_3h_at], function(err) {
+  db.run('INSERT INTO injection_logs (injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?)', [now, notify_10m_at, notify_2h_at, notify_3h_at], function(err) {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
     }

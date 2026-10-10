@@ -24,15 +24,33 @@ export async function onRequestPost(context) {
       `CREATE TABLE IF NOT EXISTS injection_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         injected_at TIMESTAMP NOT NULL,
+        notify_10m_at TIMESTAMP,
         notify_2h_at TIMESTAMP NOT NULL,
         notify_3h_at TIMESTAMP NOT NULL,
+        status_10m_sent BOOLEAN DEFAULT 0,
         status_2h_sent BOOLEAN DEFAULT 0,
         status_3h_sent BOOLEAN DEFAULT 0,
+        error_10m TEXT,
         error_2h TEXT,
         error_3h TEXT
       )`
     ).run();
 
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN notify_10m_at TIMESTAMP`).run();
+    } catch (err) {
+      void err;
+    }
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN status_10m_sent BOOLEAN DEFAULT 0`).run();
+    } catch (err) {
+      void err;
+    }
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_10m TEXT`).run();
+    } catch (err) {
+      void err;
+    }
     try {
       await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_2h TEXT`).run();
     } catch (err) {
@@ -69,12 +87,13 @@ export async function onRequestPost(context) {
     }
 
     const injected_at = now.toISOString();
+    const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
     const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
     const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
 
     const info = await db
-      .prepare("INSERT INTO injection_logs (injected_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?)")
-      .bind(injected_at, notify_2h_at, notify_3h_at)
+      .prepare("INSERT INTO injection_logs (injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?)")
+      .bind(injected_at, notify_10m_at, notify_2h_at, notify_3h_at)
       .run();
 
     // Opportunistically check and dispatch notifications in background

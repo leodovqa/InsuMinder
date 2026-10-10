@@ -4,6 +4,7 @@ const { sendTelegramMessage } = require('./telegram');
 let schedulerInterval = null;
 let isChecking = false;
 
+const MESSAGE_10M = "From InsuMinder:\n10 minutes have passed since your injection. You can now start your meal.";
 const MESSAGE_2H = "From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.";
 const MESSAGE_3H = "From InsuMinder:\nPlease go and check your Glucose level after 3 Hours.";
 
@@ -46,6 +47,9 @@ async function checkAndDispatchNotifications() {
     if (!isTelegramConfigured) {
       const unconfiguredError = "Telegram is not configured. Go to Settings to set up your destination.";
       for (const log of dueLogs) {
+        if (!log.status_10m_sent && log.notify_10m_at <= nowIso && (!log.error_10m || log.error_10m !== unconfiguredError)) {
+          await new Promise((resolve) => db.recordNotificationError(log.id, '10m', unconfiguredError, resolve));
+        }
         if (!log.status_2h_sent && log.notify_2h_at <= nowIso && (!log.error_2h || log.error_2h !== unconfiguredError)) {
           await new Promise((resolve) => db.recordNotificationError(log.id, '2h', unconfiguredError, resolve));
         }
@@ -61,6 +65,19 @@ async function checkAndDispatchNotifications() {
     const chatId = activeConfig.chat_id.trim();
 
     for (const log of dueLogs) {
+      // 10-minute meal notification
+      if (!log.status_10m_sent && log.notify_10m_at <= nowIso) {
+        console.log(`[Scheduler] Dispatching 10m meal reminder for injection #${log.id}...`);
+        const result = await sendTelegramMessage(botToken, chatId, MESSAGE_10M);
+        if (result.ok) {
+          console.log(`[Scheduler] 10m meal reminder sent successfully for #${log.id}`);
+          await new Promise((resolve) => db.markNotificationSent(log.id, '10m', resolve));
+        } else {
+          console.error(`[Scheduler] Failed to send 10m meal reminder for #${log.id}:`, result.error);
+          await new Promise((resolve) => db.recordNotificationError(log.id, '10m', result.error, resolve));
+        }
+      }
+
       // 2-hour notification
       if (!log.status_2h_sent && log.notify_2h_at <= nowIso) {
         console.log(`[Scheduler] Dispatching 2h reminder for injection #${log.id}...`);
@@ -114,6 +131,7 @@ module.exports = {
   startScheduler,
   stopScheduler,
   checkAndDispatchNotifications,
+  MESSAGE_10M,
   MESSAGE_2H,
   MESSAGE_3H
 };

@@ -25,15 +25,33 @@ export async function onRequestGet(context) {
       `CREATE TABLE IF NOT EXISTS injection_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         injected_at TIMESTAMP NOT NULL,
+        notify_10m_at TIMESTAMP,
         notify_2h_at TIMESTAMP NOT NULL,
         notify_3h_at TIMESTAMP NOT NULL,
+        status_10m_sent BOOLEAN DEFAULT 0,
         status_2h_sent BOOLEAN DEFAULT 0,
         status_3h_sent BOOLEAN DEFAULT 0,
+        error_10m TEXT,
         error_2h TEXT,
         error_3h TEXT
       )`
     ).run();
 
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN notify_10m_at TIMESTAMP`).run();
+    } catch (err) {
+      void err;
+    }
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN status_10m_sent BOOLEAN DEFAULT 0`).run();
+    } catch (err) {
+      void err;
+    }
+    try {
+      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_10m TEXT`).run();
+    } catch (err) {
+      void err;
+    }
     try {
       await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_2h TEXT`).run();
     } catch (err) {

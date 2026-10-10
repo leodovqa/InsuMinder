@@ -7,14 +7,22 @@ describe('App Component - Home & Logs UI Tests', () => {
     {
       id: 2,
       injected_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago
+      notify_10m_at: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
       notify_2h_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      notify_3h_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+      notify_3h_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      status_10m_sent: 1,
+      status_2h_sent: 0,
+      status_3h_sent: 0
     },
     {
       id: 1,
       injected_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago (1h gap => rapid dose)
+      notify_10m_at: new Date(Date.now() - 110 * 60 * 1000).toISOString(),
       notify_2h_at: new Date(Date.now()).toISOString(),
-      notify_3h_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+      notify_3h_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      status_10m_sent: 1,
+      status_2h_sent: 0,
+      status_3h_sent: 0
     }
   ];
 
@@ -113,20 +121,98 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
 
-    it('displays dashboard tiles for Total Injections and Last Injection', async () => {
+    it('displays dashboard tiles for Daily Injections and Last Injection', async () => {
       render(<App />);
 
       await waitFor(() => {
-        expect(screen.getByText('Total Injections')).toBeInTheDocument();
+        expect(screen.getByText('Daily Injections')).toBeInTheDocument();
         expect(screen.getByText('Last Injection')).toBeInTheDocument();
       });
     });
 
-    it('renders 2-Hour and 3-Hour Scheduled Notifications cards', async () => {
+    it('scopes Daily Injections tile and sidebar badge to today while Weekly Injections shows week total', async () => {
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const multiDayLogs = [
+        {
+          id: 3,
+          injected_at: new Date().toISOString(), // today
+          notify_10m_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+          notify_2h_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+          notify_3h_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+          status_10m_sent: 0,
+          status_2h_sent: 0,
+          status_3h_sent: 0
+        },
+        {
+          id: 2,
+          injected_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // today
+          notify_10m_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+          notify_2h_at: new Date(Date.now() + 90 * 60 * 1000).toISOString(),
+          notify_3h_at: new Date(Date.now() + 150 * 60 * 1000).toISOString(),
+          status_10m_sent: 1,
+          status_2h_sent: 0,
+          status_3h_sent: 0
+        },
+        {
+          id: 1,
+          injected_at: yesterday.toISOString(), // yesterday
+          notify_10m_at: new Date(yesterday.getTime() + 10 * 60 * 1000).toISOString(),
+          notify_2h_at: new Date(yesterday.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+          notify_3h_at: new Date(yesterday.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+          status_10m_sent: 1,
+          status_2h_sent: 1,
+          status_3h_sent: 1
+        }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/logs') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, logs: multiDayLogs })
+          });
+        }
+        if (url === '/api/settings') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, settings: {} })
+          });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, configs: [] })
+          });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      });
+
+      render(<App />);
+
+      // Daily Injections tile on Home shows 2 (only doses from today)
+      await waitFor(() => {
+        expect(screen.getByText('Daily Injections')).toBeInTheDocument();
+      });
+
+      // Sidebar badge shows 2 (daily count), not 3 (total)
+      const sidebarBadge = document.querySelector('.nav-item .badge');
+      expect(sidebarBadge).toHaveTextContent('2');
+
+      // Navigate to logs: verify top Total Injections banner is gone and weekly chart is present
+      const dailyCard = screen.getByTitle('View daily logs');
+      fireEvent.click(dailyCard);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 1, name: 'Injection Logs' })).toBeInTheDocument();
+        expect(screen.queryByText('Total Injections')).not.toBeInTheDocument();
+        expect(screen.getByText('Weekly Injections')).toBeInTheDocument();
+        expect(screen.getByText('week total')).toBeInTheDocument();
+      });
+    });
+
+    it('renders 10-Minute Meal, 2-Hour, and 3-Hour Scheduled Notifications cards', async () => {
       render(<App />);
 
       await waitFor(() => {
         expect(screen.getByText('Notifications Scheduled')).toBeInTheDocument();
+        expect(screen.getByText('10-Minute Meal Reminder')).toBeInTheDocument();
         expect(screen.getByText('2-Hour Reminder')).toBeInTheDocument();
         expect(screen.getByText('3-Hour Reminder')).toBeInTheDocument();
       });
@@ -197,11 +283,11 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       await waitFor(() => {
-        expect(screen.getByText('Total Injections')).toBeInTheDocument();
+        expect(screen.getByText('Daily Injections')).toBeInTheDocument();
       });
 
-      const totalCard = screen.getByTitle('View all logs');
-      fireEvent.click(totalCard);
+      const dailyCard = screen.getByTitle('View daily logs');
+      fireEvent.click(dailyCard);
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { level: 1, name: 'Injection Logs' })).toBeInTheDocument();
@@ -257,6 +343,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       await waitFor(() => {
+        expect(screen.getByText(/10m Meal Reminder:/i)).toBeInTheDocument();
         expect(screen.getByText(/2-Hour Reminder:/i)).toBeInTheDocument();
         expect(screen.getByText(/3-Hour Reminder:/i)).toBeInTheDocument();
       });
@@ -266,6 +353,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       fireEvent.click(header);
 
       await waitFor(() => {
+        expect(screen.getByText('10m Meal Target:')).toBeInTheDocument();
         expect(screen.getByText('2h Target Time:')).toBeInTheDocument();
         expect(screen.getByText('3h Target Time:')).toBeInTheDocument();
       });
@@ -277,8 +365,10 @@ describe('App Component - Home & Logs UI Tests', () => {
         {
           id: 99,
           injected_at: pastTime,
+          notify_10m_at: new Date(Date.now() - 3.8 * 60 * 60 * 1000).toISOString(),
           notify_2h_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           notify_3h_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+          status_10m_sent: 1,
           status_2h_sent: 1,
           status_3h_sent: 0,
           error_3h: 'Bad Request: chat not found'
@@ -301,8 +391,9 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       render(<App />);
 
-      // On Logs tab: 2h is Sent, 3h is Not Sent
+      // On Logs tab: 10m and 2h are Sent, 3h is Not Sent
       await waitFor(() => {
+        expect(screen.getByText('10m Meal Reminder: Sent')).toBeInTheDocument();
         expect(screen.getByText('2-Hour Reminder: Sent')).toBeInTheDocument();
         const failedPill = screen.getByText('3-Hour Reminder: Not Sent');
         expect(failedPill).toBeInTheDocument();
@@ -315,9 +406,9 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // On Home tab: check badges and tooltips
       await waitFor(() => {
-        const sentBadge = screen.getByText('Sent');
-        expect(sentBadge).toBeInTheDocument();
-        expect(sentBadge).toHaveAttribute('title', 'Reminder delivered to Telegram.');
+        const sentBadges = screen.getAllByText('Sent');
+        expect(sentBadges).toHaveLength(2);
+        expect(sentBadges[0]).toHaveAttribute('title', 'Reminder delivered to Telegram.');
 
         const notSentBadge = screen.getByText('Not Sent');
         expect(notSentBadge).toBeInTheDocument();
@@ -342,12 +433,12 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(screen.queryByRole('heading', { level: 3, name: '3-Hour Reminder' })).not.toBeInTheDocument();
       });
 
-      // Click Sent button to open details modal
-      const sentBtn = screen.getByText('Sent');
-      fireEvent.click(sentBtn);
+      // Click 10-Minute Meal Reminder Sent button to open details modal
+      const mealSentBtn = screen.getByRole('button', { name: /10-Minute Meal Reminder: Sent/i });
+      fireEvent.click(mealSentBtn);
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 3, name: '2-Hour Reminder' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 3, name: '10-Minute Meal Reminder' })).toBeInTheDocument();
         expect(screen.getByText(/Sent successfully to your configured Telegram destination/i)).toBeInTheDocument();
       });
 
@@ -356,7 +447,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       fireEvent.click(closeXBtn);
 
       await waitFor(() => {
-        expect(screen.queryByRole('heading', { level: 3, name: '2-Hour Reminder' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { level: 3, name: '10-Minute Meal Reminder' })).not.toBeInTheDocument();
       });
     });
 
@@ -388,8 +479,59 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Rapid Injection Trend')).toBeInTheDocument();
-        expect(screen.getByText(/recorded less than 3 hours after a prior injection/i)).toBeInTheDocument();
+        expect(screen.getByText(/recorded today less than 3 hours after a prior injection/i)).toBeInTheDocument();
         expect(screen.getByText(/after prior dose/i)).toBeInTheDocument();
+      });
+    });
+
+    it('displays default safe view in Rapid Injection Trend if rapid doses were from yesterday', async () => {
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const yesterdayLog1 = {
+        id: 101,
+        injected_at: new Date(yesterday.getTime() - 60 * 60 * 1000).toISOString(),
+        notify_10m_at: new Date(yesterday.getTime() - 50 * 60 * 1000).toISOString(),
+        notify_2h_at: new Date(yesterday.getTime() + 60 * 60 * 1000).toISOString(),
+        notify_3h_at: new Date(yesterday.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        status_10m_sent: 1,
+        status_2h_sent: 1,
+        status_3h_sent: 1
+      };
+      const yesterdayLog2 = {
+        id: 102,
+        injected_at: yesterday.toISOString(), // 1h gap => rapid dose yesterday
+        notify_10m_at: new Date(yesterday.getTime() + 10 * 60 * 1000).toISOString(),
+        notify_2h_at: new Date(yesterday.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        notify_3h_at: new Date(yesterday.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+        status_10m_sent: 1,
+        status_2h_sent: 1,
+        status_3h_sent: 1
+      };
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/logs') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, logs: [yesterdayLog2, yesterdayLog1] })
+          });
+        }
+        if (url === '/api/settings') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, settings: {} })
+          });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, configs: [] })
+          });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Rapid Injection Trend')).toBeInTheDocument();
+        expect(screen.getByText(/All recorded injections today have maintained the recommended 3\+ hour spacing/i)).toBeInTheDocument();
+        expect(screen.queryByText(/recorded today less than 3 hours/i)).not.toBeInTheDocument();
       });
     });
 
