@@ -202,6 +202,43 @@ export async function ensureTablesExist(db) {
   }
 }
 
+export function formatDoseTime(isoString) {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('en-IL', {
+      timeZone: 'Asia/Jerusalem',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch {
+    return '';
+  }
+}
+
+export function buildMessage10m(injectedAt, isLocal = false) {
+  const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
+  const doseTime = formatDoseTime(injectedAt);
+  const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
+  return `${prefix}\n⏰ Meal Time Reminder${doseLine}\n\n10 minutes have passed since your injection. You can now start your meal!`;
+}
+
+export function buildMessage2h(injectedAt, isLocal = false) {
+  const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
+  const doseTime = formatDoseTime(injectedAt);
+  const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
+  return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease go and check your Glucose level after 2 Hours.`;
+}
+
+export function buildMessage3h(injectedAt, isLocal = false) {
+  const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
+  const doseTime = formatDoseTime(injectedAt);
+  const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
+  return `${prefix}\n⏰ 3-Hour Injection Eligibility${doseLine}\n\n3 hours have passed since your injection. Safe window reached for your next dose if needed.`;
+}
+
 export async function dispatchDueNotifications(db) {
   if (!db) return { dispatched: 0 };
   try {
@@ -262,6 +299,17 @@ export async function dispatchDueNotifications(db) {
 
     if (due10m && due10m.length > 0) {
       for (const log of due10m) {
+        const notifyTime = new Date(log.notify_10m_at).getTime();
+        const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+
+        // Expire if 10m reminder is more than 45 minutes overdue
+        if (minutesOverdue > 45) {
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
+            .bind('Notification expired without delivery (overdue).', log.id)
+            .run();
+          continue;
+        }
+
         const cfg = await getConfigForLog(log);
         if (!cfg || !cfg.bot_token || !cfg.chat_id) {
           await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
@@ -269,7 +317,7 @@ export async function dispatchDueNotifications(db) {
             .run();
           continue;
         }
-        const msg = "From InsuMinder:\n10 minutes have passed since your injection. You can now start your meal.";
+        const msg = buildMessage10m(log.injected_at, false);
         const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_10m_sent = 1, error_10m = NULL WHERE id = ?`).bind(log.id).run();
@@ -282,6 +330,17 @@ export async function dispatchDueNotifications(db) {
 
     if (due2h && due2h.length > 0) {
       for (const log of due2h) {
+        const notifyTime = new Date(log.notify_2h_at).getTime();
+        const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+
+        // Expire if 2h reminder is more than 2 hours overdue (>4h after dose)
+        if (minutesOverdue > 120) {
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
+            .bind('Notification expired without delivery (overdue).', log.id)
+            .run();
+          continue;
+        }
+
         const cfg = await getConfigForLog(log);
         if (!cfg || !cfg.bot_token || !cfg.chat_id) {
           await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
@@ -289,7 +348,7 @@ export async function dispatchDueNotifications(db) {
             .run();
           continue;
         }
-        const msg = "From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.";
+        const msg = buildMessage2h(log.injected_at, false);
         const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_2h_sent = 1, error_2h = NULL WHERE id = ?`).bind(log.id).run();
@@ -302,6 +361,17 @@ export async function dispatchDueNotifications(db) {
 
     if (due3h && due3h.length > 0) {
       for (const log of due3h) {
+        const notifyTime = new Date(log.notify_3h_at).getTime();
+        const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+
+        // Expire if 3h reminder is more than 3 hours overdue (>6h after dose)
+        if (minutesOverdue > 180) {
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
+            .bind('Notification expired without delivery (overdue).', log.id)
+            .run();
+          continue;
+        }
+
         const cfg = await getConfigForLog(log);
         if (!cfg || !cfg.bot_token || !cfg.chat_id) {
           await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
@@ -309,7 +379,7 @@ export async function dispatchDueNotifications(db) {
             .run();
           continue;
         }
-        const msg = "From InsuMinder:\nPlease go and check your Glucose level after 3 Hours.";
+        const msg = buildMessage3h(log.injected_at, false);
         const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_3h_sent = 1, error_3h = NULL WHERE id = ?`).bind(log.id).run();

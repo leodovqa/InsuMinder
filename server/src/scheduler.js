@@ -4,9 +4,46 @@ const { sendTelegramMessage } = require('./telegram');
 let schedulerInterval = null;
 let isChecking = false;
 
-const MESSAGE_10M = "From InsuMinder:\n10 minutes have passed since your injection. You can now start your meal.";
-const MESSAGE_2H = "From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.";
-const MESSAGE_3H = "From InsuMinder:\nPlease go and check your Glucose level after 3 Hours.";
+function formatDoseTime(isoString) {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('en-IL', {
+      timeZone: 'Asia/Jerusalem',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  } catch {
+    return '';
+  }
+}
+
+function buildMessage10m(injectedAt, isLocal = true) {
+  const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
+  const doseTime = formatDoseTime(injectedAt);
+  const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
+  return `${prefix}\n⏰ Meal Time Reminder${doseLine}\n\n10 minutes have passed since your injection. You can now start your meal!`;
+}
+
+function buildMessage2h(injectedAt, isLocal = true) {
+  const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
+  const doseTime = formatDoseTime(injectedAt);
+  const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
+  return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease go and check your Glucose level after 2 Hours.`;
+}
+
+function buildMessage3h(injectedAt, isLocal = true) {
+  const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
+  const doseTime = formatDoseTime(injectedAt);
+  const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
+  return `${prefix}\n⏰ 3-Hour Injection Eligibility${doseLine}\n\n3 hours have passed since your injection. Safe window reached for your next dose if needed.`;
+}
+
+const MESSAGE_10M = buildMessage10m(null, true);
+const MESSAGE_2H = buildMessage2h(null, true);
+const MESSAGE_3H = buildMessage3h(null, true);
 
 /**
  * Check for due notifications and dispatch them to Telegram
@@ -76,40 +113,70 @@ async function checkAndDispatchNotifications() {
 
       // 10-minute meal notification
       if (!log.status_10m_sent && log.notify_10m_at <= nowIso) {
-        console.log(`[Scheduler] Dispatching 10m meal reminder for injection #${log.id}...`);
-        const result = await sendTelegramMessage(botToken, chatId, MESSAGE_10M);
-        if (result.ok) {
-          console.log(`[Scheduler] 10m meal reminder sent successfully for #${log.id}`);
-          await new Promise((resolve) => db.markNotificationSent(log.id, '10m', resolve));
+        const notifyTime = new Date(log.notify_10m_at).getTime();
+        const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+
+        // If 10m reminder is more than 45 minutes overdue, expire it to prevent backlog flooding
+        if (minutesOverdue > 45) {
+          console.log(`[Scheduler] 10m reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
+          await new Promise((resolve) => db.recordNotificationError(log.id, '10m', 'Notification expired without delivery (overdue).', resolve));
         } else {
-          console.error(`[Scheduler] Failed to send 10m meal reminder for #${log.id}:`, result.error);
-          await new Promise((resolve) => db.recordNotificationError(log.id, '10m', result.error, resolve));
+          console.log(`[Scheduler] Dispatching 10m meal reminder for injection #${log.id}...`);
+          const msg = buildMessage10m(log.injected_at, true);
+          const result = await sendTelegramMessage(botToken, chatId, msg);
+          if (result.ok) {
+            console.log(`[Scheduler] 10m meal reminder sent successfully for #${log.id}`);
+            await new Promise((resolve) => db.markNotificationSent(log.id, '10m', resolve));
+          } else {
+            console.error(`[Scheduler] Failed to send 10m meal reminder for #${log.id}:`, result.error);
+            await new Promise((resolve) => db.recordNotificationError(log.id, '10m', result.error, resolve));
+          }
         }
       }
 
       // 2-hour notification
       if (!log.status_2h_sent && log.notify_2h_at <= nowIso) {
-        console.log(`[Scheduler] Dispatching 2h reminder for injection #${log.id}...`);
-        const result = await sendTelegramMessage(botToken, chatId, MESSAGE_2H);
-        if (result.ok) {
-          console.log(`[Scheduler] 2h reminder sent successfully for #${log.id}`);
-          await new Promise((resolve) => db.markNotificationSent(log.id, '2h', resolve));
+        const notifyTime = new Date(log.notify_2h_at).getTime();
+        const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+
+        // If 2h reminder is more than 2 hours overdue (>4h after dose), expire it
+        if (minutesOverdue > 120) {
+          console.log(`[Scheduler] 2h reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
+          await new Promise((resolve) => db.recordNotificationError(log.id, '2h', 'Notification expired without delivery (overdue).', resolve));
         } else {
-          console.error(`[Scheduler] Failed to send 2h reminder for #${log.id}:`, result.error);
-          await new Promise((resolve) => db.recordNotificationError(log.id, '2h', result.error, resolve));
+          console.log(`[Scheduler] Dispatching 2h reminder for injection #${log.id}...`);
+          const msg = buildMessage2h(log.injected_at, true);
+          const result = await sendTelegramMessage(botToken, chatId, msg);
+          if (result.ok) {
+            console.log(`[Scheduler] 2h reminder sent successfully for #${log.id}`);
+            await new Promise((resolve) => db.markNotificationSent(log.id, '2h', resolve));
+          } else {
+            console.error(`[Scheduler] Failed to send 2h reminder for #${log.id}:`, result.error);
+            await new Promise((resolve) => db.recordNotificationError(log.id, '2h', result.error, resolve));
+          }
         }
       }
 
       // 3-hour notification
       if (!log.status_3h_sent && log.notify_3h_at <= nowIso) {
-        console.log(`[Scheduler] Dispatching 3h reminder for injection #${log.id}...`);
-        const result = await sendTelegramMessage(botToken, chatId, MESSAGE_3H);
-        if (result.ok) {
-          console.log(`[Scheduler] 3h reminder sent successfully for #${log.id}`);
-          await new Promise((resolve) => db.markNotificationSent(log.id, '3h', resolve));
+        const notifyTime = new Date(log.notify_3h_at).getTime();
+        const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+
+        // If 3h reminder is more than 3 hours overdue (>6h after dose), expire it
+        if (minutesOverdue > 180) {
+          console.log(`[Scheduler] 3h reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
+          await new Promise((resolve) => db.recordNotificationError(log.id, '3h', 'Notification expired without delivery (overdue).', resolve));
         } else {
-          console.error(`[Scheduler] Failed to send 3h reminder for #${log.id}:`, result.error);
-          await new Promise((resolve) => db.recordNotificationError(log.id, '3h', result.error, resolve));
+          console.log(`[Scheduler] Dispatching 3h reminder for injection #${log.id}...`);
+          const msg = buildMessage3h(log.injected_at, true);
+          const result = await sendTelegramMessage(botToken, chatId, msg);
+          if (result.ok) {
+            console.log(`[Scheduler] 3h reminder sent successfully for #${log.id}`);
+            await new Promise((resolve) => db.markNotificationSent(log.id, '3h', resolve));
+          } else {
+            console.error(`[Scheduler] Failed to send 3h reminder for #${log.id}:`, result.error);
+            await new Promise((resolve) => db.recordNotificationError(log.id, '3h', result.error, resolve));
+          }
         }
       }
     }
@@ -148,6 +215,10 @@ module.exports = {
   MESSAGE_10M,
   MESSAGE_2H,
   MESSAGE_3H,
+  formatDoseTime,
+  buildMessage10m,
+  buildMessage2h,
+  buildMessage3h,
   checkAndDispatchNotifications,
   startScheduler,
   stopScheduler
