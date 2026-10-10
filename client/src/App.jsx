@@ -1062,11 +1062,11 @@ function App() {
               }}
             >
               <div className="nav-user-avatar">
-                {((user.firstName || user.name || user.email || 'U')[0]).toUpperCase()}
+                {(([user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.email || 'U')[0]).toUpperCase()}
               </div>
               <div className="nav-user-details">
                 <span className="nav-user-name">
-                  {user.name || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email.split('@')[0]}
+                  {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.email.split('@')[0]}
                 </span>
                 <span className="nav-user-email" title={user.email}>{user.email}</span>
               </div>

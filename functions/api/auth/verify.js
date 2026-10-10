@@ -94,16 +94,26 @@ export async function onRequestPost(context) {
 
     let user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(cleanEmail).first();
 
+    if (user && (user.is_verified || user.google_id || user.password_hash)) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'This email is already registered. Please log in.'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     if (user) {
       await db
-        .prepare('UPDATE users SET password_hash = ?, is_verified = 1, name = COALESCE(?, name), first_name = COALESCE(?, first_name), last_name = COALESCE(?, last_name), phone = COALESCE(?, phone) WHERE id = ?')
+        .prepare('UPDATE users SET password_hash = ?, auth_provider = "email", is_verified = 1, name = COALESCE(?, name), first_name = COALESCE(?, first_name), last_name = COALESCE(?, last_name), phone = COALESCE(?, phone) WHERE id = ?')
         .bind(record.password_hash, (cleanFirst || cleanLast) ? fullName : null, cleanFirst, cleanLast, cleanPhone, user.id)
         .run();
       user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
     } else {
       const initialShareCode = generateShareCode();
       const result = await db
-        .prepare('INSERT INTO users (email, password_hash, name, first_name, last_name, phone, is_verified, share_code) VALUES (?, ?, ?, ?, ?, ?, 1, ?)')
+        .prepare('INSERT INTO users (email, password_hash, auth_provider, name, first_name, last_name, phone, is_verified, share_code) VALUES (?, ?, "email", ?, ?, ?, ?, 1, ?)')
         .bind(cleanEmail, record.password_hash, fullName, cleanFirst, cleanLast, cleanPhone, initialShareCode)
         .run();
       user = {

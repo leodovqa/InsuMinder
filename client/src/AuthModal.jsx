@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { isValidPhoneNumber, getExampleNumber } from 'libphonenumber-js/max';
 import examples from 'libphonenumber-js/examples.mobile.json';
 import { authService } from './authService';
@@ -78,6 +78,77 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
 
     return () => clearInterval(timer);
   }, [mode]);
+
+  // Google Identity Services (GIS) integration hooks (must be unconditionally declared)
+  const googleBtnRef = useRef(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const [gisAvailable, setGisAvailable] = useState(Boolean(typeof window !== 'undefined' && window.google?.accounts?.id));
+
+  // Poll briefly for GIS library if loading asynchronously
+  useEffect(() => {
+    if (gisAvailable) return;
+    const interval = setInterval(() => {
+      if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+        setGisAvailable(true);
+        clearInterval(interval);
+      }
+    }, 250);
+    return () => clearInterval(interval);
+  }, [gisAvailable]);
+
+  const handleGoogleCredentialResponse = useCallback(async (response) => {
+    if (!response || !response.credential) {
+      setError('Failed to receive authentication credential from Google.');
+      return;
+    }
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const res = await authService.loginWithGoogle({ credential: response.credential }, shareCode);
+      if (res.success) {
+        if (res.joinedGroup) {
+          onSuccess(res.user, res.joinedGroup);
+        } else {
+          onSuccess(res.user);
+        }
+        resetAllInputs();
+        onClose();
+      } else {
+        setError(res.error || 'Google authentication failed.');
+      }
+    } catch {
+      setError('Failed to connect to Google authentication.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [shareCode, onSuccess, onClose]);
+
+  // Render Google Identity Services button if available & configured
+  useEffect(() => {
+    if (!isOpen || (mode !== 'login' && mode !== 'register')) return;
+    if (typeof window !== 'undefined' && window.google?.accounts?.id && googleClientId && googleBtnRef.current) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        googleBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'outline',
+          size: 'large',
+          width: 320,
+          text: mode === 'register' ? 'signup_with' : 'signin_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+        });
+      } catch (err) {
+        console.warn('Failed to render Google Sign-In button:', err);
+      }
+    }
+  }, [isOpen, mode, googleClientId, gisAvailable, handleGoogleCredentialResponse]);
 
   if (!isOpen) return null;
 
@@ -256,33 +327,57 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     }
   };
 
-  // 4. Handle Google Sign-In
-  const handleGoogleSignIn = async (isDev = false) => {
+  // 4. Handle Google Sign-In Click
+  const handleGoogleSignIn = async () => {
     setError(null);
-    setIsSubmitting(true);
 
-    try {
-      const payload = isDev
-        ? { dev: true, email: email && email.includes('@') ? email : 'google.user@insuminder.app', name: 'Google User' }
-        : { dev: true };
-
-      const res = await authService.loginWithGoogle(payload, shareCode);
-      if (res.success) {
-        if (res.joinedGroup) {
-          onSuccess(res.user, res.joinedGroup);
-        } else {
-          onSuccess(res.user);
-        }
-        resetAllInputs();
-        onClose();
-      } else {
-        setError(res.error || 'Google authentication failed.');
+    // If Google Identity Services is available and Client ID is configured, trigger Google prompt
+    if (typeof window !== 'undefined' && window.google?.accounts?.id && googleClientId) {
+      try {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+        window.google.accounts.id.prompt();
+        return;
+      } catch (err) {
+        console.warn('Google prompt error:', err);
       }
-    } catch {
-      setError('Failed to connect to Google authentication.');
-    } finally {
-      setIsSubmitting(false);
     }
+
+    // In local dev or test environments, allow dev bypass for testing
+    if (import.meta.env.DEV) {
+      setIsSubmitting(true);
+      try {
+        const payload = {
+          dev: true,
+          email: email && email.includes('@') ? email : 'google.user@insuminder.app',
+          name: 'Google User'
+        };
+        const res = await authService.loginWithGoogle(payload, shareCode);
+        if (res.success) {
+          if (res.joinedGroup) {
+            onSuccess(res.user, res.joinedGroup);
+          } else {
+            onSuccess(res.user);
+          }
+          resetAllInputs();
+          onClose();
+        } else {
+          setError(res.error || 'Google authentication failed.');
+        }
+      } catch {
+        setError('Failed to connect to Google authentication.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // In production without Client ID:
+    setError('Google Sign-In is not configured. Please sign up with email or configure VITE_GOOGLE_CLIENT_ID.');
   };
 
   return (
@@ -572,34 +667,38 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         ) : (
           /* MODES 2 & 3: LOGIN OR REGISTER */
           <div className="auth-form-container">
-            {/* Google Authentication Button */}
+            {/* Google Authentication Section */}
             <div className="google-auth-section">
-              <button
-                type="button"
-                className="google-signin-btn"
-                onClick={() => handleGoogleSignIn(false)}
-                disabled={isSubmitting}
-              >
-                <svg className="google-icon-svg" width="18" height="18" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>Continue with Google</span>
-              </button>
+              {googleClientId && gisAvailable ? (
+                <div ref={googleBtnRef} className="google-gis-btn-container" />
+              ) : (
+                <button
+                  type="button"
+                  className="google-signin-btn"
+                  onClick={handleGoogleSignIn}
+                  disabled={isSubmitting}
+                >
+                  <svg className="google-icon-svg" width="18" height="18" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>Continue with Google</span>
+                </button>
+              )}
             </div>
 
             <div className="auth-divider">
