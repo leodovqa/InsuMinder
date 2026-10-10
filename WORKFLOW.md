@@ -1,7 +1,7 @@
 # InsuMinder — Agent Workflow & Code Guidelines
 
 ## Project Purpose
-InsuMinder is a web application designed to track insulin injections, trigger scheduled notifications after 2 hours and 3 hours, and provide a 24-hour log of injection events.
+InsuMinder is a web application designed to track insulin injections, trigger scheduled notifications after 10 minutes (meal reminder), 2 hours, and 3 hours (glucose checks & eligibility), and provide a log of injection events.
 
 ---
 
@@ -45,15 +45,17 @@ SQL
 CREATE TABLE IF NOT EXISTS injection_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     injected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notify_10m_at TIMESTAMP NOT NULL,
     notify_2h_at TIMESTAMP NOT NULL,
     notify_3h_at TIMESTAMP NOT NULL,
+    status_10m_sent BOOLEAN DEFAULT 0,
     status_2h_sent BOOLEAN DEFAULT 0,
     status_3h_sent BOOLEAN DEFAULT 0
 );
 Core API Endpoints
 POST /api/injections
 
-Computes: notify_2h_at = now + 2 hours, notify_3h_at = now + 3 hours.
+Computes: notify_10m_at = now + 10 minutes, notify_2h_at = now + 2 hours, notify_3h_at = now + 3 hours.
 
 Inserts row into injection_logs.
 

@@ -94,7 +94,7 @@ describe('Telegram Notification Integration Tests', () => {
       assert.strictEqual(settings.telegram_chat_id, 'chat98765');
     });
 
-    it('inserts injection log and tracks 2h/3h notification status', async () => {
+    it('inserts injection log and tracks 10m/2h/3h notification status', async () => {
       const logId = await new Promise((resolve, reject) => {
         db.insertInjectionLog(function(err) {
           if (err) return reject(err);
@@ -104,7 +104,10 @@ describe('Telegram Notification Integration Tests', () => {
 
       assert.ok(logId > 0);
 
-      // Verify marking 2h and 3h sent
+      // Verify marking 10m, 2h, and 3h sent
+      await new Promise((resolve, reject) => {
+        db.markNotificationSent(logId, '10m', (err) => (err ? reject(err) : resolve()));
+      });
       await new Promise((resolve, reject) => {
         db.markNotificationSent(logId, '2h', (err) => (err ? reject(err) : resolve()));
       });
@@ -117,16 +120,20 @@ describe('Telegram Notification Integration Tests', () => {
       });
 
       const target = logs.find(l => l.id === logId);
+      assert.strictEqual(target.status_10m_sent, 1);
       assert.strictEqual(target.status_2h_sent, 1);
       assert.strictEqual(target.status_3h_sent, 1);
+      assert.ok(target.notify_10m_at);
+      assert.ok(target.notify_2h_at);
+      assert.ok(target.notify_3h_at);
     });
 
     it('records notification errors and clears error upon successful delivery', async () => {
       const logId = await new Promise((resolve, reject) => {
         const past = new Date(Date.now() - 10 * 60 * 1000).toISOString();
         db.db.run(
-          "INSERT INTO injection_logs (injected_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?)",
-          [past, past, past],
+          "INSERT INTO injection_logs (injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?)",
+          [past, past, past, past],
           function(err) {
             if (err) return reject(err);
             resolve(this.lastID);
@@ -134,7 +141,10 @@ describe('Telegram Notification Integration Tests', () => {
         );
       });
 
-      // Record an error for 2h and 3h
+      // Record an error for 10m, 2h, and 3h
+      await new Promise((resolve, reject) => {
+        db.recordNotificationError(logId, '10m', 'Telegram is not configured.', (err) => (err ? reject(err) : resolve()));
+      });
       await new Promise((resolve, reject) => {
         db.recordNotificationError(logId, '2h', 'Chat not found (-4304245048)', (err) => (err ? reject(err) : resolve()));
       });
@@ -146,12 +156,17 @@ describe('Telegram Notification Integration Tests', () => {
         db.getLogsFromLast24Hours((err, rows) => (err ? reject(err) : resolve(rows)));
       });
       let target = logs.find(l => l.id === logId);
+      assert.strictEqual(target.status_10m_sent, 0);
       assert.strictEqual(target.status_2h_sent, 0);
       assert.strictEqual(target.status_3h_sent, 0);
+      assert.strictEqual(target.error_10m, 'Telegram is not configured.');
       assert.strictEqual(target.error_2h, 'Chat not found (-4304245048)');
       assert.strictEqual(target.error_3h, 'Bot token expired or unauthorized');
 
-      // Now mark 2h sent - should clear error_2h and set status_2h_sent to 1
+      // Now mark 10m and 2h sent - should clear error and set status sent to 1
+      await new Promise((resolve, reject) => {
+        db.markNotificationSent(logId, '10m', (err) => (err ? reject(err) : resolve()));
+      });
       await new Promise((resolve, reject) => {
         db.markNotificationSent(logId, '2h', (err) => (err ? reject(err) : resolve()));
       });
@@ -160,6 +175,8 @@ describe('Telegram Notification Integration Tests', () => {
         db.getLogsFromLast24Hours((err, rows) => (err ? reject(err) : resolve(rows)));
       });
       target = logs.find(l => l.id === logId);
+      assert.strictEqual(target.status_10m_sent, 1);
+      assert.strictEqual(target.error_10m, null);
       assert.strictEqual(target.status_2h_sent, 1);
       assert.strictEqual(target.error_2h, null);
       assert.strictEqual(target.status_3h_sent, 0);
@@ -244,6 +261,10 @@ describe('Telegram Notification Integration Tests', () => {
 
   describe('Scheduler Messages Specification', () => {
     it('has exact notification message formats as requested', () => {
+      assert.strictEqual(
+        scheduler.MESSAGE_10M,
+        'From InsuMinder:\n10 minutes have passed since your injection. You can now start your meal.'
+      );
       assert.strictEqual(
         scheduler.MESSAGE_2H,
         'From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.'

@@ -73,15 +73,33 @@ export async function ensureTablesExist(db) {
     `CREATE TABLE IF NOT EXISTS injection_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       injected_at TIMESTAMP NOT NULL,
+      notify_10m_at TIMESTAMP,
       notify_2h_at TIMESTAMP NOT NULL,
       notify_3h_at TIMESTAMP NOT NULL,
+      status_10m_sent BOOLEAN DEFAULT 0,
       status_2h_sent BOOLEAN DEFAULT 0,
       status_3h_sent BOOLEAN DEFAULT 0,
+      error_10m TEXT,
       error_2h TEXT,
       error_3h TEXT
     )`
   ).run();
 
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN notify_10m_at TIMESTAMP`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN status_10m_sent BOOLEAN DEFAULT 0`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_10m TEXT`).run();
+  } catch (err) {
+    void err;
+  }
   try {
     await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_2h TEXT`).run();
   } catch (err) {
@@ -117,6 +135,9 @@ export async function dispatchDueNotifications(db) {
     // Expire ancient notifications
     try {
       await db.prepare(
+        `UPDATE injection_logs SET error_10m = COALESCE(error_10m, 'Notification expired without delivery.') WHERE status_10m_sent = 0 AND notify_10m_at < ?`
+      ).bind(cutoff24hAgo).run();
+      await db.prepare(
         `UPDATE injection_logs SET error_2h = COALESCE(error_2h, 'Notification expired without delivery.') WHERE status_2h_sent = 0 AND notify_2h_at < ?`
       ).bind(cutoff24hAgo).run();
       await db.prepare(
@@ -126,6 +147,10 @@ export async function dispatchDueNotifications(db) {
       void err;
     }
 
+    const { results: due10m } = await db.prepare(
+      `SELECT * FROM injection_logs WHERE status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ? ORDER BY notify_10m_at ASC LIMIT 5`
+    ).bind(nowIso, cutoff24hAgo).all();
+
     const { results: due2h } = await db.prepare(
       `SELECT * FROM injection_logs WHERE status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ? ORDER BY notify_2h_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
@@ -134,7 +159,7 @@ export async function dispatchDueNotifications(db) {
       `SELECT * FROM injection_logs WHERE status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ? ORDER BY notify_3h_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
 
-    if ((!due2h || due2h.length === 0) && (!due3h || due3h.length === 0)) {
+    if ((!due10m || due10m.length === 0) && (!due2h || due2h.length === 0) && (!due3h || due3h.length === 0)) {
       return { dispatched: 0 };
     }
 
@@ -144,6 +169,11 @@ export async function dispatchDueNotifications(db) {
 
     if (!defaultCfg || !defaultCfg.bot_token || !defaultCfg.chat_id) {
       const missingConfigError = 'Telegram is not configured. Go to Settings to set up your destination.';
+      if (due10m && due10m.length > 0) {
+        for (const log of due10m) {
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`).bind(missingConfigError, log.id).run();
+        }
+      }
       if (due2h && due2h.length > 0) {
         for (const log of due2h) {
           await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind(missingConfigError, log.id).run();
@@ -158,6 +188,19 @@ export async function dispatchDueNotifications(db) {
     }
 
     let count = 0;
+    if (due10m && due10m.length > 0) {
+      for (const log of due10m) {
+        const msg = "From InsuMinder:\n10 minutes have passed since your injection. You can now start your meal.";
+        const sendRes = await sendTelegramMessage(defaultCfg.bot_token, defaultCfg.chat_id, msg);
+        if (sendRes.ok) {
+          await db.prepare(`UPDATE injection_logs SET status_10m_sent = 1, error_10m = NULL WHERE id = ?`).bind(log.id).run();
+          count++;
+        } else {
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`).bind(sendRes.error || 'Failed to send Telegram reminder.', log.id).run();
+        }
+      }
+    }
+
     if (due2h && due2h.length > 0) {
       for (const log of due2h) {
         const msg = "From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.";

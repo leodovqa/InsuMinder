@@ -14,14 +14,20 @@ db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS injection_logs ("
     + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
     + "injected_at TIMESTAMP NOT NULL,"
+    + "notify_10m_at TIMESTAMP,"
     + "notify_2h_at TIMESTAMP NOT NULL,"
     + "notify_3h_at TIMESTAMP NOT NULL,"
+    + "status_10m_sent BOOLEAN DEFAULT 0,"
     + "status_2h_sent BOOLEAN DEFAULT 0,"
     + "status_3h_sent BOOLEAN DEFAULT 0,"
+    + "error_10m TEXT,"
     + "error_2h TEXT,"
     + "error_3h TEXT"
     + ")", () => {
-      // Auto-migrate error columns if table already existed
+      // Auto-migrate columns if table already existed
+      db.run("ALTER TABLE injection_logs ADD COLUMN notify_10m_at TIMESTAMP", () => {});
+      db.run("ALTER TABLE injection_logs ADD COLUMN status_10m_sent BOOLEAN DEFAULT 0", () => {});
+      db.run("ALTER TABLE injection_logs ADD COLUMN error_10m TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_2h TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_3h TEXT", () => {});
     });
@@ -70,11 +76,12 @@ function insertInjectionLog(callback) {
     }
 
     const injected_at = now.toISOString();
+    const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
     const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
     const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
 
-    const stmt = db.prepare("INSERT INTO injection_logs (injected_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?)");
-    stmt.run(injected_at, notify_2h_at, notify_3h_at, callback);
+    const stmt = db.prepare("INSERT INTO injection_logs (injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?)");
+    stmt.run(injected_at, notify_10m_at, notify_2h_at, notify_3h_at, callback);
     stmt.finalize();
   });
 }
@@ -242,34 +249,41 @@ function getDueNotifications(callback) {
   const nowIso = now.toISOString();
   const cutoff24hAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   db.all(
-    "SELECT * FROM injection_logs WHERE ((status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ?)) ORDER BY injected_at ASC",
-    [nowIso, cutoff24hAgo, nowIso, cutoff24hAgo],
+    "SELECT * FROM injection_logs WHERE ((status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ?) OR (status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ?)) ORDER BY injected_at ASC",
+    [nowIso, cutoff24hAgo, nowIso, cutoff24hAgo, nowIso, cutoff24hAgo],
     callback
   );
 }
 
 function markNotificationSent(id, type, callback) {
-  const statusColumn = type === '2h' ? 'status_2h_sent' : 'status_3h_sent';
-  const errorColumn = type === '2h' ? 'error_2h' : 'error_3h';
+  const statusColumn = type === '10m' ? 'status_10m_sent' : type === '2h' ? 'status_2h_sent' : 'status_3h_sent';
+  const errorColumn = type === '10m' ? 'error_10m' : type === '2h' ? 'error_2h' : 'error_3h';
   db.run(`UPDATE injection_logs SET ${statusColumn} = 1, ${errorColumn} = NULL WHERE id = ?`, [id], callback);
 }
 
 function recordNotificationError(id, type, errorMsg, callback) {
-  const errorColumn = type === '2h' ? 'error_2h' : 'error_3h';
+  const errorColumn = type === '10m' ? 'error_10m' : type === '2h' ? 'error_2h' : 'error_3h';
   const cleanMsg = (errorMsg && String(errorMsg).trim()) || 'Unknown error occurred while delivering Telegram reminder.';
   db.run(`UPDATE injection_logs SET ${errorColumn} = ? WHERE id = ?`, [cleanMsg, id], callback);
 }
 
 function expireAncientNotifications(cutoffIso, callback) {
   db.run(
-    "UPDATE injection_logs SET error_2h = COALESCE(error_2h, 'Notification expired without delivery.') WHERE status_2h_sent = 0 AND notify_2h_at < ?",
+    "UPDATE injection_logs SET error_10m = COALESCE(error_10m, 'Notification expired without delivery.') WHERE status_10m_sent = 0 AND notify_10m_at < ?",
     [cutoffIso],
-    (err1) => {
-      if (err1) return callback(err1);
+    (err0) => {
+      if (err0) return callback(err0);
       db.run(
-        "UPDATE injection_logs SET error_3h = COALESCE(error_3h, 'Notification expired without delivery.') WHERE status_3h_sent = 0 AND notify_3h_at < ?",
+        "UPDATE injection_logs SET error_2h = COALESCE(error_2h, 'Notification expired without delivery.') WHERE status_2h_sent = 0 AND notify_2h_at < ?",
         [cutoffIso],
-        callback
+        (err1) => {
+          if (err1) return callback(err1);
+          db.run(
+            "UPDATE injection_logs SET error_3h = COALESCE(error_3h, 'Notification expired without delivery.') WHERE status_3h_sent = 0 AND notify_3h_at < ?",
+            [cutoffIso],
+            callback
+          );
+        }
       );
     }
   );

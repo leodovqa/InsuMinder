@@ -212,6 +212,34 @@ describe('Utility Functions & Helpers', () => {
       expect(rapidList).toHaveLength(0);
       expect(rapidIds.size).toBe(0);
     });
+
+    it('scopes rapid injection detection to the specified targetDateKey', () => {
+      const logs = [
+        // Dose today
+        { id: 3, injected_at: '2026-10-10T14:00:00Z' },
+        // Rapid doses yesterday (1.5h apart)
+        { id: 2, injected_at: '2026-10-09T12:30:00Z' },
+        { id: 1, injected_at: '2026-10-09T11:00:00Z' }
+      ];
+
+      const todayDateKey = formatDateOnly('2026-10-10T14:00:00Z');
+      const yesterdayDateKey = formatDateOnly('2026-10-09T12:30:00Z');
+
+      // Scoped to today: no rapid doses occurred today
+      const todayResult = getRapidInjections(logs, todayDateKey);
+      expect(todayResult.rapidList).toHaveLength(0);
+      expect(todayResult.rapidIds.size).toBe(0);
+
+      // Scoped to yesterday: flags id 2
+      const yesterdayResult = getRapidInjections(logs, yesterdayDateKey);
+      expect(yesterdayResult.rapidList).toHaveLength(1);
+      expect(yesterdayResult.rapidIds.has(2)).toBe(true);
+
+      // Unscoped: returns all historical rapid doses across all days
+      const unscopedResult = getRapidInjections(logs);
+      expect(unscopedResult.rapidList).toHaveLength(1);
+      expect(unscopedResult.rapidIds.has(2)).toBe(true);
+    });
   });
 
   describe('maskBotToken', () => {
@@ -340,6 +368,38 @@ describe('Utility Functions & Helpers', () => {
       expect(res.badgeClass).toBe('badge-upcoming');
       expect(res.pillClass).toBe('pending');
       expect(res.title).toContain('Scheduled for');
+    });
+
+    it('correctly calculates 10m meal reminder status and falls back to injected_at + 10m when notify_10m_at is missing', () => {
+      const pastInjection = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const logWithout10m = {
+        id: 5,
+        injected_at: pastInjection,
+        notify_2h_at: new Date(Date.now() + 90 * 60 * 1000).toISOString(),
+        notify_3h_at: new Date(Date.now() + 150 * 60 * 1000).toISOString(),
+        status_10m_sent: 0,
+        error_10m: 'Network error reaching Telegram API.'
+      };
+
+      const res = getReminderStatus(logWithout10m, '10m');
+      expect(res.status).toBe('failed');
+      expect(res.label).toBe('Not Sent');
+      expect(res.pillLabel).toBe('Not Sent');
+      expect(res.friendlyError.category).toBe('Network Connection Error');
+      // Target time should be pastInjection + 10 minutes
+      const expectedTime = new Date(new Date(pastInjection).getTime() + 10 * 60 * 1000).toISOString();
+      expect(res.targetTime).toBe(expectedTime);
+
+      // When sent:
+      const sentLog = {
+        ...logWithout10m,
+        status_10m_sent: 1,
+        error_10m: null
+      };
+      const sentRes = getReminderStatus(sentLog, '10m');
+      expect(sentRes.status).toBe('sent');
+      expect(sentRes.label).toBe('Sent');
+      expect(sentRes.icon).toBe('✅');
     });
   });
 
