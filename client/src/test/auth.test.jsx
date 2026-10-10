@@ -66,6 +66,20 @@ describe('Authentication & User Experience Tests', () => {
       expect(res.success).toBe(true);
       expect(authService.getToken()).toBe('verified-token');
     });
+
+    it('sends updated profile to /api/auth/profile and saves session', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          success: true,
+          user: { id: 10, email: 'verified@med.com', name: 'John Doe', firstName: 'John', lastName: 'Doe', phone: '+12345' }
+        })
+      });
+
+      const res = await authService.updateProfile({ firstName: 'John', lastName: 'Doe', phone: '+12345' });
+      expect(res.success).toBe(true);
+      expect(authService.getCurrentUser()?.name).toBe('John Doe');
+      expect(authService.getCurrentUser()?.firstName).toBe('John');
+    });
   });
 
   describe('AuthModal Component Tests', () => {
@@ -156,31 +170,171 @@ describe('Authentication & User Experience Tests', () => {
       render(<AuthModal isOpen={true} initialMode="verify" onClose={vi.fn()} onSuccess={vi.fn()} />);
 
       fireEvent.change(screen.getByPlaceholderText('123456'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: /Verify & Complete Sign Up/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code & Continue/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Verification code has expired. Please enter your email and password to start a new verification process.')).toBeInTheDocument();
       });
     });
 
-    it('completes verification and invokes onSuccess when valid 6-digit code is submitted', async () => {
+    it('advances to Step 3 (Profile setup) upon verifying code and finishes registration on profile submit', async () => {
       const onSuccessMock = vi.fn();
-      globalThis.fetch = vi.fn().mockResolvedValue({
-        json: () => Promise.resolve({
-          success: true,
-          token: 'valid-session-jwt',
-          user: { id: 5, email: 'patient@clinic.com' }
+      globalThis.fetch = vi.fn()
+        // 1st fetch: verify code checkOnly
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({
+            success: true,
+            verified: true
+          })
         })
-      });
+        // 2nd fetch: complete registration
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({
+            success: true,
+            token: 'valid-session-jwt',
+            user: { id: 5, email: 'patient@clinic.com', name: 'Jane Doe', firstName: 'Jane', lastName: 'Doe', phone: '+12025550100' }
+          })
+        });
 
       render(<AuthModal isOpen={true} initialMode="verify" onClose={vi.fn()} onSuccess={onSuccessMock} />);
 
       fireEvent.change(screen.getByPlaceholderText('123456'), { target: { value: '456789' } });
-      fireEvent.click(screen.getByRole('button', { name: /Verify & Complete Sign Up/i }));
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code & Continue/i }));
 
       await waitFor(() => {
-        expect(onSuccessMock).toHaveBeenCalledWith(expect.objectContaining({ email: 'patient@clinic.com' }));
+        expect(screen.getByText(/Complete Your Profile/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/First Name/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Last Name/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Phone Number/i)).toBeInTheDocument();
       });
+
+      // Fill in profile
+      fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Jane' } });
+      fireEvent.change(screen.getByLabelText(/Last Name/i), { target: { value: 'Doe' } });
+      fireEvent.change(screen.getByLabelText(/Phone Number/i), { target: { value: '+1-202-555-0100' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /Complete Registration/i }));
+
+      await waitFor(() => {
+        expect(onSuccessMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            email: 'patient@clinic.com',
+            name: 'Jane Doe',
+            firstName: 'Jane',
+            lastName: 'Doe'
+          })
+        );
+      });
+    });
+
+    it('disables Complete Registration button if First Name or Last Name is empty', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        json: () => Promise.resolve({
+          success: true,
+          verified: true
+        })
+      });
+
+      render(<AuthModal isOpen={true} initialMode="verify" onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+      fireEvent.change(screen.getByPlaceholderText('123456'), { target: { value: '456789' } });
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code & Continue/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Complete Your Profile/i)).toBeInTheDocument();
+      });
+
+      const completeBtn = screen.getByRole('button', { name: /Complete Registration/i });
+      expect(completeBtn).toBeDisabled();
+
+      // Enter only First Name
+      fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Leo' } });
+      expect(completeBtn).toBeDisabled();
+
+      // Enter Last Name
+      fireEvent.change(screen.getByLabelText(/Last Name/i), { target: { value: 'Test' } });
+      expect(completeBtn).not.toBeDisabled();
+    });
+
+    it('renders Test Name and Test Last Name placeholders, fixed plus prefix, and auto-detects flag for +1 (340)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        json: () => Promise.resolve({
+          success: true,
+          verified: true
+        })
+      });
+
+      render(<AuthModal isOpen={true} initialMode="verify" onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+      fireEvent.change(screen.getByPlaceholderText('123456'), { target: { value: '456789' } });
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code & Continue/i }));
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('e.g. Test Name')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('e.g. Test Last Name')).toBeInTheDocument();
+        expect(screen.getByText('+')).toBeInTheDocument();
+      });
+
+      // Default state: globe icon before any input
+      expect(screen.getByText('🌐')).toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: /VI/i })).not.toBeInTheDocument();
+
+      const phoneInput = screen.getByLabelText(/Phone Number/i);
+      const firstNameInput = screen.getByLabelText(/First Name/i);
+      const lastNameInput = screen.getByLabelText(/Last Name/i);
+      const completeBtn = screen.getByRole('button', { name: /Complete Registration/i });
+
+      fireEvent.change(firstNameInput, { target: { value: 'Test' } });
+      fireEvent.change(lastNameInput, { target: { value: 'User' } });
+
+      // 1. Only numeric digits allowed: typing symbols and letters strips them
+      fireEvent.change(phoneInput, { target: { value: 'abc+1 (340) 555-1234' } });
+      expect(phoneInput.value).toBe('13405551234');
+
+      const flagImg = document.querySelector('.phone-flag-icon');
+      expect(flagImg).toBeInTheDocument();
+      expect(flagImg.getAttribute('src')).toBe('/flags/VI.svg');
+      // Verify ONLY flag is shown, no text
+      expect(screen.queryByText(/Virgin Islands/i)).not.toBeInTheDocument();
+      // Valid number has no error
+      expect(screen.queryByText('Invalid phone number')).not.toBeInTheDocument();
+      expect(completeBtn).not.toBeDisabled();
+
+      // 2. Typing an incomplete/invalid number shows red border & "Invalid phone number" error
+      fireEvent.change(phoneInput, { target: { value: '1340' } });
+      expect(screen.getByText('Invalid phone number')).toBeInTheDocument();
+      expect(document.querySelector('.phone-input-container')).toHaveClass('phone-error');
+      expect(phoneInput).toHaveClass('phone-input-invalid');
+      expect(completeBtn).toBeDisabled();
+
+      // 3. Changing to a valid UK phone clears error
+      fireEvent.change(phoneInput, { target: { value: '44 7911 123456' } });
+      expect(phoneInput.value).toBe('447911123456');
+      expect(document.querySelector('.phone-flag-icon')?.getAttribute('src')).toBe('/flags/GB.svg');
+      expect(screen.queryByText('Invalid phone number')).not.toBeInTheDocument();
+      expect(document.querySelector('.phone-input-container')).not.toHaveClass('phone-error');
+      expect(completeBtn).not.toBeDisabled();
+
+      // 4. Changing to invalid Israel phone (such as 9721235315 from user screenshot) shows error
+      fireEvent.change(phoneInput, { target: { value: '9721235315' } });
+      expect(screen.getByText('Invalid phone number')).toBeInTheDocument();
+      expect(document.querySelector('.phone-input-container')).toHaveClass('phone-error');
+      expect(phoneInput).toHaveClass('phone-input-invalid');
+      expect(completeBtn).toBeDisabled();
+
+      // 5. Completing with a real valid Israel mobile phone (052-765-4321 -> 972527654321) clears error
+      fireEvent.change(phoneInput, { target: { value: '972 52 7654321' } });
+      expect(phoneInput.value).toBe('972527654321');
+      expect(document.querySelector('.phone-flag-icon')?.getAttribute('src')).toBe('/flags/IL.svg');
+      expect(screen.queryByText('Invalid phone number')).not.toBeInTheDocument();
+      expect(document.querySelector('.phone-input-container')).not.toHaveClass('phone-error');
+      expect(completeBtn).not.toBeDisabled();
+
+      // 6. Clearing input (optional field) clears error and leaves button enabled
+      fireEvent.change(phoneInput, { target: { value: '' } });
+      expect(screen.queryByText('Invalid phone number')).not.toBeInTheDocument();
+      expect(document.querySelector('.phone-input-container')).not.toHaveClass('phone-error');
+      expect(completeBtn).not.toBeDisabled();
     });
 
     it('performs Google authentication when Continue with Google is clicked', async () => {
@@ -237,21 +391,35 @@ describe('Authentication & User Experience Tests', () => {
       expect(passInput.value).toBe('');
     });
 
-    it('clears inputs when clicking Back to Email / Change Address from verification screen', () => {
-      render(<AuthModal isOpen={true} initialMode="verify" onClose={vi.fn()} onSuccess={vi.fn()} />);
+    it('preserves email and password when clicking Back to Email or top-left back button, and clears on exit', async () => {
+      render(<AuthModal isOpen={true} initialMode="register" onClose={vi.fn()} onSuccess={vi.fn()} />);
 
-      const codeInput = screen.getByPlaceholderText('123456');
-      fireEvent.change(codeInput, { target: { value: '123456' } });
-      expect(codeInput.value).toBe('123456');
-
-      const backBtn = screen.getByRole('button', { name: /Back to Email/i });
-      fireEvent.click(backBtn);
-
-      expect(screen.getByRole('heading', { name: /Create InsuMinder Account/i })).toBeInTheDocument();
       const emailInput = screen.getByLabelText(/Email Address/i);
       const passInput = screen.getByLabelText(/Password/i);
-      expect(emailInput.value).toBe('');
-      expect(passInput.value).toBe('');
+      fireEvent.change(emailInput, { target: { value: 'keepme@clinic.org' } });
+      fireEvent.change(passInput, { target: { value: 'Secret123!' } });
+
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        json: () => Promise.resolve({ success: true })
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Continue & Send Code/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Verify Email/i)).toBeInTheDocument();
+      });
+
+      // Verify top-left back button is visible
+      const topLeftBackBtn = screen.getByLabelText(/Back to email and password/i);
+      expect(topLeftBackBtn).toBeInTheDocument();
+
+      // Click top-left back button
+      fireEvent.click(topLeftBackBtn);
+
+      // Now back on register screen - email and password MUST be preserved
+      expect(screen.getByRole('heading', { name: /Create InsuMinder Account/i })).toBeInTheDocument();
+      expect(screen.getByLabelText(/Email Address/i).value).toBe('keepme@clinic.org');
+      expect(screen.getByLabelText(/Password/i).value).toBe('Secret123!');
     });
 
     it('clears inputs when browser back navigation or page restore events occur', () => {
@@ -415,6 +583,52 @@ describe('Authentication & User Experience Tests', () => {
         expect(logBtn).toBeDisabled();
         expect(screen.getByText(/manage your reminders/i)).toBeInTheDocument();
       });
+    });
+
+    it('displays first and last name in nav drawer instead of email username prefix when user registers', async () => {
+      authService.setSession('valid-user-token', {
+        id: 100,
+        email: 'leotest2@grr.la',
+        name: 'Leo Test',
+        firstName: 'Leo',
+        lastName: 'Test'
+      });
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: {
+                id: 100,
+                email: 'leotest2@grr.la',
+                name: 'Leo Test',
+                firstName: 'Leo',
+                lastName: 'Test',
+                shareCode: 'INSU-TEST01'
+              }
+            })
+          });
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      const hamburgerBtn = screen.getByRole('button', { name: /Open navigation menu/i });
+      fireEvent.click(hamburgerBtn);
+
+      // Verify that Leo Test is displayed, not leotest2
+      expect(screen.getByText('Leo Test')).toBeInTheDocument();
+      expect(screen.queryByText('leotest2')).not.toBeInTheDocument();
+      expect(screen.getByText('leotest2@grr.la')).toBeInTheDocument();
+      expect(screen.getByText('L')).toBeInTheDocument();
     });
 
     it('displays locked-state card when navigating to Injection Logs while signed out', async () => {

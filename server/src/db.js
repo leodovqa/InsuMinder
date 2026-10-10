@@ -18,6 +18,9 @@ db.serialize(() => {
     + "password_hash TEXT,"
     + "google_id TEXT,"
     + "name TEXT,"
+    + "first_name TEXT,"
+    + "last_name TEXT,"
+    + "phone TEXT,"
     + "avatar TEXT,"
     + "is_verified BOOLEAN DEFAULT 0,"
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
@@ -79,7 +82,10 @@ db.serialize(() => {
       db.run("ALTER TABLE telegram_configs ADD COLUMN user_id INTEGER", () => {});
     });
 
-  // Users share_code column
+  // Users profile and share_code columns
+  db.run("ALTER TABLE users ADD COLUMN first_name TEXT", () => {});
+  db.run("ALTER TABLE users ADD COLUMN last_name TEXT", () => {});
+  db.run("ALTER TABLE users ADD COLUMN phone TEXT", () => {});
   db.run("ALTER TABLE users ADD COLUMN share_code TEXT", () => {});
 
   // Shared members table (connects caregivers/family members to owner's data)
@@ -117,18 +123,26 @@ function generateShareCode() {
   return code;
 }
 
-function createUser({ email, password_hash, google_id, name, avatar, is_verified = 0, share_code }, callback) {
+function createUser({ email, password_hash, google_id, name, first_name, last_name, phone, avatar, is_verified = 0, share_code }, callback) {
   const cleanEmail = String(email).trim().toLowerCase();
   const code = share_code || generateShareCode();
+  const cleanFirst = first_name ? String(first_name).trim() : null;
+  const cleanLast = last_name ? String(last_name).trim() : null;
+  const cleanPhone = phone ? String(phone).trim() : null;
+  const fullName = name || [cleanFirst, cleanLast].filter(Boolean).join(' ') || '';
+
   const stmt = db.prepare(
-    "INSERT INTO users (email, password_hash, google_id, name, avatar, is_verified, share_code) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO users (email, password_hash, google_id, name, first_name, last_name, phone, avatar, is_verified, share_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
-  stmt.run(cleanEmail, password_hash || null, google_id || null, name || '', avatar || '', is_verified ? 1 : 0, code, function(err) {
+  stmt.run(cleanEmail, password_hash || null, google_id || null, fullName, cleanFirst, cleanLast, cleanPhone, avatar || '', is_verified ? 1 : 0, code, function(err) {
     if (err) return callback(err);
     callback(null, {
       id: this.lastID,
       email: cleanEmail,
-      name: name || '',
+      name: fullName,
+      first_name: cleanFirst,
+      last_name: cleanLast,
+      phone: cleanPhone,
       avatar: avatar || '',
       is_verified: Boolean(is_verified),
       share_code: code
@@ -144,7 +158,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, avatar, is_verified, share_code, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -159,6 +173,18 @@ function updateUser(id, updates, callback) {
   if (updates.name !== undefined) {
     fields.push("name = ?");
     values.push(updates.name);
+  }
+  if (updates.first_name !== undefined) {
+    fields.push("first_name = ?");
+    values.push(updates.first_name);
+  }
+  if (updates.last_name !== undefined) {
+    fields.push("last_name = ?");
+    values.push(updates.last_name);
+  }
+  if (updates.phone !== undefined) {
+    fields.push("phone = ?");
+    values.push(updates.phone);
   }
   if (updates.avatar !== undefined) {
     fields.push("avatar = ?");
@@ -175,6 +201,10 @@ function updateUser(id, updates, callback) {
   if (updates.is_verified !== undefined) {
     fields.push("is_verified = ?");
     values.push(updates.is_verified ? 1 : 0);
+  }
+  if (updates.share_code !== undefined) {
+    fields.push("share_code = ?");
+    values.push(updates.share_code);
   }
 
   if (fields.length === 0) return callback(null);

@@ -30,7 +30,7 @@ export async function onRequestPost(context) {
     const user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(cleanEmail).first();
 
     if (!user || !user.is_verified || !user.password_hash) {
-      return new Response(JSON.stringify({ success: false, error: 'Invalid email or password.' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid email or password' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
 
     const isMatch = await verifyPassword(String(password), user.password_hash);
     if (!isMatch) {
-      return new Response(JSON.stringify({ success: false, error: 'Invalid email or password.' }), {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid email or password' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -76,6 +76,10 @@ export async function onRequestPost(context) {
         id: user.id,
         email: user.email,
         name: user.name || cleanEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
         shareCode: user.share_code
       },
       joinedGroup

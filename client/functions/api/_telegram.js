@@ -181,6 +181,21 @@ export async function ensureTablesExist(db) {
   ).run();
 
   try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN first_name TEXT`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN last_name TEXT`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN phone TEXT`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
     await db.prepare(`ALTER TABLE users ADD COLUMN share_code TEXT`).run();
   } catch (err) {
     void err;

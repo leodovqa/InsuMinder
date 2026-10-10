@@ -134,8 +134,30 @@ app.post('/api/auth/verify', async (req, res) => {
       });
     }
 
+    // If checkOnly is true, simply validate that code matches without consuming code or creating user yet
+    if (req.body && req.body.checkOnly) {
+      return res.json({
+        success: true,
+        verified: true
+      });
+    }
+
+    const { firstName, lastName, phone } = req.body || {};
+    const cleanFirst = firstName ? String(firstName).trim() : null;
+    const cleanLast = lastName ? String(lastName).trim() : null;
+    const cleanPhone = phone ? String(phone).trim() : null;
+
+    if (!cleanFirst || !cleanLast) {
+      return res.status(400).json({
+        success: false,
+        error: 'First name and last name are required to complete registration.'
+      });
+    }
+
     // Mark code as consumed
     await new Promise((resolve) => db.consumeVerificationCode(record.id, resolve));
+
+    const fullName = `${cleanFirst} ${cleanLast}`.trim();
 
     // Create or update user
     let user = await new Promise((resolve, reject) => {
@@ -143,11 +165,17 @@ app.post('/api/auth/verify', async (req, res) => {
     });
 
     if (user) {
+      const updates = {
+        password_hash: record.password_hash,
+        is_verified: 1
+      };
+      if (cleanFirst) updates.first_name = cleanFirst;
+      if (cleanLast) updates.last_name = cleanLast;
+      if (cleanPhone) updates.phone = cleanPhone;
+      if (cleanFirst || cleanLast) updates.name = fullName;
+
       await new Promise((resolve, reject) => {
-        db.updateUser(user.id, {
-          password_hash: record.password_hash,
-          is_verified: 1
-        }, (err) => (err ? reject(err) : resolve()));
+        db.updateUser(user.id, updates, (err) => (err ? reject(err) : resolve()));
       });
       user = await new Promise((resolve, reject) => {
         db.getUserById(user.id, (err, u) => (err ? reject(err) : resolve(u)));
@@ -157,7 +185,10 @@ app.post('/api/auth/verify', async (req, res) => {
         db.createUser({
           email: cleanEmail,
           password_hash: record.password_hash,
-          name: cleanEmail.split('@')[0],
+          name: fullName,
+          first_name: cleanFirst,
+          last_name: cleanLast,
+          phone: cleanPhone,
           is_verified: 1
         }, (err, u) => (err ? reject(err) : resolve(u)));
       });
@@ -180,6 +211,10 @@ app.post('/api/auth/verify', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name || cleanEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
         shareCode: user.share_code || ''
       }
     });
@@ -204,12 +239,12 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
     if (!user || !user.is_verified || !user.password_hash) {
-      return res.status(400).json({ success: false, error: 'Invalid email or password.' });
+      return res.status(400).json({ success: false, error: 'Invalid email or password' });
     }
 
     const isMatch = verifyPassword(String(password), user.password_hash);
     if (!isMatch) {
-      return res.status(400).json({ success: false, error: 'Invalid email or password.' });
+      return res.status(400).json({ success: false, error: 'Invalid email or password' });
     }
 
     if (shareCode) {
@@ -227,6 +262,10 @@ app.post('/api/auth/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name || cleanEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
         shareCode: user.share_code || ''
       }
     });
@@ -323,6 +362,9 @@ app.post('/api/auth/google', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name || userEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
         avatar: user.avatar || '',
         shareCode: user.share_code || ''
       }
@@ -345,6 +387,9 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
           id: user.id,
           email: user.email,
           name: user.name || user.email.split('@')[0],
+          firstName: user.first_name || '',
+          lastName: user.last_name || '',
+          phone: user.phone || '',
           avatar: user.avatar || '',
           shareCode: shareCode || user.share_code || ''
         }
@@ -353,7 +398,59 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   });
 });
 
-// 6. Sign out
+// 6. Update User Profile (Onboarding Step & Profile Updates)
+const handleProfileUpdate = async (req, res) => {
+  try {
+    const { firstName, lastName, phone } = req.body || {};
+
+    const cleanFirstName = String(firstName || '').trim();
+    const cleanLastName = String(lastName || '').trim();
+    const cleanPhone = String(phone || '').trim();
+
+    if (!cleanFirstName || !cleanLastName) {
+      return res.status(400).json({
+        success: false,
+        error: 'First name and last name are required.'
+      });
+    }
+
+    const fullName = `${cleanFirstName} ${cleanLastName}`.trim();
+
+    await new Promise((resolve, reject) => {
+      db.updateUser(req.user.id, {
+        name: fullName,
+        first_name: cleanFirstName,
+        last_name: cleanLastName,
+        phone: cleanPhone || null
+      }, (err) => (err ? reject(err) : resolve()));
+    });
+
+    const updatedUser = await new Promise((resolve, reject) => {
+      db.getUserById(req.user.id, (err, u) => (err ? reject(err) : resolve(u)));
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name || fullName,
+        firstName: updatedUser.first_name || cleanFirstName,
+        lastName: updatedUser.last_name || cleanLastName,
+        phone: updatedUser.phone || '',
+        avatar: updatedUser.avatar || '',
+        shareCode: updatedUser.share_code || ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Failed to update profile.' });
+  }
+};
+
+app.put('/api/auth/profile', requireAuth, handleProfileUpdate);
+app.post('/api/auth/profile', requireAuth, handleProfileUpdate);
+
+// 7. Sign out
 app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out successfully.' });
 });

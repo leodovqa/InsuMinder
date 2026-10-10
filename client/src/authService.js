@@ -85,8 +85,17 @@ export const authService = {
     return await res.json();
   },
 
-  async verify(email, code, shareCode = null) {
-    const payload = { email, code };
+  async verifyCode(email, code) {
+    const res = await fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code, checkOnly: true })
+    });
+    return await res.json();
+  },
+
+  async completeRegistration({ email, code, firstName, lastName, phone, shareCode }) {
+    const payload = { email, code, firstName, lastName, phone };
     if (shareCode) payload.shareCode = shareCode;
     const res = await fetch('/api/auth/verify', {
       method: 'POST',
@@ -99,6 +108,41 @@ export const authService = {
       if (data.joinedGroup && data.joinedGroup.ownerId) {
         this.setActiveContext('shared', data.joinedGroup.ownerId);
       }
+    }
+    return data;
+  },
+
+  async verify(email, code, shareCode = null, extra = {}) {
+    if (extra && extra.checkOnly) {
+      return this.verifyCode(email, code);
+    }
+    const payload = { email, code, ...(extra || {}) };
+    if (shareCode) payload.shareCode = shareCode;
+    const res = await fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success && data.token && data.user) {
+      this.setSession(data.token, data.user);
+      if (data.joinedGroup && data.joinedGroup.ownerId) {
+        this.setActiveContext('shared', data.joinedGroup.ownerId);
+      }
+    }
+    return data;
+  },
+
+  async updateProfile({ firstName, lastName, phone }) {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ firstName, lastName, phone })
+    });
+    const data = await res.json();
+    if (data.success && data.user) {
+      const token = this.getToken();
+      this.setSession(token, data.user);
     }
     return data;
   },

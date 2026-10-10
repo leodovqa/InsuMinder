@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
+import { isValidPhoneNumber, getExampleNumber } from 'libphonenumber-js/max';
+import examples from 'libphonenumber-js/examples.mobile.json';
 import { authService } from './authService';
+import { detectCountry } from './countryCallingCodes';
 
 export default function AuthModal({ isOpen, initialMode = 'login', shareCode = null, onClose, onSuccess }) {
-  const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'verify'
+  const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'verify' | 'profile'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [pendingJoinedGroup, setPendingJoinedGroup] = useState(null);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [devCode, setDevCode] = useState(null);
@@ -18,6 +25,10 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     setEmail('');
     setPassword('');
     setCode('');
+    setFirstName('');
+    setLastName('');
+    setPhone('');
+    setPendingJoinedGroup(null);
     setDevCode(null);
     setError(null);
     setIsSubmitting(false);
@@ -76,9 +87,15 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const handleStartOver = () => {
+  const handleBackToCredentials = () => {
     setMode('register');
-    resetAllInputs();
+    setError(null);
+    setCode('');
+    // email and password remain filled in as requested
+  };
+
+  const handleStartOver = () => {
+    handleBackToCredentials();
   };
 
   const handleTabSwitch = (newMode) => {
@@ -133,15 +150,10 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     setIsSubmitting(true);
 
     try {
-      const res = await authService.verify(email, code, shareCode);
+      const res = await authService.verifyCode(email, code);
       if (res.success) {
-        if (res.joinedGroup) {
-          onSuccess(res.user, res.joinedGroup);
-        } else {
-          onSuccess(res.user);
-        }
-        resetAllInputs();
-        onClose();
+        setError(null);
+        setMode('profile');
       } else {
         if (res.expired) {
           setIsCodeExpired(true);
@@ -150,6 +162,69 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
       }
     } catch {
       setError('Network error verifying code.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePhoneChange = (e) => {
+    // Only allow numeric digits [0-9], stripping all letters, symbols, spaces, and '+'
+    const numericOnly = e.target.value.replace(/\D/g, '');
+    setPhone(numericOnly);
+  };
+
+  const detectedCountry = detectCountry(phone);
+  const isPhoneValid = !phone || isValidPhoneNumber('+' + phone);
+  const isPhoneError = phone.length > 0 && !isPhoneValid;
+
+  const phonePlaceholder = detectedCountry
+    ? getExampleNumber(detectedCountry, examples)?.format('E.164').replace(/^\+/, '') || '13405550123'
+    : '13405550123';
+
+  // 3. Handle Profile Setup (Step 3: First Name, Last Name, Phone)
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    const cleanFirst = firstName.trim();
+    const cleanLast = lastName.trim();
+    const rawPhoneDigits = phone.replace(/\D/g, '');
+    const cleanPhone = rawPhoneDigits ? `+${rawPhoneDigits}` : '';
+
+    if (!cleanFirst || !cleanLast) {
+      setError('First name and last name are required.');
+      return;
+    }
+
+    if (rawPhoneDigits && !isValidPhoneNumber(`+${rawPhoneDigits}`)) {
+      setError('Please enter a valid phone number.');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      const res = await authService.completeRegistration({
+        email,
+        code,
+        firstName: cleanFirst,
+        lastName: cleanLast,
+        phone: cleanPhone,
+        shareCode
+      });
+
+      if (res.success && res.user) {
+        if (res.joinedGroup || pendingJoinedGroup) {
+          onSuccess(res.user, res.joinedGroup || pendingJoinedGroup);
+        } else {
+          onSuccess(res.user);
+        }
+        resetAllInputs();
+        onClose();
+      } else {
+        setError(res.error || 'Failed to complete registration profile.');
+      }
+    } catch {
+      setError('Network error completing registration.');
     } finally {
       setIsSubmitting(false);
     }
@@ -172,7 +247,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         resetAllInputs();
         onClose();
       } else {
-        setError(res.error || 'Invalid email or password.');
+        setError(res.error ? res.error.replace(/\.$/, '') : 'Invalid email or password');
       }
     } catch {
       setError('Network error during login.');
@@ -219,6 +294,21 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         aria-modal="true"
         aria-labelledby="auth-modal-title"
       >
+        {(mode === 'verify' || mode === 'profile') && (
+          <button
+            type="button"
+            className="modal-back-btn auth-back-btn"
+            onClick={handleBackToCredentials}
+            aria-label="Back to email and password"
+            title="Back to email and password"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+        )}
+
         <button
           type="button"
           className="modal-close-btn auth-close-btn"
@@ -236,14 +326,18 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
             </svg>
           </div>
           <h2 id="auth-modal-title" className="auth-title">
-            {mode === 'verify'
+            {mode === 'profile'
+              ? 'Complete Your Profile'
+              : mode === 'verify'
               ? 'Verify Email'
               : mode === 'register'
               ? 'Create InsuMinder Account'
               : 'Sign In to InsuMinder'}
           </h2>
           <p className="auth-subtitle">
-            {mode === 'verify'
+            {mode === 'profile'
+              ? 'Enter your name to complete your registration'
+              : mode === 'verify'
               ? `Enter the 6-digit code sent to ${email}`
               : mode === 'register'
               ? 'Register with email or Google to log insulin and track doses'
@@ -260,7 +354,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         )}
 
         {/* Mode Switch Tabs (Login vs Register) */}
-        {mode !== 'verify' && (
+        {mode !== 'verify' && mode !== 'profile' && (
           <div className="auth-tabs" role="tablist">
             <button
               type="button"
@@ -286,13 +380,100 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         {/* Error Alert Banner */}
         {error && (
           <div className="auth-error-banner" role="alert">
-            <span className="auth-error-icon">⚠️</span>
-            <span className="auth-error-text">{error}</span>
+            <span className="auth-error-icon" aria-hidden="true">⚠️</span>
+            <span className="auth-error-text">
+              {/invalid email or password/i.test(error) ? error.replace(/\.$/, '') : error}
+            </span>
           </div>
         )}
 
-        {/* MODE 1: VERIFY 6-DIGIT CODE */}
-        {mode === 'verify' ? (
+        {/* MODE 1: COMPLETE PROFILE (Step 3: First Name, Last Name, Phone) */}
+        {mode === 'profile' ? (
+          <form onSubmit={handleProfileSubmit} className="auth-form" autoComplete="off">
+            <div className="form-group">
+              <label htmlFor="auth-first-name-input" className="form-label">
+                First Name <span className="auth-required-star">*</span>
+              </label>
+              <input
+                id="auth-first-name-input"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="e.g. Test Name"
+                className="auth-input"
+                required
+                disabled={isSubmitting}
+                autoFocus
+                autoComplete="given-name"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="auth-last-name-input" className="form-label">
+                Last Name <span className="auth-required-star">*</span>
+              </label>
+              <input
+                id="auth-last-name-input"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="e.g. Test Last Name"
+                className="auth-input"
+                required
+                disabled={isSubmitting}
+                autoComplete="family-name"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="auth-phone-input" className="form-label">
+                Phone Number <span className="auth-optional-tag">(Optional)</span>
+              </label>
+              <div className={`phone-input-container ${isPhoneError ? 'phone-error' : ''}`}>
+                <div className="phone-prefix-addon" aria-hidden="true">
+                  {detectedCountry ? (
+                    <img
+                      src={`/flags/${detectedCountry}.svg`}
+                      alt=""
+                      className="phone-flag-icon"
+                    />
+                  ) : (
+                    <span className="phone-globe-icon">🌐</span>
+                  )}
+                  <span className="phone-plus-sign">+</span>
+                </div>
+                <input
+                  id="auth-phone-input"
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  placeholder={phonePlaceholder}
+                  className={`auth-input phone-input ${isPhoneError ? 'phone-input-invalid' : ''}`}
+                  disabled={isSubmitting}
+                  autoComplete="tel"
+                />
+              </div>
+              {isPhoneError && (
+                <div className="phone-validation-error" role="alert">
+                  Invalid phone number
+                </div>
+              )}
+            </div>
+
+            <div className="auth-modal-actions">
+              <button
+                type="submit"
+                className="primary-btn auth-submit-btn"
+                disabled={isSubmitting || !firstName.trim() || !lastName.trim() || isPhoneError}
+              >
+                {isSubmitting ? 'Completing Registration...' : 'Complete Registration'}
+              </button>
+            </div>
+          </form>
+        ) : mode === 'verify' ? (
+          /* MODE 2: VERIFY 6-DIGIT CODE */
           <form onSubmit={handleVerifySubmit} className="auth-form" autoComplete="off">
             <div className={`verification-timer-banner ${isCodeExpired ? 'timer-expired' : ''}`}>
               <svg
@@ -373,7 +554,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                   className="primary-btn auth-submit-btn"
                   disabled={isSubmitting || code.length !== 6}
                 >
-                  {isSubmitting ? 'Verifying...' : 'Verify & Complete Sign Up'}
+                  {isSubmitting ? 'Verifying...' : 'Verify Code & Continue'}
                 </button>
               )}
             </div>

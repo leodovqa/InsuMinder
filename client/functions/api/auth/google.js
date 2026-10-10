@@ -113,6 +113,9 @@ export async function onRequestPost(context) {
         id: user.id,
         email: user.email,
         name: user.name || userEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
         avatar: user.avatar || '',
         shareCode: user.share_code
       },

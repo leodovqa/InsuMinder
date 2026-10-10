@@ -3144,6 +3144,29 @@
   overflow-y: auto;
 }
 
+.auth-back-btn {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+
+.auth-back-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-h);
+}
+
 .auth-close-btn {
   position: absolute;
   top: 14px;
@@ -3287,25 +3310,32 @@
 /* Error Banner */
 .auth-error-banner {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.35);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 11px 16px;
   margin-bottom: 16px;
   color: #fca5a5;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .auth-error-icon {
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .auth-error-text {
-  flex: 1;
+  text-align: center;
 }
 
 /* Form Controls */
@@ -3313,6 +3343,36 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  text-align: left;
+}
+
+.auth-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.auth-form .form-label {
+  display: block;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.auth-required-star {
+  color: #ef4444;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.auth-optional-tag {
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 4px;
 }
 
 .auth-input {
@@ -3333,8 +3393,100 @@
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
 }
 
+/* Phone Input with Fixed Country Flag and '+' Prefix */
+.phone-input-container {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  width: 100%;
+}
+
+.phone-prefix-addon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  color: var(--text-h);
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+  user-select: none;
+  transition: border-color 0.15s ease;
+}
+
+.phone-flag-icon {
+  width: 22px;
+  height: 15px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  display: block;
+}
+
+.phone-globe-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-plus-sign {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.phone-input {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-input-container:focus-within .phone-prefix-addon {
+  border-color: #38bdf8;
+}
+
+/* Phone input error state (red border on prefix and input) */
+.phone-input-container.phone-error .phone-prefix-addon {
+  border-color: #ef4444;
+}
+
+.phone-input-container.phone-error .phone-input {
+  border-color: #ef4444;
+}
+
+.phone-input-container.phone-error:focus-within .phone-prefix-addon,
+.phone-input-container.phone-error:focus-within .phone-input {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.phone-validation-error {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: #ef4444;
+  text-align: left;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
 /* Verification Code Input */
 .code-input-group {
+  text-align: center;
+}
+
+.code-input-group .form-label {
   text-align: center;
 }
 

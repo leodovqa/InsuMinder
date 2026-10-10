@@ -157,7 +157,7 @@ function App() {
   const [user, setUser] = useState(() => authService.getCurrentUser());
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(authService.getToken()));
   // Shared Access & Caregiver Context State
-  const [urlShareCode] = useState(() => {
+  const [urlShareCode, setUrlShareCode] = useState(() => {
     if (typeof window === 'undefined') return null;
     const params = new URLSearchParams(window.location.search);
     return params.get('shareCode') || params.get('invite') || null;
@@ -375,6 +375,15 @@ function App() {
     setUser(authUser);
     setIsLoggedIn(true);
     setIsAuthModalOpen(false);
+    setUrlShareCode(null);
+
+    // Security: Clear referral / share code from URL so it cannot be reused
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('shareCode');
+      url.searchParams.delete('invite');
+      window.history.replaceState({}, document.title, url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash);
+    }
 
     if (joinedGroup && joinedGroup.ownerId) {
       authService.setActiveContext('shared', joinedGroup.ownerId);
@@ -1023,10 +1032,12 @@ function App() {
           {isLoggedIn && user ? (
             <div className="nav-user-badge">
               <div className="nav-user-avatar">
-                {(user.name || user.email || 'U')[0].toUpperCase()}
+                {((user.firstName || user.name || user.email || 'U')[0]).toUpperCase()}
               </div>
               <div className="nav-user-details">
-                <span className="nav-user-name">{user.name || user.email.split('@')[0]}</span>
+                <span className="nav-user-name">
+                  {user.name || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email.split('@')[0]}
+                </span>
                 <span className="nav-user-email" title={user.email}>{user.email}</span>
               </div>
             </div>

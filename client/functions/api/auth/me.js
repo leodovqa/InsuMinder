@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
   }
 
   let user = await db
-    .prepare('SELECT id, email, name, avatar, share_code, is_verified, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, created_at FROM users WHERE id = ?')
     .bind(authUser.userId)
     .first();
 
@@ -43,6 +43,9 @@ export async function onRequestGet(context) {
       id: user.id,
       email: user.email,
       name: user.name || user.email.split('@')[0],
+      firstName: user.first_name || '',
+      lastName: user.last_name || '',
+      phone: user.phone || '',
       avatar: user.avatar || '',
       shareCode: user.share_code
     }

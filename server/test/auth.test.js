@@ -187,6 +187,59 @@ describe('Authentication & User Scoping Integration Tests', () => {
       assert.equal(row.is_verified, 1);
       assert.equal(verifyPassword(testPassword, row.password_hash), true);
     });
+
+    it('creates user with first_name, last_name, phone and auto-computes full name', async () => {
+      const user = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: 'profile.user@example.com',
+          first_name: 'John',
+          last_name: 'Doe',
+          phone: '+1-555-0199',
+          is_verified: 1
+        }, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      assert.ok(user.id);
+      assert.equal(user.name, 'John Doe');
+      assert.equal(user.first_name, 'John');
+      assert.equal(user.last_name, 'Doe');
+      assert.equal(user.phone, '+1-555-0199');
+
+      const fetched = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(fetched.name, 'John Doe');
+      assert.equal(fetched.first_name, 'John');
+      assert.equal(fetched.last_name, 'Doe');
+      assert.equal(fetched.phone, '+1-555-0199');
+    });
+
+    it('updates user profile details and name in database', async () => {
+      const user = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: 'update.user@example.com',
+          name: 'Old Name',
+          is_verified: 1
+        }, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      await new Promise((resolve, reject) => {
+        db.updateUser(user.id, {
+          name: 'Jane Smith',
+          first_name: 'Jane',
+          last_name: 'Smith',
+          phone: '+1-555-9876'
+        }, (err) => (err ? reject(err) : resolve()));
+      });
+
+      const updated = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(updated.name, 'Jane Smith');
+      assert.equal(updated.first_name, 'Jane');
+      assert.equal(updated.last_name, 'Smith');
+      assert.equal(updated.phone, '+1-555-9876');
+    });
   });
 
   describe('User-Scoped Data Isolation', () => {

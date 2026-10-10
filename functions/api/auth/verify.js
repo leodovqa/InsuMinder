@@ -16,7 +16,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json().catch(() => ({}));
-    const { email, code, shareCode } = body;
+    const { email, code, shareCode, firstName, lastName, phone } = body;
 
     if (!email || !code) {
       return new Response(JSON.stringify({ success: false, error: 'Email and verification code are required.' }), {
@@ -27,6 +27,10 @@ export async function onRequestPost(context) {
 
     const cleanEmail = String(email).trim().toLowerCase();
     const cleanCode = String(code).trim();
+    const cleanFirst = firstName ? String(firstName).trim() : null;
+    const cleanLast = lastName ? String(lastName).trim() : null;
+    const cleanPhone = phone ? String(phone).trim() : null;
+    const fullName = [cleanFirst, cleanLast].filter(Boolean).join(' ') || (cleanFirst ? cleanFirst : cleanEmail.split('@')[0]);
 
     const record = await db
       .prepare('SELECT * FROM verification_codes WHERE email = ? AND consumed = 0 ORDER BY id DESC LIMIT 1')
@@ -66,27 +70,49 @@ export async function onRequestPost(context) {
       });
     }
 
+    if (body.checkOnly) {
+      return new Response(JSON.stringify({
+        success: true,
+        verified: true
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (!cleanFirst || !cleanLast) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'First name and last name are required to complete registration.'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     await db.prepare('UPDATE verification_codes SET consumed = 1 WHERE id = ?').bind(record.id).run();
 
     let user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(cleanEmail).first();
 
     if (user) {
       await db
-        .prepare('UPDATE users SET password_hash = ?, is_verified = 1 WHERE id = ?')
-        .bind(record.password_hash, user.id)
+        .prepare('UPDATE users SET password_hash = ?, is_verified = 1, name = COALESCE(?, name), first_name = COALESCE(?, first_name), last_name = COALESCE(?, last_name), phone = COALESCE(?, phone) WHERE id = ?')
+        .bind(record.password_hash, (cleanFirst || cleanLast) ? fullName : null, cleanFirst, cleanLast, cleanPhone, user.id)
         .run();
       user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
     } else {
-      const defaultName = cleanEmail.split('@')[0];
       const initialShareCode = generateShareCode();
       const result = await db
-        .prepare('INSERT INTO users (email, password_hash, name, is_verified, share_code) VALUES (?, ?, ?, 1, ?)')
-        .bind(cleanEmail, record.password_hash, defaultName, initialShareCode)
+        .prepare('INSERT INTO users (email, password_hash, name, first_name, last_name, phone, is_verified, share_code) VALUES (?, ?, ?, ?, ?, ?, 1, ?)')
+        .bind(cleanEmail, record.password_hash, fullName, cleanFirst, cleanLast, cleanPhone, initialShareCode)
         .run();
       user = {
         id: result.meta.last_row_id,
         email: cleanEmail,
-        name: defaultName,
+        name: fullName,
+        first_name: cleanFirst,
+        last_name: cleanLast,
+        phone: cleanPhone,
         is_verified: 1,
         share_code: initialShareCode
       };
@@ -124,6 +150,10 @@ export async function onRequestPost(context) {
         id: user.id,
         email: user.email,
         name: user.name || cleanEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
         shareCode: user.share_code
       },
       joinedGroup
