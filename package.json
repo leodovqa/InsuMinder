@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"node server/src/index.js\" \"npm run dev --prefix client\"",
-    "test": "node --test server/test/telegram.test.js && npm --prefix client test",
+    "test": "node --test server/test/telegram.test.js server/test/auth.test.js server/test/share.test.js && npm --prefix client test",
     "lint": "npm --prefix client run lint",
     "docker": "docker compose up --build",
     "prepare": "husky"

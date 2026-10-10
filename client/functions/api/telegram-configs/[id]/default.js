@@ -1,4 +1,5 @@
 import { ensureTablesExist } from '../../_telegram.js';
+import { getAuthUser, getEffectiveUserId } from '../../_auth.js';
 
 export async function onRequestPut(context) {
   try {
@@ -12,6 +13,16 @@ export async function onRequestPut(context) {
 
     await ensureTablesExist(db);
 
+    const authUser = await getAuthUser(context.request, context.env);
+    if (!authUser || !authUser.userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required. Please sign in.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
+    const effectiveUserId = await getEffectiveUserId(context.request, context.env, authUser, db);
+
     const id = parseInt(context.params.id, 10);
     if (isNaN(id)) {
       return new Response(
@@ -20,12 +31,12 @@ export async function onRequestPut(context) {
       );
     }
 
-    await db.prepare("UPDATE telegram_configs SET is_default = 0").run();
-    await db.prepare("UPDATE telegram_configs SET is_default = 1 WHERE id = ?").bind(id).run();
+    await db.prepare("UPDATE telegram_configs SET is_default = 0 WHERE user_id = ?").bind(effectiveUserId).run();
+    await db.prepare("UPDATE telegram_configs SET is_default = 1 WHERE id = ? AND user_id = ?").bind(id, effectiveUserId).run();
 
     const updated = await db
-      .prepare("SELECT * FROM telegram_configs WHERE id = ?")
-      .bind(id)
+      .prepare("SELECT * FROM telegram_configs WHERE id = ? AND user_id = ?")
+      .bind(id, effectiveUserId)
       .first();
 
     return new Response(
@@ -55,8 +66,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'PUT, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-auth-token, x-active-context, x-active-owner-id'
     }
   });
 }
-

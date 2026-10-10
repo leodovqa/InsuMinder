@@ -49,19 +49,13 @@ export async function sendTelegramMessage(botToken, chatId, text) {
     return initialResult;
   }
 
-  if (initialResult.error && /chat not found/i.test(initialResult.error)) {
-    if (cleanChatId.startsWith('-') && !cleanChatId.startsWith('-100')) {
-      const altChatId = `-100${cleanChatId.slice(1)}`;
-      const altResult = await postToTelegramApi(cleanToken, altChatId, text);
-      if (altResult.ok) {
-        return altResult;
-      }
-    } else if (!cleanChatId.startsWith('-') && cleanChatId.length >= 9) {
-      const altChatId = `-100${cleanChatId}`;
-      const altResult = await postToTelegramApi(cleanToken, altChatId, text);
-      if (altResult.ok) {
-        return altResult;
-      }
+  // Telegram Web K -100 fallback retry
+  const digits = cleanChatId.replace(/^-+/, '');
+  if (!cleanChatId.startsWith('-100') && digits.length >= 8 && digits.length <= 11) {
+    const prefixedChatId = `-100${digits}`;
+    const retryResult = await postToTelegramApi(cleanToken, prefixedChatId, text);
+    if (retryResult.ok) {
+      return retryResult;
     }
   }
 
@@ -69,9 +63,38 @@ export async function sendTelegramMessage(botToken, chatId, text) {
 }
 
 export async function ensureTablesExist(db) {
+  // Users table
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT,
+      google_id TEXT,
+      name TEXT,
+      avatar TEXT,
+      is_verified BOOLEAN DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ).run();
+
+  // Verification codes table
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS verification_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      code TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      consumed BOOLEAN DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ).run();
+
+  // Injection logs table
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS injection_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       injected_at TIMESTAMP NOT NULL,
       notify_10m_at TIMESTAMP,
       notify_2h_at TIMESTAMP NOT NULL,
@@ -85,6 +108,11 @@ export async function ensureTablesExist(db) {
     )`
   ).run();
 
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN user_id INTEGER`).run();
+  } catch (err) {
+    void err;
+  }
   try {
     await db.prepare(`ALTER TABLE injection_logs ADD COLUMN notify_10m_at TIMESTAMP`).run();
   } catch (err) {
@@ -111,9 +139,11 @@ export async function ensureTablesExist(db) {
     void err;
   }
 
+  // Telegram configs table
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS telegram_configs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       name TEXT,
       bot_token TEXT NOT NULL,
       chat_id TEXT NOT NULL,
@@ -121,6 +151,55 @@ export async function ensureTablesExist(db) {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ).run();
+
+  try {
+    await db.prepare(`ALTER TABLE telegram_configs ADD COLUMN user_id INTEGER`).run();
+  } catch (err) {
+    void err;
+  }
+
+  // Shared members table
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS shared_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_id INTEGER NOT NULL,
+      member_id INTEGER NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(owner_id, member_id)
+    )`
+  ).run();
+
+  // Share invites table
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS share_invites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_id INTEGER NOT NULL,
+      invite_email TEXT NOT NULL,
+      share_code TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ).run();
+
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN first_name TEXT`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN last_name TEXT`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN phone TEXT`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN share_code TEXT`).run();
+  } catch (err) {
+    void err;
+  }
 }
 
 export async function dispatchDueNotifications(db) {
@@ -159,39 +238,39 @@ export async function dispatchDueNotifications(db) {
       `SELECT * FROM injection_logs WHERE status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ? ORDER BY notify_3h_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
 
-    if ((!due10m || due10m.length === 0) && (!due2h || due2h.length === 0) && (!due3h || due3h.length === 0)) {
+    const allDue = [...(due10m || []), ...(due2h || []), ...(due3h || [])];
+    if (allDue.length === 0) {
       return { dispatched: 0 };
     }
 
-    const defaultCfg = await db.prepare(
-      `SELECT * FROM telegram_configs WHERE is_default = 1 LIMIT 1`
-    ).first();
-
-    if (!defaultCfg || !defaultCfg.bot_token || !defaultCfg.chat_id) {
-      const missingConfigError = 'Telegram is not configured. Go to Settings to set up your destination.';
-      if (due10m && due10m.length > 0) {
-        for (const log of due10m) {
-          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`).bind(missingConfigError, log.id).run();
-        }
+    // Helper to find default config for a specific log's user
+    const getConfigForLog = async (log) => {
+      if (log.user_id) {
+        const userCfg = await db.prepare(
+          `SELECT * FROM telegram_configs WHERE user_id = ? AND is_default = 1 LIMIT 1`
+        ).bind(log.user_id).first();
+        if (userCfg) return userCfg;
+        const fallback = await db.prepare(
+          `SELECT * FROM telegram_configs WHERE user_id = ? ORDER BY id DESC LIMIT 1`
+        ).bind(log.user_id).first();
+        if (fallback) return fallback;
       }
-      if (due2h && due2h.length > 0) {
-        for (const log of due2h) {
-          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind(missingConfigError, log.id).run();
-        }
-      }
-      if (due3h && due3h.length > 0) {
-        for (const log of due3h) {
-          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind(missingConfigError, log.id).run();
-        }
-      }
-      return { dispatched: 0, reason: 'No default telegram config found.' };
-    }
+      return await db.prepare(`SELECT * FROM telegram_configs WHERE is_default = 1 LIMIT 1`).first();
+    };
 
     let count = 0;
+
     if (due10m && due10m.length > 0) {
       for (const log of due10m) {
+        const cfg = await getConfigForLog(log);
+        if (!cfg || !cfg.bot_token || !cfg.chat_id) {
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
+            .bind('Telegram is not configured. Go to Settings to set up your destination.', log.id)
+            .run();
+          continue;
+        }
         const msg = "From InsuMinder:\n10 minutes have passed since your injection. You can now start your meal.";
-        const sendRes = await sendTelegramMessage(defaultCfg.bot_token, defaultCfg.chat_id, msg);
+        const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_10m_sent = 1, error_10m = NULL WHERE id = ?`).bind(log.id).run();
           count++;
@@ -203,8 +282,15 @@ export async function dispatchDueNotifications(db) {
 
     if (due2h && due2h.length > 0) {
       for (const log of due2h) {
+        const cfg = await getConfigForLog(log);
+        if (!cfg || !cfg.bot_token || !cfg.chat_id) {
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
+            .bind('Telegram is not configured. Go to Settings to set up your destination.', log.id)
+            .run();
+          continue;
+        }
         const msg = "From InsuMinder:\nPlease go and check your Glucose level after 2 Hours.";
-        const sendRes = await sendTelegramMessage(defaultCfg.bot_token, defaultCfg.chat_id, msg);
+        const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_2h_sent = 1, error_2h = NULL WHERE id = ?`).bind(log.id).run();
           count++;
@@ -216,8 +302,15 @@ export async function dispatchDueNotifications(db) {
 
     if (due3h && due3h.length > 0) {
       for (const log of due3h) {
+        const cfg = await getConfigForLog(log);
+        if (!cfg || !cfg.bot_token || !cfg.chat_id) {
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
+            .bind('Telegram is not configured. Go to Settings to set up your destination.', log.id)
+            .run();
+          continue;
+        }
         const msg = "From InsuMinder:\nPlease go and check your Glucose level after 3 Hours.";
-        const sendRes = await sendTelegramMessage(defaultCfg.bot_token, defaultCfg.chat_id, msg);
+        const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_3h_sent = 1, error_3h = NULL WHERE id = ?`).bind(log.id).run();
           count++;
@@ -229,8 +322,7 @@ export async function dispatchDueNotifications(db) {
 
     return { dispatched: count };
   } catch (err) {
-    console.error('Error dispatching notifications:', err);
+    console.error('dispatchDueNotifications error:', err);
     return { dispatched: 0, error: err.message };
   }
 }
-

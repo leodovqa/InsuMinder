@@ -17,6 +17,8 @@ import {
   isCustomConfigName,
   getReminderStatus
 } from './utils';
+import AuthModal from './AuthModal';
+import { authService } from './authService';
 
 function LiveClock() {
   const [time, setTime] = useState(() => {
@@ -152,10 +154,45 @@ function App() {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [isLatestExpanded, setIsLatestExpanded] = useState(false);
-  const [isLoggedIn] = useState(false); // Auth state placeholder (future login logic)
+  const [user, setUser] = useState(() => authService.getCurrentUser());
+  const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(authService.getToken()));
+  // Shared Access & Caregiver Context State
+  const [urlShareCode, setUrlShareCode] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('shareCode') || params.get('invite') || null;
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const hasShare = Boolean(params.get('shareCode') || params.get('invite'));
+    const hasToken = Boolean(authService.getToken());
+    return hasShare && !hasToken;
+  });
+  const [authModalMode, setAuthModalMode] = useState(() => {
+    if (typeof window === 'undefined') return 'login';
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('shareCode') || params.get('invite')) ? 'register' : 'login';
+  }); // 'login' | 'register'
   const [selectedWeekStart, setSelectedWeekStart] = useState(() => getStartOfWeek(new Date()));
   const [touchStartX, setTouchStartX] = useState(null);
   const [touchStartY, setTouchStartY] = useState(null);
+
+  const [activeContext, setActiveContext] = useState(() => authService.getActiveContext());
+  const [activeOwnerId, setActiveOwnerId] = useState(() => authService.getActiveOwnerId());
+  const [shareStatus, setShareStatus] = useState({ shareCode: '', members: [], sharedGroups: [] });
+  const [shareInviteEmail, setShareInviteEmail] = useState('');
+  const [shareJoinCode, setShareJoinCode] = useState('');
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [isJoiningShare, setIsJoiningShare] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const [deleteModalConfig, setDeleteModalConfig] = useState(null);
+  const [reminderModalData, setReminderModalData] = useState(null);
+  const [removeMemberModalData, setRemoveMemberModalData] = useState(null);
+  const [leaveGroupModalData, setLeaveGroupModalData] = useState(null);
+  const [viewingExplanationModal, setViewingExplanationModal] = useState(null);
 
   // Synchronize URL search params with activeTab
   useEffect(() => {
@@ -166,11 +203,23 @@ function App() {
   useEffect(() => {
     const handlePopState = () => {
       setActiveTab(getTabFromUrl());
+      if (isAuthModalOpen) {
+        setIsAuthModalOpen(false);
+      }
+      if (removeMemberModalData) {
+        setRemoveMemberModalData(null);
+      }
+      if (leaveGroupModalData) {
+        setLeaveGroupModalData(null);
+      }
+      if (viewingExplanationModal) {
+        setViewingExplanationModal(null);
+      }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [isAuthModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
 
   // Settings State
   const [language, setLanguage] = useState(() => {
@@ -189,8 +238,6 @@ function App() {
   const [telegramChatId, setTelegramChatId] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
-  const [deleteModalConfig, setDeleteModalConfig] = useState(null);
-  const [reminderModalData, setReminderModalData] = useState(null);
 
   const latestLog = logs.length > 0 ? logs[0] : null;
   const isTelegramConfigured = telegramConfigs.length > 0
@@ -225,7 +272,9 @@ function App() {
   };
 
   const fetchTelegramConfigs = () => {
-    fetch('/api/telegram-configs')
+    fetch('/api/telegram-configs', {
+      headers: authService.getAuthHeaders()
+    })
       .then(response => response.json())
       .then(data => {
         if (data.success && Array.isArray(data.configs)) {
@@ -253,30 +302,285 @@ function App() {
       .catch(error => console.error('Error fetching telegram configs:', error));
   };
 
-  // Fetch configs and settings from server on mount
-  useEffect(() => {
-    fetchTelegramConfigs();
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/logs')
+  const fetchLogs = () => {
+    fetch('/api/logs', {
+      headers: authService.getAuthHeaders()
+    })
       .then(response => response.json())
       .then(data => {
-        if (data.success) {
+        if (data.success && Array.isArray(data.logs)) {
           setLogs(data.logs);
         }
       })
       .catch(error => console.error('Error fetching logs:', error));
+  };
+
+  // Fetch Caregiver / Family Share Status
+  const fetchShareStatus = async () => {
+    if (!authService.getToken()) return;
+    try {
+      const res = await authService.getShareStatus();
+      if (res && res.success) {
+        setShareStatus({
+          shareCode: res.shareCode || '',
+          members: res.members || [],
+          sharedGroups: res.sharedGroups || []
+        });
+        const currentCtx = authService.getActiveContext();
+        const currentOwner = authService.getActiveOwnerId();
+        if (currentCtx === 'shared' && currentOwner) {
+          const match = (res.sharedGroups || []).some(g => g.ownerId === currentOwner);
+          if (!match && res.sharedGroups && res.sharedGroups.length > 0) {
+            authService.setActiveContext('shared', res.sharedGroups[0].ownerId);
+            setActiveContext('shared');
+            setActiveOwnerId(res.sharedGroups[0].ownerId);
+          } else if (!match) {
+            authService.setActiveContext('personal');
+            setActiveContext('personal');
+            setActiveOwnerId(null);
+          }
+        }
+      }
+    } catch {
+      // ignore network errors
+    }
+  };
+
+  // Verify session with server on mount if token exists
+  useEffect(() => {
+    const token = authService.getToken();
+    if (token) {
+      authService.fetchMe().then(currUser => {
+        if (currUser) {
+          setUser(currUser);
+          setIsLoggedIn(true);
+          fetchShareStatus();
+        } else {
+          setUser(null);
+          setIsLoggedIn(false);
+          setLogs([]);
+          setTelegramConfigs([]);
+        }
+      });
+    }
   }, []);
+
+  // Fetch configs and logs on mount
+  useEffect(() => {
+    fetchTelegramConfigs();
+    fetchLogs();
+  }, []);
+
+  const handleAuthSuccess = (authUser, joinedGroup = null) => {
+    setUser(authUser);
+    setIsLoggedIn(true);
+    setIsAuthModalOpen(false);
+    setUrlShareCode(null);
+
+    // Security: Clear referral / share code from URL so it cannot be reused
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('shareCode');
+      url.searchParams.delete('invite');
+      window.history.replaceState({}, document.title, url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : '') + url.hash);
+    }
+
+    if (joinedGroup && joinedGroup.ownerId) {
+      authService.setActiveContext('shared', joinedGroup.ownerId);
+      setActiveContext('shared');
+      setActiveOwnerId(joinedGroup.ownerId);
+      setNotification({
+        type: 'success',
+        message: `Connected to shared account (${joinedGroup.ownerName || joinedGroup.ownerEmail})! Switched to shared data view.`
+      });
+    } else {
+      setNotification({
+        type: 'success',
+        message: `Signed in successfully as ${authUser.email}!`
+      });
+    }
+
+    fetchTelegramConfigs();
+    fetchLogs();
+    fetchShareStatus();
+  };
+
+  const handleSignOut = async () => {
+    await authService.logout();
+    setUser(null);
+    setIsLoggedIn(false);
+    setActiveContext('personal');
+    setActiveOwnerId(null);
+    setShareStatus({ shareCode: '', members: [], sharedGroups: [] });
+    setLogs([]);
+    setTelegramConfigs([]);
+    setIsNavOpen(false);
+    setNotification({
+      type: 'success',
+      message: 'You have been signed out.'
+    });
+  };
+
+  const handleSwitchContext = (newCtx, ownerId = null) => {
+    authService.setActiveContext(newCtx, ownerId);
+    setActiveContext(newCtx);
+    setActiveOwnerId(ownerId);
+    fetchLogs();
+    fetchTelegramConfigs();
+    setNotification({
+      type: 'success',
+      message: newCtx === 'shared'
+        ? 'Switched to caregiver view for shared data.'
+        : 'Switched to personal data view.'
+    });
+  };
+
+  const handleCopyShareCode = () => {
+    if (!shareStatus.shareCode) return;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(shareStatus.shareCode);
+    }
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
+  };
+
+  const handleCopyInviteLink = () => {
+    if (!shareStatus.shareCode) return;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const inviteUrl = `${origin}/?shareCode=${shareStatus.shareCode}`;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(inviteUrl);
+    }
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleSendInviteEmail = async (e) => {
+    e.preventDefault();
+    if (!shareInviteEmail.trim()) return;
+    setIsSendingInvite(true);
+    try {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const inviteUrl = `${origin}/?shareCode=${shareStatus.shareCode}`;
+      const res = await authService.inviteMember(shareInviteEmail.trim(), inviteUrl);
+      if (res.success) {
+        setNotification({
+          type: 'success',
+          message: res.message || `Invitation sent to ${shareInviteEmail}!`
+        });
+        setShareInviteEmail('');
+        fetchShareStatus();
+      } else {
+        setNotification({
+          type: 'error',
+          message: res.error || 'Failed to send invite.'
+        });
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'Network error sending invitation.' });
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleJoinSharedGroup = async (e) => {
+    e.preventDefault();
+    if (!shareJoinCode.trim()) return;
+    setIsJoiningShare(true);
+    try {
+      const res = await authService.joinShare(shareJoinCode.trim());
+      if (res.success) {
+        setNotification({
+          type: 'success',
+          message: res.message || 'Connected to shared account!'
+        });
+        setShareJoinCode('');
+        if (res.owner && res.owner.ownerId) {
+          handleSwitchContext('shared', res.owner.ownerId);
+        }
+        fetchShareStatus();
+      } else {
+        setNotification({
+          type: 'error',
+          message: res.error || 'Failed to connect using share code.'
+        });
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'Network error joining shared group.' });
+    } finally {
+      setIsJoiningShare(false);
+    }
+  };
+
+  const handleOpenRemoveMemberModal = (member) => {
+    setRemoveMemberModalData(member);
+  };
+
+  const handleCloseRemoveMemberModal = () => {
+    setRemoveMemberModalData(null);
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!removeMemberModalData) return;
+    const member = removeMemberModalData;
+    try {
+      const res = await authService.removeMember(member.id);
+      if (res.success) {
+        setNotification({ type: 'success', message: `Member "${member.name || member.email}" removed from shared group.` });
+        setRemoveMemberModalData(null);
+        fetchShareStatus();
+      } else {
+        setNotification({ type: 'error', message: res.error || 'Failed to remove member.' });
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'Network error removing member.' });
+    }
+  };
+
+  const handleOpenLeaveGroupModal = (group) => {
+    setLeaveGroupModalData(group);
+  };
+
+  const handleCloseLeaveGroupModal = () => {
+    setLeaveGroupModalData(null);
+  };
+
+  const handleConfirmLeaveGroup = async () => {
+    if (!leaveGroupModalData) return;
+    const group = leaveGroupModalData;
+    try {
+      const res = await authService.leaveShareGroup(group.ownerId);
+      if (res.success) {
+        setNotification({ type: 'success', message: 'You have left the shared group.' });
+        if (activeContext === 'shared' && activeOwnerId === group.ownerId) {
+          handleSwitchContext('personal');
+        }
+        setLeaveGroupModalData(null);
+        fetchShareStatus();
+      } else {
+        setNotification({ type: 'error', message: res.error || 'Failed to leave shared group.' });
+      }
+    } catch {
+      setNotification({ type: 'error', message: 'Network error leaving shared group.' });
+    }
+  };
 
   // Keyboard navigation: Close modals or nav drawer on Escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (reminderModalData) {
+        if (isAuthModalOpen) {
+          setIsAuthModalOpen(false);
+        } else if (reminderModalData) {
           setReminderModalData(null);
         } else if (deleteModalConfig) {
           setDeleteModalConfig(null);
+        } else if (removeMemberModalData) {
+          setRemoveMemberModalData(null);
+        } else if (leaveGroupModalData) {
+          setLeaveGroupModalData(null);
+        } else if (viewingExplanationModal) {
+          setViewingExplanationModal(null);
         } else if (isNavOpen) {
           setIsNavOpen(false);
         }
@@ -285,7 +589,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNavOpen, deleteModalConfig, reminderModalData]);
+  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
 
   // Auto-dismiss notification after 4.5 seconds
   useEffect(() => {
@@ -298,6 +602,12 @@ function App() {
   }, [notification]);
 
   const handleLogInjection = () => {
+    if (!isLoggedIn) {
+      setAuthModalMode('login');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const now = new Date();
     const currentMinute = now.toISOString().slice(0, 16);
 
@@ -312,9 +622,7 @@ function App() {
 
     fetch('/api/injections', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authService.getAuthHeaders(),
     })
     .then(response => response.json())
     .then(data => {
@@ -324,14 +632,7 @@ function App() {
           type: 'success',
           message: `Insulin injection logged successfully at ${injectedTime}!`
         });
-        fetch('/api/logs')
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              setLogs(data.logs);
-            }
-          })
-          .catch(error => console.error('Error fetching logs:', error));
+        fetchLogs();
       } else {
         setNotification({
           type: 'warning',
@@ -372,9 +673,7 @@ function App() {
     try {
       const response = await fetch('/api/telegram-configs', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authService.getAuthHeaders(),
         body: JSON.stringify({
           name: cleanLabel,
           botToken: cleanToken,
@@ -413,6 +712,7 @@ function App() {
     try {
       const response = await fetch(`/api/telegram-configs/${configId}/default`, {
         method: 'PUT',
+        headers: authService.getAuthHeaders(),
       });
       const data = await response.json();
       if (data.success) {
@@ -448,6 +748,7 @@ function App() {
     try {
       const response = await fetch(`/api/telegram-configs/${deleteModalConfig.id}`, {
         method: 'DELETE',
+        headers: authService.getAuthHeaders(),
       });
       const data = await response.json();
       if (data.success) {
@@ -488,9 +789,7 @@ function App() {
     try {
       const response = await fetch('/api/telegram/test', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authService.getAuthHeaders(),
         body: JSON.stringify({
           telegramBotToken: cleanToken,
           telegramChatId: cleanChatId
@@ -730,11 +1029,30 @@ function App() {
 
         {/* Bottom of sidebar: Log In / Sign Out button */}
         <div className="nav-footer">
+          {isLoggedIn && user ? (
+            <div className="nav-user-badge">
+              <div className="nav-user-avatar">
+                {((user.firstName || user.name || user.email || 'U')[0]).toUpperCase()}
+              </div>
+              <div className="nav-user-details">
+                <span className="nav-user-name">
+                  {user.name || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email.split('@')[0]}
+                </span>
+                <span className="nav-user-email" title={user.email}>{user.email}</span>
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             className="nav-auth-btn"
             onClick={() => {
-              // Authentication logic will be implemented later
+              if (isLoggedIn) {
+                handleSignOut();
+              } else {
+                setAuthModalMode('login');
+                setIsAuthModalOpen(true);
+                setIsNavOpen(false);
+              }
             }}
           >
             <span className="nav-icon" role="img" aria-label="auth">
@@ -770,8 +1088,61 @@ function App() {
             {/* Real-time Digital Clock */}
             <LiveClock />
 
-            {/* Telegram Configuration Notice Banner */}
-            {!isTelegramConfigured && (
+            {/* Modern Auth Hero Banner when logged out */}
+            {!isLoggedIn && (
+              <div className="auth-hero-banner auth-required-banner">
+                <div className="auth-hero-glow" />
+                <div className="auth-hero-content">
+                  <div className="auth-hero-icon-container">
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="auth-hero-lock-icon"
+                    >
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <div className="auth-hero-text">
+                    <div className="auth-hero-title">Sign In or Sign Up</div>
+                    <p className="auth-hero-subtitle">
+                      Sign in or create an account to record your injections and manage your reminders.
+                    </p>
+                  </div>
+                </div>
+                <div className="auth-hero-actions">
+                  <button
+                    type="button"
+                    className="auth-hero-btn signin-btn"
+                    onClick={() => {
+                      setAuthModalMode('login');
+                      setIsAuthModalOpen(true);
+                    }}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    className="auth-hero-btn signup-btn"
+                    onClick={() => {
+                      setAuthModalMode('register');
+                      setIsAuthModalOpen(true);
+                    }}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Telegram Configuration Notice Banner (Only when logged in) */}
+            {isLoggedIn && !isTelegramConfigured && (
               <div
                 className="telegram-alert-card"
                 onClick={() => setActiveTab('settings')}
@@ -791,19 +1162,79 @@ function App() {
               </div>
             )}
 
+            {/* Context Switcher: Personal vs Shared Caregiver Data */}
+            {isLoggedIn && (shareStatus.sharedGroups.length > 0 || activeContext === 'shared') && (
+              <div className="context-switcher-container">
+                <div className="context-switcher-pill" role="radiogroup" aria-label="Data Context">
+                  <button
+                    type="button"
+                    className={`context-switch-btn ${activeContext === 'personal' ? 'active' : ''}`}
+                    onClick={() => handleSwitchContext('personal')}
+                    aria-checked={activeContext === 'personal'}
+                    role="radio"
+                  >
+                    <span className="context-icon">👤</span>
+                    <span>My Data</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`context-switch-btn ${activeContext === 'shared' ? 'active' : ''}`}
+                    onClick={() => {
+                      const targetOwner = shareStatus.sharedGroups[0];
+                      if (targetOwner) {
+                        handleSwitchContext('shared', targetOwner.ownerId);
+                      }
+                    }}
+                    aria-checked={activeContext === 'shared'}
+                    role="radio"
+                  >
+                    <span className="context-icon">👥</span>
+                    <span>
+                      Shared Data
+                      {shareStatus.sharedGroups[0] ? ` (${shareStatus.sharedGroups[0].ownerName || shareStatus.sharedGroups[0].ownerEmail})` : ''}
+                    </span>
+                  </button>
+                </div>
+                {activeContext === 'shared' && (
+                  <div className="shared-context-notice">
+                    <span className="shared-context-dot" />
+                    <span>
+                      Viewing shared records for{' '}
+                      <strong>
+                        {shareStatus.sharedGroups.find(g => g.ownerId === activeOwnerId)?.ownerName ||
+                         shareStatus.sharedGroups.find(g => g.ownerId === activeOwnerId)?.ownerEmail ||
+                         shareStatus.sharedGroups[0]?.ownerName ||
+                         shareStatus.sharedGroups[0]?.ownerEmail ||
+                         'Caregiver Account'}
+                      </strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Big Action Button: Log Injection */}
             <button
               type="button"
               className="log-injection-btn"
+              disabled={!isLoggedIn}
               onClick={handleLogInjection}
+              title={!isLoggedIn ? 'Sign in or sign up to log injections' : 'Record the current time as your injection time'}
             >
               <span className="log-injection-plus">+</span>
               <span className="log-injection-title">Log Injection</span>
-              <span className="log-injection-subtitle">Record the current time as your injection time</span>
+              <span className="log-injection-subtitle">
+                {!isLoggedIn
+                  ? 'Sign in or sign up to record injections'
+                  : 'Record the current time as your injection time'}
+              </span>
             </button>
 
-            {/* Dashboard Tiles Grid: Daily Injections & Last Injection */}
-            <div className="stats-grid">
+            {/* Show personal injection data, notifications and eligibility ONLY when logged in */}
+            {isLoggedIn && (
+              <>
+                {/* Dashboard Tiles Grid: Daily Injections & Last Injection */}
+                <div className="stats-grid">
               {/* Tile 1: Daily Injections */}
               <div
                 className="stat-card"
@@ -994,26 +1425,49 @@ function App() {
 
             {/* Injection Eligibility Status (Below Notifications Scheduled) */}
             <InjectionEligibility latestLog={latestLog} />
-          </div>
-        </section>
-      )}
+          </>
+        )}
+      </div>
+    </section>
+  )}
 
-      {/* VIEW 2: INJECTION LOGS & TRENDS (Dedicated Page) */}
-      {activeTab === 'logs' && (
-        <section className="tab-view logs-view">
-          <div className="page-content-wrapper">
-            {logs.length === 0 ? (
-              <div className="empty-logs-container">
-                <p className="no-logs">No injections logged yet.</p>
-                <button
-                  type="button"
-                  className="primary-btn"
-                  onClick={() => setActiveTab('home')}
-                >
-                  Go to Home to Log
-                </button>
-              </div>
-            ) : (
+  {/* VIEW 2: INJECTION LOGS & TRENDS (Dedicated Page) */}
+  {activeTab === 'logs' && (
+    <section className="tab-view logs-view">
+      <div className="page-content-wrapper">
+        {!isLoggedIn ? (
+          <div className="empty-logs-container auth-locked-card">
+            <div className="auth-locked-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <h3 className="auth-locked-title">Account Required</h3>
+            <p className="no-logs">Please sign in or create an account to view your injection history, daily logs, and weekly trends.</p>
+            <button
+              type="button"
+              className="primary-btn auth-locked-btn"
+              onClick={() => {
+                setAuthModalMode('login');
+                setIsAuthModalOpen(true);
+              }}
+            >
+              Sign In
+            </button>
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="empty-logs-container">
+            <p className="no-logs">No injections logged yet.</p>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => setActiveTab('home')}
+            >
+              Go to Home to Log
+            </button>
+          </div>
+        ) : (
               <>
                 {/* 1. Latest Injection Tile (Matching Reference Card) */}
                 {latestLog && (
@@ -1483,8 +1937,26 @@ function App() {
                 </div>
               </div>
 
-              {/* 1. Add Configuration Form */}
-              <form onSubmit={handleSaveTelegramSettings} className="settings-form">
+              {!isLoggedIn ? (
+                <div className="auth-locked-settings-notice">
+                  <p className="auth-locked-text">
+                    Please sign in or create an account to configure Telegram notification destinations and manage your reminder bots.
+                  </p>
+                  <button
+                    type="button"
+                    className="primary-btn auth-locked-btn"
+                    onClick={() => {
+                      setAuthModalMode('login');
+                      setIsAuthModalOpen(true);
+                    }}
+                  >
+                    Sign In
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* 1. Add Configuration Form */}
+                  <form onSubmit={handleSaveTelegramSettings} className="settings-form">
                 <div className="form-group">
                   <label htmlFor="config-label" className="form-label">
                     Configuration Name <span className="label-optional">(Optional)</span>
@@ -1662,8 +2134,229 @@ function App() {
                   </ul>
                 )}
               </div>
+            </>
+          )}
+        </div>
+
+        {/* 3. Caregiver & Family Shared Access Card */}
+        <div className="settings-card shared-access-card">
+          <div className="card-header">
+            <div className="card-icon-wrapper share-icon-wrapper">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div className="card-header-text">
+              <h2 className="card-title">Shared Access (Family & Party)</h2>
+              <p className="card-subtitle">
+                Share your injection logs and reminders with family or partners, or connect to another user&apos;s account.
+              </p>
             </div>
           </div>
+
+          {!isLoggedIn ? (
+            <div className="auth-locked-settings-notice">
+              <p className="auth-locked-text">
+                Please sign in or create an account to share your records with family members or connect as a caregiver.
+              </p>
+              <button
+                type="button"
+                className="primary-btn auth-locked-btn"
+                onClick={() => {
+                  setAuthModalMode('login');
+                  setIsAuthModalOpen(true);
+                }}
+              >
+                Sign In
+              </button>
+            </div>
+          ) : (
+            <div className="shared-access-content">
+              {/* A. Personal Share Code Card */}
+              <div className="share-code-box">
+                <div className="share-code-header">
+                  <span className="share-code-title">Your Share Code</span>
+                  <span className="share-role-badge">Group Admin</span>
+                </div>
+                <div className="share-code-display-row">
+                  <code className="share-code-value">{shareStatus.shareCode || 'Generating...'}</code>
+                  <div className="share-btn-group">
+                    <button
+                      type="button"
+                      className="copy-code-btn"
+                      onClick={handleCopyShareCode}
+                      title="Copy Share Code"
+                    >
+                      {copiedCode ? '✓ Copied' : 'Copy Code'}
+                    </button>
+                    <button
+                      type="button"
+                      className="copy-link-btn"
+                      onClick={handleCopyInviteLink}
+                      title="Copy Invite Link"
+                    >
+                      {copiedLink ? '✓ Copied Link' : 'Copy Invite Link'}
+                    </button>
+                  </div>
+                </div>
+                <p className="share-code-hint">
+                  Share this code or link with someone you trust. They will be able to view your doses, trends, and reminders.
+                </p>
+              </div>
+
+              {/* B. Invite Caregiver by Email */}
+              <form onSubmit={handleSendInviteEmail} className="share-invite-form">
+                <h3 className="share-sub-title">Invite Caregiver via Email</h3>
+                <div className="share-input-row">
+                  <input
+                    type="email"
+                    className="form-input share-email-input"
+                    placeholder="caregiver@example.com"
+                    value={shareInviteEmail}
+                    onChange={(e) => setShareInviteEmail(e.target.value)}
+                    disabled={isSendingInvite}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="save-btn share-invite-btn"
+                    disabled={isSendingInvite || !shareInviteEmail.trim()}
+                  >
+                    {isSendingInvite ? 'Sending...' : 'Send Invitation'}
+                  </button>
+                </div>
+              </form>
+
+              {/* C. Connected Members List (I am Admin) */}
+              <div className="shared-members-section">
+                <div className="share-section-header">
+                  <h3 className="share-sub-title">Connected Members</h3>
+                  <span className="configs-count-badge">
+                    {shareStatus.members.length} {shareStatus.members.length === 1 ? 'member' : 'members'}
+                  </span>
+                </div>
+
+                {shareStatus.members.length === 0 ? (
+                  <div className="configs-empty-card">
+                    <span className="configs-empty-text">No caregivers connected to your account yet.</span>
+                  </div>
+                ) : (
+                  <ul className="shared-members-list">
+                    {shareStatus.members.map((member) => (
+                      <li key={member.id} className="shared-member-item">
+                        <div className="member-avatar">
+                          {(member.name || member.email || 'M')[0].toUpperCase()}
+                        </div>
+                        <div className="member-info">
+                          <span className="member-name">{member.name || member.email.split('@')[0]}</span>
+                          <span className="member-email">{member.email}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="config-row-delete-btn member-remove-btn"
+                          onClick={() => handleOpenRemoveMemberModal(member)}
+                          title={`Remove member ${member.name || member.email}`}
+                          aria-label={`Remove member ${member.name || member.email}`}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* D. Join Account via Share Code */}
+              <form onSubmit={handleJoinSharedGroup} className="share-join-form">
+                <h3 className="share-sub-title">Connect to Another Account</h3>
+                <p className="settings-note">
+                  Enter a Share Code provided by another user to view and manage their reminders and logs.
+                </p>
+                <div className="share-input-row">
+                  <input
+                    type="text"
+                    className="form-input share-join-input"
+                    placeholder="e.g. INSU-A8B9C2"
+                    value={shareJoinCode}
+                    onChange={(e) => setShareJoinCode(e.target.value.toUpperCase())}
+                    disabled={isJoiningShare}
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="save-btn share-join-btn"
+                    disabled={isJoiningShare || !shareJoinCode.trim()}
+                  >
+                    {isJoiningShare ? 'Connecting...' : 'Connect Account'}
+                  </button>
+                </div>
+              </form>
+
+              {/* E. Accounts Shared With Me */}
+              {shareStatus.sharedGroups.length > 0 && (
+                <div className="shared-groups-section">
+                  <h3 className="share-sub-title">Accounts Shared With You</h3>
+                  <ul className="shared-members-list">
+                    {shareStatus.sharedGroups.map((group) => (
+                      <li key={group.ownerId} className="shared-member-item">
+                        <div className="member-avatar group-avatar">
+                          {(group.ownerName || group.ownerEmail || 'O')[0].toUpperCase()}
+                        </div>
+                        <div className="member-info">
+                          <span className="member-name">{group.ownerName || group.ownerEmail.split('@')[0]}</span>
+                          <span className="member-email">{group.ownerEmail}</span>
+                        </div>
+                        <div className="group-actions">
+                          <button
+                            type="button"
+                            className={`group-view-btn ${activeContext === 'shared' && activeOwnerId === group.ownerId ? 'active' : ''}`}
+                            onClick={() => {
+                              if (activeContext === 'shared' && activeOwnerId === group.ownerId) {
+                                setViewingExplanationModal(group);
+                              } else {
+                                handleSwitchContext('shared', group.ownerId);
+                              }
+                            }}
+                            title={
+                              activeContext === 'shared' && activeOwnerId === group.ownerId
+                                ? 'Currently active: click to learn what Viewing means'
+                                : `Switch to view ${group.ownerName || group.ownerEmail}'s records`
+                            }
+                          >
+                            {activeContext === 'shared' && activeOwnerId === group.ownerId ? 'Viewing' : 'Switch to View'}
+                          </button>
+                          <button
+                            type="button"
+                            className="group-leave-btn"
+                            onClick={() => handleOpenLeaveGroupModal(group)}
+                            title="Leave shared account"
+                          >
+                            Leave
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* F. Note regarding future multiple shared data */}
+              <div className="share-future-note">
+                <span className="future-note-icon">💡</span>
+                <span className="future-note-text">
+                  Currently supporting <strong>1 shared account + personal data switching</strong>. Support for multiple concurrent shared accounts will be available in a future update.
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
         </section>
       )}
 
@@ -1710,6 +2403,170 @@ function App() {
                 onClick={handleConfirmDelete}
               >
                 Delete Configuration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Member Confirmation Modal */}
+      {removeMemberModalData && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseRemoveMemberModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="remove-member-modal-title"
+        >
+          <div className="modal-card delete-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon-wrapper delete-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="18" y1="8" x2="23" y2="13" />
+                  <line x1="23" y1="8" x2="18" y2="13" />
+                </svg>
+              </div>
+              <h3 id="remove-member-modal-title" className="modal-title">Remove Connected Member?</h3>
+            </div>
+            <div className="modal-body">
+              <p className="delete-modal-text">
+                Are you sure you want to remove <strong>{removeMemberModalData.name || removeMemberModalData.email}</strong> from your shared group?
+              </p>
+              <p className="delete-modal-warning">
+                They will immediately lose access to view your doses, history, and notifications.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={handleCloseRemoveMemberModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-delete-btn"
+                onClick={handleConfirmRemoveMember}
+              >
+                Remove Member
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Shared Account Confirmation Modal */}
+      {leaveGroupModalData && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseLeaveGroupModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leave-group-modal-title"
+        >
+          <div className="modal-card delete-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon-wrapper delete-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </div>
+              <h3 id="leave-group-modal-title" className="modal-title">Leave Shared Account?</h3>
+            </div>
+            <div className="modal-body">
+              <p className="delete-modal-text">
+                Are you sure you want to leave the shared account belonging to <strong>{leaveGroupModalData.ownerName || leaveGroupModalData.ownerEmail}</strong>?
+              </p>
+              <p className="delete-modal-warning">
+                You will no longer be able to view their logs or manage reminders.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={handleCloseLeaveGroupModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-delete-btn"
+                onClick={handleConfirmLeaveGroup}
+              >
+                Leave Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Viewing Explanation Modal */}
+      {viewingExplanationModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setViewingExplanationModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="viewing-explanation-modal-title"
+        >
+          <div className="modal-card info-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon-wrapper info-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </div>
+              <h3 id="viewing-explanation-modal-title" className="modal-title">What does &ldquo;Viewing&rdquo; mean?</h3>
+            </div>
+            <div className="modal-body">
+              <p className="modal-explanation-intro">
+                You are currently viewing active records for <strong>{viewingExplanationModal.ownerName || viewingExplanationModal.ownerEmail}</strong>.
+              </p>
+              <div className="modal-explanation-box">
+                <div className="modal-explanation-item">
+                  <span className="explanation-bullet">💉</span>
+                  <div>
+                    <strong>Injection History &amp; Logs:</strong> All doses, times, insulin units, and weekly trends shown on the Home and Injection Logs tabs belong to this account.
+                  </div>
+                </div>
+                <div className="modal-explanation-item">
+                  <span className="explanation-bullet">⏰</span>
+                  <div>
+                    <strong>Scheduled Reminders:</strong> The 10m meal delivery, 2h check, and 3h eligibility countdowns reflect this patient&apos;s schedule.
+                  </div>
+                </div>
+                <div className="modal-explanation-item">
+                  <span className="explanation-bullet">🔄</span>
+                  <div>
+                    <strong>Switching Views:</strong> You can switch back to your own personal data anytime using the <strong>👤 My Data</strong> pill on Home or below.
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={() => {
+                  handleSwitchContext('personal');
+                  setViewingExplanationModal(null);
+                }}
+              >
+                Switch to My Data
+              </button>
+              <button
+                type="button"
+                className="primary-btn modal-btn"
+                onClick={() => setViewingExplanationModal(null)}
+              >
+                Got it
               </button>
             </div>
           </div>
@@ -1802,6 +2659,15 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Auth Modal (Sign In / Sign Up / 6-Digit Code / Google) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
+        shareCode={urlShareCode}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
 
       {/* Application Footer */}
       <footer className="app-footer">

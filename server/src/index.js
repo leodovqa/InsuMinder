@@ -3,6 +3,17 @@ const cors = require('cors');
 const db = require('./db');
 const { sendTelegramMessage } = require('./telegram');
 const scheduler = require('./scheduler');
+const {
+  isValidEmail,
+  hashPassword,
+  verifyPassword,
+  generateVerificationCode,
+  createSessionToken,
+  requireAuth,
+  optionalAuth,
+  resolveContext
+} = require('./auth');
+const { sendVerificationEmail, sendShareInviteEmail, EMAIL_ERROR_MESSAGE } = require('./email');
 
 const app = express();
 const PORT = 5000;
@@ -10,31 +21,483 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
-// Injections API
-app.post('/api/injections', (req, res) => {
-  db.insertInjectionLog(function(err) {
+/* =========================================================================
+   AUTHENTICATION ENDPOINTS
+   ========================================================================= */
+
+// 1. Register with Email & Password (Triggers 6-digit verification email)
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ success: false, error: 'Email address is required.' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    if (!isValidEmail(cleanEmail)) {
+      return res.status(400).json({ success: false, error: EMAIL_ERROR_MESSAGE });
+    }
+
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long.' });
+    }
+
+    // Check if verified user already exists
+    const existingUser = await new Promise((resolve, reject) => {
+      db.getUserByEmail(cleanEmail, (err, user) => (err ? reject(err) : resolve(user)));
+    });
+
+    if (existingUser && existingUser.is_verified) {
+      return res.status(400).json({
+        success: false,
+        error: 'An account with this email already exists. Please log in.'
+      });
+    }
+
+    // Generate 6-digit code
+    const code = generateVerificationCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes expiry
+
+    // Send verification email
+    const emailResult = await sendVerificationEmail(cleanEmail, code);
+    if (!emailResult.ok) {
+      return res.status(400).json({
+        success: false,
+        error: emailResult.error || EMAIL_ERROR_MESSAGE
+      });
+    }
+
+    // Hash password and store verification code
+    const passwordHash = hashPassword(String(password));
+    await new Promise((resolve, reject) => {
+      db.createVerificationCode({
+        email: cleanEmail,
+        password_hash: passwordHash,
+        code,
+        expires_at: expiresAt
+      }, (err, record) => (err ? reject(err) : resolve(record)));
+    });
+
+    res.json({
+      success: true,
+      email: cleanEmail,
+      expiresAt,
+      devCode: emailResult.devCode, // Included in dev mode for easy local verification
+      message: 'Verification code sent to your email.'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Registration failed.' });
+  }
+});
+
+// 2. Verify 6-digit numeric verification code
+app.post('/api/auth/verify', async (req, res) => {
+  try {
+    const { email, code } = req.body || {};
+
+    if (!email || !code) {
+      return res.status(400).json({ success: false, error: 'Email and verification code are required.' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanCode = String(code).trim();
+
+    const record = await new Promise((resolve, reject) => {
+      db.getLatestVerificationCode(cleanEmail, (err, row) => (err ? reject(err) : resolve(row)));
+    });
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active verification request found. Please enter your email and password to start a new process.'
+      });
+    }
+
+    // Check expiration (10 minutes)
+    const isExpired = new Date().getTime() > new Date(record.expires_at).getTime();
+    if (isExpired) {
+      await new Promise((resolve) => db.consumeVerificationCode(record.id, resolve));
+      return res.status(400).json({
+        success: false,
+        expired: true,
+        error: 'Verification code has expired. Please enter your email and password to start a new verification process.'
+      });
+    }
+
+    // Check code match
+    if (record.code !== cleanCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid verification code. Please check your code and try again.'
+      });
+    }
+
+    // If checkOnly is true, simply validate that code matches without consuming code or creating user yet
+    if (req.body && req.body.checkOnly) {
+      return res.json({
+        success: true,
+        verified: true
+      });
+    }
+
+    const { firstName, lastName, phone } = req.body || {};
+    const cleanFirst = firstName ? String(firstName).trim() : null;
+    const cleanLast = lastName ? String(lastName).trim() : null;
+    const cleanPhone = phone ? String(phone).trim() : null;
+
+    if (!cleanFirst || !cleanLast) {
+      return res.status(400).json({
+        success: false,
+        error: 'First name and last name are required to complete registration.'
+      });
+    }
+
+    // Mark code as consumed
+    await new Promise((resolve) => db.consumeVerificationCode(record.id, resolve));
+
+    const fullName = `${cleanFirst} ${cleanLast}`.trim();
+
+    // Create or update user
+    let user = await new Promise((resolve, reject) => {
+      db.getUserByEmail(cleanEmail, (err, u) => (err ? reject(err) : resolve(u)));
+    });
+
+    if (user) {
+      const updates = {
+        password_hash: record.password_hash,
+        is_verified: 1
+      };
+      if (cleanFirst) updates.first_name = cleanFirst;
+      if (cleanLast) updates.last_name = cleanLast;
+      if (cleanPhone) updates.phone = cleanPhone;
+      if (cleanFirst || cleanLast) updates.name = fullName;
+
+      await new Promise((resolve, reject) => {
+        db.updateUser(user.id, updates, (err) => (err ? reject(err) : resolve()));
+      });
+      user = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, u) => (err ? reject(err) : resolve(u)));
+      });
+    } else {
+      user = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: cleanEmail,
+          password_hash: record.password_hash,
+          name: fullName,
+          first_name: cleanFirst,
+          last_name: cleanLast,
+          phone: cleanPhone,
+          is_verified: 1
+        }, (err, u) => (err ? reject(err) : resolve(u)));
+      });
+    }
+
+    // If shareCode is provided, automatically join the shared group
+    if (req.body && req.body.shareCode) {
+      await new Promise((resolve) => {
+        db.addSharedMemberByCode(req.body.shareCode, user.id, () => resolve());
+      });
+    }
+
+    // Issue auth token
+    const token = createSessionToken(user);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name || cleanEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
+        shareCode: user.share_code || ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Verification failed.' });
+  }
+});
+
+// 3. Sign in with Email & Password
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password, shareCode } = req.body || {};
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required.' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    const user = await new Promise((resolve, reject) => {
+      db.getUserByEmail(cleanEmail, (err, u) => (err ? reject(err) : resolve(u)));
+    });
+
+    if (!user || !user.is_verified || !user.password_hash) {
+      return res.status(400).json({ success: false, error: 'Invalid email or password' });
+    }
+
+    const isMatch = verifyPassword(String(password), user.password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, error: 'Invalid email or password' });
+    }
+
+    if (shareCode) {
+      await new Promise((resolve) => {
+        db.addSharedMemberByCode(shareCode, user.id, () => resolve());
+      });
+    }
+
+    const token = createSessionToken(user);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name || cleanEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
+        shareCode: user.share_code || ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Login failed.' });
+  }
+});
+
+// 4. Google Sign-In (Supports real Google OAuth JWT and local test sign-in)
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { credential, dev, email: devEmail, name: devName, avatar: devAvatar, shareCode } = req.body || {};
+
+    let userEmail = '';
+    let userName = '';
+    let userAvatar = '';
+    let googleId = '';
+
+    if (dev || !credential || credential === 'dev-google-login') {
+      // Local dev / test Google sign-in
+      userEmail = (devEmail && String(devEmail).trim().toLowerCase()) || 'google.user@insuminder.app';
+      userName = devName || 'Google User';
+      userAvatar = devAvatar || '';
+      googleId = 'dev-google-' + userEmail;
+    } else {
+      // Parse Google JWT ID token
+      try {
+        const parts = credential.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+          userEmail = payload.email ? payload.email.toLowerCase() : '';
+          userName = payload.name || payload.given_name || '';
+          userAvatar = payload.picture || '';
+          googleId = payload.sub || '';
+        }
+      } catch {
+        // Fallback to query google tokeninfo
+        const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        const tokenInfo = await resp.json().catch(() => null);
+        if (tokenInfo && tokenInfo.email) {
+          userEmail = tokenInfo.email.toLowerCase();
+          userName = tokenInfo.name || '';
+          userAvatar = tokenInfo.picture || '';
+          googleId = tokenInfo.sub || '';
+        }
+      }
+
+      if (!userEmail) {
+        return res.status(400).json({ success: false, error: 'Failed to verify Google credentials.' });
+      }
+    }
+
+    // Check if user exists by email or google_id
+    let user = await new Promise((resolve, reject) => {
+      db.getUserByEmail(userEmail, (err, u) => (err ? reject(err) : resolve(u)));
+    });
+
+    if (user) {
+      await new Promise((resolve, reject) => {
+        db.updateUser(user.id, {
+          google_id: googleId,
+          name: userName || user.name,
+          avatar: userAvatar || user.avatar,
+          is_verified: 1
+        }, (err) => (err ? reject(err) : resolve()));
+      });
+      user = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, u) => (err ? reject(err) : resolve(u)));
+      });
+    } else {
+      user = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: userEmail,
+          google_id: googleId,
+          name: userName,
+          avatar: userAvatar,
+          is_verified: 1
+        }, (err, u) => (err ? reject(err) : resolve(u)));
+      });
+    }
+
+    if (shareCode) {
+      await new Promise((resolve) => {
+        db.addSharedMemberByCode(shareCode, user.id, () => resolve());
+      });
+    }
+
+    const token = createSessionToken(user);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name || userEmail.split('@')[0],
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '',
+        shareCode: user.share_code || ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Google authentication failed.' });
+  }
+});
+
+// 5. Get Current Authenticated User
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  db.getUserById(req.user.id, (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ success: false, error: 'User not found.' });
+    }
+    db.ensureShareCode(user.id, (codeErr, shareCode) => {
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name || user.email.split('@')[0],
+          firstName: user.first_name || '',
+          lastName: user.last_name || '',
+          phone: user.phone || '',
+          avatar: user.avatar || '',
+          shareCode: shareCode || user.share_code || ''
+        }
+      });
+    });
+  });
+});
+
+// 6. Update User Profile (Onboarding Step & Profile Updates)
+const handleProfileUpdate = async (req, res) => {
+  try {
+    const { firstName, lastName, phone } = req.body || {};
+
+    const cleanFirstName = String(firstName || '').trim();
+    const cleanLastName = String(lastName || '').trim();
+    const cleanPhone = String(phone || '').trim();
+
+    if (!cleanFirstName || !cleanLastName) {
+      return res.status(400).json({
+        success: false,
+        error: 'First name and last name are required.'
+      });
+    }
+
+    const fullName = `${cleanFirstName} ${cleanLastName}`.trim();
+
+    await new Promise((resolve, reject) => {
+      db.updateUser(req.user.id, {
+        name: fullName,
+        first_name: cleanFirstName,
+        last_name: cleanLastName,
+        phone: cleanPhone || null
+      }, (err) => (err ? reject(err) : resolve()));
+    });
+
+    const updatedUser = await new Promise((resolve, reject) => {
+      db.getUserById(req.user.id, (err, u) => (err ? reject(err) : resolve(u)));
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name || fullName,
+        firstName: updatedUser.first_name || cleanFirstName,
+        lastName: updatedUser.last_name || cleanLastName,
+        phone: updatedUser.phone || '',
+        avatar: updatedUser.avatar || '',
+        shareCode: updatedUser.share_code || ''
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Failed to update profile.' });
+  }
+};
+
+app.put('/api/auth/profile', requireAuth, handleProfileUpdate);
+app.post('/api/auth/profile', requireAuth, handleProfileUpdate);
+
+// 7. Sign out
+app.post('/api/auth/logout', (req, res) => {
+  res.json({ success: true, message: 'Logged out successfully.' });
+});
+
+/* =========================================================================
+   USER-SCOPED DATA ENDPOINTS
+   ========================================================================= */
+
+// Injections API: Log injection (Requires authentication, supports shared context)
+app.post('/api/injections', requireAuth, resolveContext, (req, res) => {
+  const targetUserId = req.effectiveUserId || req.user.id;
+  db.insertInjectionLog(targetUserId, function(err) {
     if (err) {
       const status = err.status || 500;
       res.status(status).json({ success: false, error: err.message });
     } else {
+      scheduler.checkAndDispatchNotifications();
       res.json({ success: true, id: this.lastID });
     }
   });
 });
 
-app.get('/api/logs', (req, res) => {
-  db.getLogsFromLast24Hours(function(err, rows) {
+// Injection Logs API: Scoped to user or shared group
+app.get('/api/logs', optionalAuth, resolveContext, (req, res) => {
+  if (!req.user || !req.user.id) {
+    // When logged out: return empty list so unauthenticated visitors see clean empty state
+    return res.json({ success: true, logs: [] });
+  }
+
+  const targetUserId = req.effectiveUserId || req.user.id;
+  db.getLogsFromLast24Hours(targetUserId, (err, rows) => {
     if (err) {
       res.status(500).json({ success: false, error: err.message });
     } else {
-      res.json({ success: true, logs: rows });
+      res.json({ success: true, logs: rows || [] });
     }
   });
 });
 
-// Telegram Configurations API
-app.get('/api/telegram-configs', (req, res) => {
-  db.getTelegramConfigs((err, rows) => {
+// Telegram Configurations API: Scoped to user or shared group
+app.get('/api/telegram-configs', optionalAuth, resolveContext, (req, res) => {
+  if (!req.user || !req.user.id) {
+    return res.json({ success: true, configs: [] });
+  }
+
+  const targetUserId = req.effectiveUserId || req.user.id;
+  db.getTelegramConfigs(targetUserId, (err, rows) => {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -50,7 +513,7 @@ app.get('/api/telegram-configs', (req, res) => {
   });
 });
 
-app.post('/api/telegram-configs', (req, res) => {
+app.post('/api/telegram-configs', requireAuth, resolveContext, (req, res) => {
   const { name, botToken, chatId } = req.body || {};
   if (!botToken || !chatId || !String(botToken).trim() || !String(chatId).trim()) {
     return res.status(400).json({
@@ -61,8 +524,9 @@ app.post('/api/telegram-configs', (req, res) => {
 
   const rawChatId = String(chatId).trim().replace(/^-+/, '');
   const cleanChatId = `-${rawChatId}`;
+  const targetUserId = req.effectiveUserId || req.user.id;
 
-  db.addTelegramConfig({
+  db.addTelegramConfig(targetUserId, {
     name: name ? String(name).trim() : '',
     bot_token: String(botToken).trim(),
     chat_id: cleanChatId
@@ -86,13 +550,14 @@ app.post('/api/telegram-configs', (req, res) => {
   });
 });
 
-app.put('/api/telegram-configs/:id/default', (req, res) => {
+app.put('/api/telegram-configs/:id/default', requireAuth, resolveContext, (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     return res.status(400).json({ success: false, error: 'Invalid configuration ID.' });
   }
 
-  db.setDefaultTelegramConfig(id, (err, updated) => {
+  const targetUserId = req.effectiveUserId || req.user.id;
+  db.setDefaultTelegramConfig(targetUserId, id, (err, updated) => {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -112,13 +577,14 @@ app.put('/api/telegram-configs/:id/default', (req, res) => {
   });
 });
 
-app.delete('/api/telegram-configs/:id', (req, res) => {
+app.delete('/api/telegram-configs/:id', requireAuth, resolveContext, (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) {
     return res.status(400).json({ success: false, error: 'Invalid configuration ID.' });
   }
 
-  db.deleteTelegramConfig(id, (err) => {
+  const targetUserId = req.effectiveUserId || req.user.id;
+  db.deleteTelegramConfig(targetUserId, id, (err) => {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -127,9 +593,123 @@ app.delete('/api/telegram-configs/:id', (req, res) => {
   });
 });
 
+/* =========================================================================
+   SHARED ACCESS & CAREGIVER / FAMILY SHARING ENDPOINTS
+   ========================================================================= */
+
+// 1. Get Share Status, Members, and Connected Shared Accounts
+app.get('/api/share/status', requireAuth, (req, res) => {
+  db.getShareStatus(req.user.id, (err, status) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.json({
+      success: true,
+      ...status
+    });
+  });
+});
+
+// 2. Invite User by Email
+app.post('/api/share/invite', requireAuth, async (req, res) => {
+  try {
+    const { email, inviteUrl } = req.body || {};
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ success: false, error: 'Recipient email is required.' });
+    }
+    const cleanEmail = String(email).trim().toLowerCase();
+    if (!isValidEmail(cleanEmail)) {
+      return res.status(400).json({ success: false, error: EMAIL_ERROR_MESSAGE });
+    }
+
+    const shareCode = await new Promise((resolve, reject) => {
+      db.ensureShareCode(req.user.id, (err, code) => (err ? reject(err) : resolve(code)));
+    });
+
+    await new Promise((resolve, reject) => {
+      db.createShareInvite(req.user.id, cleanEmail, (err, invite) => (err ? reject(err) : resolve(invite)));
+    });
+
+    const fallbackUrl = `${req.protocol}://${req.get('host')}/?shareCode=${shareCode}`;
+    const finalInviteUrl = inviteUrl || fallbackUrl;
+
+    const emailRes = await sendShareInviteEmail(
+      cleanEmail,
+      req.user.name,
+      req.user.email,
+      shareCode,
+      finalInviteUrl
+    );
+
+    if (!emailRes.ok) {
+      return res.status(400).json({ success: false, error: emailRes.error || EMAIL_ERROR_MESSAGE });
+    }
+
+    res.json({
+      success: true,
+      message: `Invitation sent to ${cleanEmail}!`,
+      shareCode,
+      inviteUrl: finalInviteUrl
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Failed to send invite.' });
+  }
+});
+
+// 3. Join Shared Account via Share Code
+app.post('/api/share/join', requireAuth, (req, res) => {
+  const { shareCode } = req.body || {};
+  if (!shareCode || !String(shareCode).trim()) {
+    return res.status(400).json({ success: false, error: 'Share code is required.' });
+  }
+
+  db.addSharedMemberByCode(String(shareCode).trim(), req.user.id, (err, result) => {
+    if (err) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    res.json({
+      success: true,
+      message: `Successfully connected to shared account (${result.ownerEmail})!`,
+      owner: result
+    });
+  });
+});
+
+// 4. Admin removes a member from their group
+app.delete('/api/share/members/:memberId', requireAuth, (req, res) => {
+  const memberId = parseInt(req.params.memberId, 10);
+  if (isNaN(memberId)) {
+    return res.status(400).json({ success: false, error: 'Invalid member ID.' });
+  }
+
+  db.removeSharedMember(req.user.id, memberId, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.json({ success: true, message: 'Member removed from shared group.' });
+  });
+});
+
+// 5. Member leaves a shared group
+app.post('/api/share/leave', requireAuth, (req, res) => {
+  const { ownerId } = req.body || {};
+  const cleanOwnerId = parseInt(ownerId, 10);
+  if (isNaN(cleanOwnerId)) {
+    return res.status(400).json({ success: false, error: 'Invalid owner ID.' });
+  }
+
+  db.leaveSharedGroup(cleanOwnerId, req.user.id, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.json({ success: true, message: 'You have left the shared group.' });
+  });
+});
+
 // Settings API (Backward compatibility)
-app.get('/api/settings', (req, res) => {
-  db.getDefaultTelegramConfig((err, active) => {
+app.get('/api/settings', optionalAuth, (req, res) => {
+  const userId = req.user ? req.user.id : null;
+  db.getDefaultTelegramConfig(userId, (err, active) => {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -143,7 +723,8 @@ app.get('/api/settings', (req, res) => {
   });
 });
 
-app.post('/api/settings', (req, res) => {
+app.post('/api/settings', optionalAuth, (req, res) => {
+  const userId = req.user ? req.user.id : null;
   const { telegramBotToken, telegramChatId, name } = req.body || {};
   if (!telegramBotToken || !telegramChatId || !String(telegramBotToken).trim() || !String(telegramChatId).trim()) {
     return res.status(400).json({ success: false, error: 'Bot Token and Chat ID are required.' });
@@ -152,7 +733,7 @@ app.post('/api/settings', (req, res) => {
   const rawChatId = String(telegramChatId).trim().replace(/^-+/, '');
   const cleanChatId = `-${rawChatId}`;
 
-  db.addTelegramConfig({
+  db.addTelegramConfig(userId, {
     name: name || '',
     bot_token: String(telegramBotToken).trim(),
     chat_id: cleanChatId
@@ -168,13 +749,14 @@ app.post('/api/settings', (req, res) => {
 });
 
 // Test Telegram notification API
-app.post('/api/telegram/test', async (req, res) => {
+app.post('/api/telegram/test', optionalAuth, async (req, res) => {
   try {
     let { telegramBotToken, telegramChatId, configId } = req.body || {};
+    const userId = req.user ? req.user.id : null;
 
     if (configId) {
       const configs = await new Promise((resolve, reject) => {
-        db.getTelegramConfigs((err, rows) => (err ? reject(err) : resolve(rows || [])));
+        db.getTelegramConfigs(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
       });
       const found = configs.find(c => c.id === parseInt(configId, 10));
       if (found) {
@@ -186,7 +768,7 @@ app.post('/api/telegram/test', async (req, res) => {
     if (!telegramBotToken || !telegramChatId) {
       // Fallback to active default configuration
       const active = await new Promise((resolve, reject) => {
-        db.getDefaultTelegramConfig((err, result) => (err ? reject(err) : resolve(result)));
+        db.getDefaultTelegramConfig(userId, (err, result) => (err ? reject(err) : resolve(result)));
       });
       if (active) {
         telegramBotToken = active.bot_token;

@@ -1,14 +1,15 @@
-import { dispatchDueNotifications } from './_telegram.js';
+import { ensureTablesExist, dispatchDueNotifications } from './_telegram.js';
+import { getAuthUser, getEffectiveUserId } from './_auth.js';
 
 export async function onRequestGet(context) {
   try {
-    const db = context.env.DB;
+    const { request, env } = context;
+    const db = env.DB;
     if (!db) {
       return new Response(
         JSON.stringify({
           success: false,
-          logs: [],
-          error: "D1 database binding 'DB' not configured. Please bind a D1 database in Cloudflare Pages Settings > Functions > D1 database bindings with variable name 'DB'."
+          error: "D1 database binding 'DB' not configured. Please bind a D1 database in Cloudflare Pages Settings > Bindings with variable name 'DB'."
         }),
         {
           status: 500,
@@ -20,55 +21,34 @@ export async function onRequestGet(context) {
       );
     }
 
-    // Ensure table exists
-    await db.prepare(
-      `CREATE TABLE IF NOT EXISTS injection_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        injected_at TIMESTAMP NOT NULL,
-        notify_10m_at TIMESTAMP,
-        notify_2h_at TIMESTAMP NOT NULL,
-        notify_3h_at TIMESTAMP NOT NULL,
-        status_10m_sent BOOLEAN DEFAULT 0,
-        status_2h_sent BOOLEAN DEFAULT 0,
-        status_3h_sent BOOLEAN DEFAULT 0,
-        error_10m TEXT,
-        error_2h TEXT,
-        error_3h TEXT
-      )`
-    ).run();
+    await ensureTablesExist(db);
 
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN notify_10m_at TIMESTAMP`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN status_10m_sent BOOLEAN DEFAULT 0`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_10m TEXT`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_2h TEXT`).run();
-    } catch (err) {
-      void err;
-    }
-    try {
-      await db.prepare(`ALTER TABLE injection_logs ADD COLUMN error_3h TEXT`).run();
-    } catch (err) {
-      void err;
+    const authUser = await getAuthUser(request, env);
+    if (!authUser || !authUser.userId) {
+      // Return empty logs when logged out
+      return new Response(
+        JSON.stringify({
+          success: true,
+          logs: []
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
     }
 
-    // Retrieve all historical logs ordered by most recent first
+    const effectiveUserId = await getEffectiveUserId(request, env, authUser, db);
+
     const { results } = await db
-      .prepare("SELECT * FROM injection_logs ORDER BY injected_at DESC")
+      .prepare("SELECT * FROM injection_logs WHERE user_id = ? ORDER BY injected_at DESC")
+      .bind(effectiveUserId)
       .all();
 
-    // Opportunistically check and dispatch due notifications in background
+    // Opportunistically check and dispatch notifications in background
     if (context.waitUntil) {
       context.waitUntil(dispatchDueNotifications(db));
     }
@@ -88,7 +68,10 @@ export async function onRequestGet(context) {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ success: false, error: err.message, logs: [] }),
+      JSON.stringify({
+        success: false,
+        error: err.message
+      }),
       {
         status: 500,
         headers: {
@@ -106,7 +89,8 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-auth-token, x-active-context, x-active-owner-id'
     }
   });
 }
+
