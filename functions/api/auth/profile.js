@@ -31,7 +31,38 @@ export async function onRequest(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { firstName, lastName, phone } = body;
+    const { firstName, lastName, phone, language } = body;
+    const cleanLang = (language && ['en', 'he'].includes(language)) ? language : null;
+
+    if (cleanLang && firstName === undefined && lastName === undefined) {
+      await db
+        .prepare('UPDATE users SET language = ? WHERE id = ?')
+        .bind(cleanLang, authUser.userId)
+        .run();
+
+      const updatedUser = await db
+        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language FROM users WHERE id = ?')
+        .bind(authUser.userId)
+        .first();
+
+      return new Response(JSON.stringify({
+        success: true,
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name || updatedUser.email.split('@')[0],
+          firstName: updatedUser.first_name || '',
+          lastName: updatedUser.last_name || '',
+          phone: updatedUser.phone || '',
+          avatar: updatedUser.avatar || '',
+          shareCode: updatedUser.share_code || '',
+          language: updatedUser.language || cleanLang
+        }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     const cleanFirstName = String(firstName || '').trim();
     const cleanLastName = String(lastName || '').trim();
@@ -49,13 +80,20 @@ export async function onRequest(context) {
 
     const fullName = `${cleanFirstName} ${cleanLastName}`.trim();
 
-    await db
-      .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ? WHERE id = ?')
-      .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, authUser.userId)
-      .run();
+    if (cleanLang) {
+      await db
+        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ?, language = ? WHERE id = ?')
+        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, cleanLang, authUser.userId)
+        .run();
+    } else {
+      await db
+        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ? WHERE id = ?')
+        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, authUser.userId)
+        .run();
+    }
 
     const updatedUser = await db
-      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified FROM users WHERE id = ?')
+      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language FROM users WHERE id = ?')
       .bind(authUser.userId)
       .first();
 
@@ -69,7 +107,8 @@ export async function onRequest(context) {
         lastName: updatedUser.last_name || cleanLastName,
         phone: updatedUser.phone || '',
         avatar: updatedUser.avatar || '',
-        shareCode: updatedUser.share_code || ''
+        shareCode: updatedUser.share_code || '',
+        language: updatedUser.language || 'en'
       }
     }), {
       status: 200,

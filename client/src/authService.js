@@ -48,6 +48,44 @@ export const authService = {
     }
     if (user) {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      if (user.language && ['en', 'he'].includes(user.language)) {
+        localStorage.setItem('insuminder_language', user.language);
+        if (user.id) {
+          localStorage.setItem('insuminder_language_' + user.id, user.language);
+        }
+      }
+    }
+  },
+
+  async updateLanguage(language) {
+    if (!['en', 'he'].includes(language)) return null;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('insuminder_language', language);
+      const user = this.getCurrentUser();
+      if (user && user.id) {
+        localStorage.setItem('insuminder_language_' + user.id, language);
+        user.language = language;
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      }
+    }
+
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ language })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        this.setSession(token, data.user);
+        return data.user;
+      }
+      return null;
+    } catch {
+      return null;
     }
   },
 

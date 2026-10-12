@@ -104,7 +104,8 @@ export async function onRequestPost(context) {
         phone: userPhone,
         avatar: userAvatar,
         is_verified: 1,
-        share_code: initialShareCode
+        share_code: initialShareCode,
+        language: 'en'
       };
     }
 
@@ -144,7 +145,8 @@ export async function onRequestPost(context) {
         lastName: user.last_name || '',
         phone: user.phone || '',
         avatar: user.avatar || '',
-        shareCode: user.share_code
+        shareCode: user.share_code,
+        language: user.language || 'en'
       },
       joinedGroup
     }), {

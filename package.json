@@ -6,6 +6,7 @@
     "build": "npm --prefix client run build",
     "test": "node --test server/test/telegram.test.js server/test/auth.test.js server/test/share.test.js && npm --prefix client test",
     "lint": "npm --prefix client run lint",
+    "check:i18n": "npm --prefix client run check:i18n",
     "docker": "docker compose up --build",
     "prepare": "husky"
   },

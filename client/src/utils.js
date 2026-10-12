@@ -1,3 +1,5 @@
+import { translate } from './i18n';
+
 export const pad2 = (num) => String(num).padStart(2, '0');
 
 export const getTabFromUrl = (search = typeof window !== 'undefined' ? window.location.search : '') => {
@@ -68,7 +70,7 @@ export const formatDateTime = (value) => {
   return `${datePart}, ${timePart}`;
 };
 
-export const formatRelativeTime = (value) => {
+export const formatRelativeTime = (value, lang = 'en') => {
   if (!value) return '';
   const now = Date.now();
   const time = new Date(value).getTime();
@@ -82,12 +84,12 @@ export const formatRelativeTime = (value) => {
     const remMin = futureMin % 60;
 
     if (futureHours > 0) {
-      return `in ${futureHours}h ${remMin > 0 ? `${remMin}m` : ''}`.trim();
+      return translate('time.inHours', { hours: futureHours, mins: remMin }, lang);
     }
     if (futureMin > 0) {
-      return `in ${futureMin} min`;
+      return translate('time.inMinutes', { mins: futureMin }, lang);
     }
-    return 'in less than a min';
+    return translate('time.inLessThanMin', {}, lang);
   }
 
   const pastSec = Math.floor(diffMs / 1000);
@@ -95,11 +97,19 @@ export const formatRelativeTime = (value) => {
   const pastHours = Math.floor(pastMin / 60);
   const pastDays = Math.floor(pastHours / 24);
 
-  if (pastSec < 60) return 'Just now';
-  if (pastMin < 60) return `${pastMin} ${pastMin === 1 ? 'minute' : 'minutes'} ago`;
-  if (pastHours < 24) return `${pastHours} ${pastHours === 1 ? 'hour' : 'hours'} ago`;
-  if (pastDays === 1) return 'Yesterday';
-  return `${pastDays} days ago`;
+  if (pastSec < 60) return translate('time.justNow', {}, lang);
+  if (pastMin < 60) {
+    return pastMin === 1
+      ? translate('time.minuteAgo', { count: pastMin }, lang)
+      : translate('time.minutesAgo', { count: pastMin }, lang);
+  }
+  if (pastHours < 24) {
+    return pastHours === 1
+      ? translate('time.hourAgo', { count: pastHours }, lang)
+      : translate('time.hoursAgo', { count: pastHours }, lang);
+  }
+  if (pastDays === 1) return translate('time.yesterday', {}, lang);
+  return translate('time.daysAgo', { count: pastDays }, lang);
 };
 
 export const isPast = (value) => {
@@ -286,11 +296,11 @@ export const isCustomConfigName = (name, chatId) => {
   return true;
 };
 
-export const getFriendlyReminderError = (rawError, isTelegramConfigured = true) => {
+export const getFriendlyReminderError = (rawError, isTelegramConfigured = true, lang = 'en') => {
   if (isTelegramConfigured === false) {
     return {
-      category: 'Telegram Configuration Issue',
-      message: 'Telegram is not configured. Go to Settings to set up your Telegram bot token and chat destination.'
+      category: translate('errors.telegramConfigIssue', {}, lang),
+      message: translate('errors.telegramNotConfiguredMsg', {}, lang)
     };
   }
 
@@ -298,46 +308,46 @@ export const getFriendlyReminderError = (rawError, isTelegramConfigured = true) 
 
   if (!err) {
     return {
-      category: 'Delivery Failed',
-      message: 'The reminder could not be delivered to Telegram.'
+      category: translate('errors.deliveryFailed', {}, lang),
+      message: translate('errors.deliveryFailedMsg', {}, lang)
     };
   }
 
   if (/expired/i.test(err)) {
     return {
-      category: 'Reminder Expired',
-      message: 'This reminder expired without delivery because more than 24 hours passed.'
+      category: translate('errors.reminderExpired', {}, lang),
+      message: translate('errors.reminderExpiredMsg', {}, lang)
     };
   }
 
   if (/network|econnrefused|enotfound|timeout|aborted|fetch failed|no connection/i.test(err)) {
     return {
-      category: 'Network Connection Error',
-      message: 'Could not connect to Telegram servers due to a network connection issue. Please check your internet connection.'
+      category: translate('errors.networkConnError', {}, lang),
+      message: translate('errors.networkConnErrorMsg', {}, lang)
     };
   }
 
   if (/chat not found|unauthorized|invalid token|bot token|not configured|chat_id|401|404/i.test(err)) {
     return {
-      category: 'Telegram Configuration Issue',
-      message: 'The Telegram bot token or chat ID is invalid, missing, or could not be found. Please check your Telegram settings.'
+      category: translate('errors.telegramConfigIssue', {}, lang),
+      message: translate('errors.telegramInvalidTokenMsg', {}, lang)
     };
   }
 
   if (/too many requests|rate limit|429|500|502|503|504|internal|service/i.test(err)) {
     return {
-      category: 'Telegram Service Issue',
-      message: 'Telegram servers were temporarily unable to deliver this reminder due to a service issue on their end.'
+      category: translate('errors.telegramServiceIssue', {}, lang),
+      message: translate('errors.telegramServiceIssueMsg', {}, lang)
     };
   }
 
   return {
-    category: 'Delivery Failed',
+    category: translate('errors.deliveryFailed', {}, lang),
     message: err
   };
 };
 
-export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true) => {
+export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true, lang = 'en') => {
   if (!log) {
     return {
       type,
@@ -376,8 +386,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true)
     return {
       type,
       status: 'sent',
-      label: 'Sent',
-      pillLabel: 'Sent',
+      label: translate('status.sent', {}, lang),
+      pillLabel: translate('status.sent', {}, lang),
       icon: '✅',
       badgeClass: 'badge-sent',
       pillClass: 'sent',
@@ -392,12 +402,12 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true)
   const isDueOrPast = !isNaN(targetDate.getTime()) && targetDate.getTime() <= Date.now();
 
   if (isDueOrPast) {
-    const friendly = getFriendlyReminderError(rawError, isTelegramConfigured);
+    const friendly = getFriendlyReminderError(rawError, isTelegramConfigured, lang);
     return {
       type,
       status: 'failed',
-      label: 'Not Sent',
-      pillLabel: 'Not Sent',
+      label: translate('status.notSent', {}, lang),
+      pillLabel: translate('status.notSent', {}, lang),
       icon: '⚠️',
       badgeClass: 'badge-failed',
       pillClass: 'failed',
@@ -411,8 +421,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true)
   return {
     type,
     status: 'upcoming',
-    label: 'Upcoming',
-    pillLabel: 'Pending',
+    label: translate('status.upcoming', {}, lang),
+    pillLabel: translate('status.pending', {}, lang),
     icon: '⏳',
     badgeClass: 'badge-upcoming',
     pillClass: 'pending',

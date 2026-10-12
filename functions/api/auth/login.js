@@ -126,7 +126,8 @@ export async function onRequestPost(context) {
         lastName: user.last_name || '',
         phone: user.phone || '',
         avatar: user.avatar || '',
-        shareCode: user.share_code
+        shareCode: user.share_code,
+        language: user.language || 'en'
       },
       joinedGroup
     }), {

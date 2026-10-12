@@ -31,6 +31,9 @@ jobs:
       - name: Run ESLint
         run: npm --prefix client run lint
 
+      - name: Check Hebrew Translation Parity
+        run: npm --prefix client run check:i18n
+
       - name: Check Cloudflare Functions Parity
         run: git diff --no-index --exit-code functions/ client/functions/
 

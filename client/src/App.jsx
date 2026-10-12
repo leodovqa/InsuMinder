@@ -20,8 +20,10 @@ import {
 import AuthModal from './AuthModal';
 import Profile from './Profile';
 import { authService } from './authService';
+import { LanguageProvider, useTranslation } from './i18n';
 
 function LiveClock() {
+  const { t } = useTranslation();
   const [time, setTime] = useState(() => {
     const now = new Date();
     return {
@@ -51,8 +53,9 @@ function LiveClock() {
   return (
     <div
       className="live-clock"
-      title="Current Local Time"
-      aria-label={`Current time ${time.hours}:${time.minutes}:${time.seconds}.${time.hundredths}`}
+      dir="ltr"
+      title={t('home.liveClockTitle')}
+      aria-label={`${t('home.liveClockTitle')} ${time.hours}:${time.minutes}:${time.seconds}.${time.hundredths}`}
     >
       <span className="clock-digits">{time.hours}</span>
       <span className="clock-colon">:</span>
@@ -65,6 +68,7 @@ function LiveClock() {
 }
 
 function InjectionEligibility({ latestLog }) {
+  const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -83,9 +87,9 @@ function InjectionEligibility({ latestLog }) {
           </svg>
         </div>
         <div className="eligibility-content">
-          <div className="eligibility-title">Ready to Inject</div>
+          <div className="eligibility-title">{t('eligibility.readyTitle')}</div>
           <p className="eligibility-message">
-            You can inject now. No previous injections have been recorded.
+            {t('eligibility.readyNoPrior')}
           </p>
         </div>
       </div>
@@ -105,9 +109,9 @@ function InjectionEligibility({ latestLog }) {
           </svg>
         </div>
         <div className="eligibility-content">
-          <div className="eligibility-title">Ready to Inject</div>
+          <div className="eligibility-title">{t('eligibility.readyTitle')}</div>
           <p className="eligibility-message">
-            You can inject now. More than 3 hours have passed since your last injection.
+            {t('eligibility.readyPast3h')}
           </p>
         </div>
       </div>
@@ -120,10 +124,10 @@ function InjectionEligibility({ latestLog }) {
   const remSeconds = remSec % 60;
 
   const countdownText = remHours > 0
-    ? `${remHours}h ${remMin}m ${remSeconds}s remaining`
+    ? `${remHours}${t('eligibility.hoursShort')} ${remMin}${t('eligibility.minutesShort')} ${remSeconds}${t('eligibility.secondsShort')} ${t('eligibility.remaining')}`
     : remMin > 0
-      ? `${remMin}m ${remSeconds}s remaining`
-      : `${remSeconds}s remaining`;
+      ? `${remMin}${t('eligibility.minutesShort')} ${remSeconds}${t('eligibility.secondsShort')} ${t('eligibility.remaining')}`
+      : `${remSeconds}${t('eligibility.secondsShort')} ${t('eligibility.remaining')}`;
 
   return (
     <div className="eligibility-card locked">
@@ -135,21 +139,22 @@ function InjectionEligibility({ latestLog }) {
       </div>
       <div className="eligibility-content">
         <div className="eligibility-title-row">
-          <span className="eligibility-title">Wait Before Injecting</span>
-          <span className="eligibility-countdown">{countdownText}</span>
+          <span className="eligibility-title">{t('eligibility.waitTitle')}</span>
+          <span className="eligibility-countdown" dir="ltr">{countdownText}</span>
         </div>
         <p className="eligibility-message">
-          You cannot inject yet. Please wait until at least 3 hours have passed since your last injection.
+          {t('eligibility.waitMessage')}
         </p>
         <div className="eligibility-time-note">
-          Next injection available at <strong>{formatTimeOnly(latestLog.notify_3h_at)}</strong>
+          {t('eligibility.nextAvailable')} <strong dir="ltr">{formatTimeOnly(latestLog.notify_3h_at)}</strong>
         </div>
       </div>
     </div>
   );
 }
 
-function App() {
+function AppContent() {
+  const { t, language, setLanguage, isRTL } = useTranslation();
   const [logs, setLogs] = useState([]);
   const [activeTab, setActiveTab] = useState(() => getTabFromUrl()); // 'home' | 'logs' | 'settings'
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -222,10 +227,7 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAuthModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
 
-  // Settings State
-  const [language, setLanguage] = useState(() => {
-    return localStorage.getItem('insuminder_language') || 'en';
-  });
+  // Telegram Configuration State
   const [telegramConfigs, setTelegramConfigs] = useState(() => {
     try {
       const cached = localStorage.getItem('insuminder_telegram_configs');
@@ -248,18 +250,18 @@ function App() {
         (localStorage.getItem('insuminder_telegram_bot_token') && localStorage.getItem('insuminder_telegram_chat_id')) ||
         (telegramBotToken.trim() && telegramChatId.trim())
       );
-  const latest10m = getReminderStatus(latestLog, '10m', isTelegramConfigured);
-  const latest2h = getReminderStatus(latestLog, '2h', isTelegramConfigured);
-  const latest3h = getReminderStatus(latestLog, '3h', isTelegramConfigured);
+  const latest10m = getReminderStatus(latestLog, '10m', isTelegramConfigured, language);
+  const latest2h = getReminderStatus(latestLog, '2h', isTelegramConfigured, language);
+  const latest3h = getReminderStatus(latestLog, '3h', isTelegramConfigured, language);
 
   const handleOpenReminderModal = (log, type) => {
     if (!log) return;
-    const statusInfo = getReminderStatus(log, type, isTelegramConfigured);
+    const statusInfo = getReminderStatus(log, type, isTelegramConfigured, language);
     const title = type === '10m'
-      ? '10-Minute Meal Reminder'
+      ? t('home.rem10mTitle')
       : type === '2h'
-      ? '2-Hour Reminder'
-      : '3-Hour Reminder';
+      ? t('home.rem2hTitle')
+      : t('home.rem3hTitle');
     setReminderModalData({
       ...statusInfo,
       logId: log.id,
@@ -355,6 +357,9 @@ function App() {
         if (currUser) {
           setUser(currUser);
           setIsLoggedIn(true);
+          if (currUser.language && (currUser.language === 'en' || currUser.language === 'he')) {
+            setLanguage(currUser.language);
+          }
           fetchShareStatus();
         } else {
           setUser(null);
@@ -364,7 +369,7 @@ function App() {
         }
       });
     }
-  }, []);
+  }, [setLanguage]);
 
   // Fetch configs and logs on mount
   useEffect(() => {
@@ -377,6 +382,10 @@ function App() {
     setIsLoggedIn(true);
     setIsAuthModalOpen(false);
     setUrlShareCode(null);
+
+    if (authUser && authUser.language && (authUser.language === 'en' || authUser.language === 'he')) {
+      setLanguage(authUser.language);
+    }
 
     // Security: Clear referral / share code from URL so it cannot be reused
     if (typeof window !== 'undefined') {
@@ -392,12 +401,12 @@ function App() {
       setActiveOwnerId(joinedGroup.ownerId);
       setNotification({
         type: 'success',
-        message: `Connected to shared account (${joinedGroup.ownerName || joinedGroup.ownerEmail})! Switched to shared data view.`
+        message: t('notifications.connectedToShared', { name: joinedGroup.ownerName || joinedGroup.ownerEmail })
       });
     } else {
       setNotification({
         type: 'success',
-        message: `Signed in successfully as ${authUser.email}!`
+        message: t('notifications.signedInAs', { email: authUser.email })
       });
     }
 
@@ -418,7 +427,7 @@ function App() {
     setIsNavOpen(false);
     setNotification({
       type: 'success',
-      message: 'You have been signed out.'
+      message: t('notifications.signedOut')
     });
   };
 
@@ -431,8 +440,8 @@ function App() {
     setNotification({
       type: 'success',
       message: newCtx === 'shared'
-        ? 'Switched to caregiver view for shared data.'
-        : 'Switched to personal data view.'
+        ? t('notifications.switchedToShared')
+        : t('notifications.switchedToPersonal')
     });
   };
 
@@ -467,18 +476,18 @@ function App() {
       if (res.success) {
         setNotification({
           type: 'success',
-          message: res.message || `Invitation sent to ${shareInviteEmail}!`
+          message: res.message || t('notifications.invitationSent', { email: shareInviteEmail.trim() })
         });
         setShareInviteEmail('');
         fetchShareStatus();
       } else {
         setNotification({
           type: 'error',
-          message: res.error || 'Failed to send invite.'
+          message: res.error || t('notifications.failedToSendInvite')
         });
       }
     } catch {
-      setNotification({ type: 'error', message: 'Network error sending invitation.' });
+      setNotification({ type: 'error', message: t('notifications.networkErrorInvite') });
     } finally {
       setIsSendingInvite(false);
     }
@@ -493,7 +502,7 @@ function App() {
       if (res.success) {
         setNotification({
           type: 'success',
-          message: res.message || 'Connected to shared account!'
+          message: res.message || t('notifications.connectedToSharedAccount')
         });
         setShareJoinCode('');
         if (res.owner && res.owner.ownerId) {
@@ -503,11 +512,11 @@ function App() {
       } else {
         setNotification({
           type: 'error',
-          message: res.error || 'Failed to connect using share code.'
+          message: res.error || t('notifications.failedToConnectShareCode')
         });
       }
     } catch {
-      setNotification({ type: 'error', message: 'Network error joining shared group.' });
+      setNotification({ type: 'error', message: t('notifications.networkErrorJoining') });
     } finally {
       setIsJoiningShare(false);
     }
@@ -527,14 +536,14 @@ function App() {
     try {
       const res = await authService.removeMember(member.id);
       if (res.success) {
-        setNotification({ type: 'success', message: `Member "${member.name || member.email}" removed from shared group.` });
+        setNotification({ type: 'success', message: t('notifications.memberRemoved', { name: member.name || member.email }) });
         setRemoveMemberModalData(null);
         fetchShareStatus();
       } else {
-        setNotification({ type: 'error', message: res.error || 'Failed to remove member.' });
+        setNotification({ type: 'error', message: res.error || t('notifications.failedToRemoveMember') });
       }
     } catch {
-      setNotification({ type: 'error', message: 'Network error removing member.' });
+      setNotification({ type: 'error', message: t('notifications.networkErrorRemoving') });
     }
   };
 
@@ -552,17 +561,17 @@ function App() {
     try {
       const res = await authService.leaveShareGroup(group.ownerId);
       if (res.success) {
-        setNotification({ type: 'success', message: 'You have left the shared group.' });
+        setNotification({ type: 'success', message: t('notifications.leftSharedGroup') });
         if (activeContext === 'shared' && activeOwnerId === group.ownerId) {
           handleSwitchContext('personal');
         }
         setLeaveGroupModalData(null);
         fetchShareStatus();
       } else {
-        setNotification({ type: 'error', message: res.error || 'Failed to leave shared group.' });
+        setNotification({ type: 'error', message: res.error || t('notifications.failedToLeaveGroup') });
       }
     } catch {
-      setNotification({ type: 'error', message: 'Network error leaving shared group.' });
+      setNotification({ type: 'error', message: t('notifications.networkErrorLeaving') });
     }
   };
 
@@ -616,7 +625,7 @@ function App() {
     if (logs.length > 0 && logs[0].injected_at && logs[0].injected_at.slice(0, 16) === currentMinute) {
       setNotification({
         type: 'warning',
-        message: 'An injection has already been recorded this minute. You can only log once per minute.'
+        message: t('notifications.rateLimitOnePerMinute')
       });
       return;
     }
@@ -631,13 +640,13 @@ function App() {
         const injectedTime = formatTimeOnly(now.toISOString());
         setNotification({
           type: 'success',
-          message: `Insulin injection logged successfully at ${injectedTime}!`
+          message: t('notifications.injectionLoggedSuccess', { time: injectedTime })
         });
         fetchLogs();
       } else {
         setNotification({
           type: 'warning',
-          message: data.error || 'An injection has already been recorded this minute. You can only log once per minute.'
+          message: data.error || t('notifications.rateLimitOnePerMinute')
         });
       }
     })
@@ -645,14 +654,18 @@ function App() {
       console.error('Error logging injection:', error);
       setNotification({
         type: 'warning',
-        message: 'Failed to log injection. Please check your connection.'
+        message: t('notifications.failedToLogInjection')
       });
     });
   };
 
   const handleSelectLanguage = (langCode) => {
     setLanguage(langCode);
-    localStorage.setItem('insuminder_language', langCode);
+    if (isLoggedIn) {
+      authService.updateLanguage(langCode).catch((err) => {
+        console.error('Failed to sync language to profile:', err);
+      });
+    }
   };
 
   const handleSaveTelegramSettings = async (e) => {
@@ -665,7 +678,7 @@ function App() {
     if (!cleanToken || !cleanChatId) {
       setNotification({
         type: 'warning',
-        message: 'Please provide both Bot Token and Chat ID.'
+        message: t('notifications.provideBotTokenAndChatId')
       });
       return;
     }
@@ -685,7 +698,7 @@ function App() {
       if (data.success) {
         setNotification({
           type: 'success',
-          message: 'Telegram configuration saved and set as default!'
+          message: t('notifications.telegramSavedAndDefault')
         });
         setTelegramLabel('');
         setTelegramBotToken('');
@@ -696,13 +709,13 @@ function App() {
       } else {
         setNotification({
           type: 'warning',
-          message: data.error || 'Failed to save configuration.'
+          message: data.error || t('notifications.failedToSaveConfig')
         });
       }
     } catch {
       setNotification({
         type: 'warning',
-        message: 'Failed to reach server to save configuration.'
+        message: t('notifications.failedToReachServerSave')
       });
     } finally {
       setIsSavingSettings(false);
@@ -719,19 +732,19 @@ function App() {
       if (data.success) {
         setNotification({
           type: 'success',
-          message: 'Default notification destination updated!'
+          message: t('notifications.defaultConfigUpdated')
         });
         fetchTelegramConfigs();
       } else {
         setNotification({
           type: 'warning',
-          message: data.error || 'Failed to update default configuration.'
+          message: data.error || t('notifications.failedToUpdateDefault')
         });
       }
     } catch {
       setNotification({
         type: 'warning',
-        message: 'Failed to reach server to update default configuration.'
+        message: t('notifications.failedToReachServerDefault')
       });
     }
   };
@@ -755,20 +768,20 @@ function App() {
       if (data.success) {
         setNotification({
           type: 'success',
-          message: `Configuration "${deleteModalConfig.name}" deleted successfully.`
+          message: t('notifications.configDeleted', { name: deleteModalConfig.name })
         });
         setDeleteModalConfig(null);
         fetchTelegramConfigs();
       } else {
         setNotification({
           type: 'warning',
-          message: data.error || 'Failed to delete configuration.'
+          message: data.error || t('notifications.failedToDeleteConfig')
         });
       }
     } catch {
       setNotification({
         type: 'warning',
-        message: 'Failed to reach server to delete configuration.'
+        message: t('notifications.failedToReachServerDelete')
       });
     }
   };
@@ -781,7 +794,7 @@ function App() {
     if (!cleanToken || !cleanChatId) {
       setNotification({
         type: 'warning',
-        message: 'Please enter both Bot Token and Chat ID before sending a test notification.'
+        message: t('notifications.enterBothBeforeTest')
       });
       return;
     }
@@ -800,18 +813,18 @@ function App() {
       if (data.success) {
         setNotification({
           type: 'success',
-          message: 'Test notification sent! Check your Telegram chat.'
+          message: t('notifications.testSentCheckTelegram')
         });
       } else {
         setNotification({
           type: 'warning',
-          message: `Telegram test failed: ${data.error || 'Could not send message'}`
+          message: t('notifications.telegramTestFailed', { error: data.error || 'Could not send message' })
         });
       }
     } catch {
       setNotification({
         type: 'warning',
-        message: 'Failed to reach server to test Telegram notification.'
+        message: t('notifications.failedToReachServerTest')
       });
     } finally {
       setIsTestingTelegram(false);
@@ -900,14 +913,14 @@ function App() {
   const getPageTitle = () => {
     switch (activeTab) {
       case 'logs':
-        return 'Injection Logs';
+        return t('nav.logs');
       case 'profile':
-        return 'Profile';
+        return t('nav.profile');
       case 'settings':
-        return 'Settings';
+        return t('nav.settings');
       case 'home':
       default:
-        return 'InsuMinder';
+        return t('nav.brand');
     }
   };
 
@@ -920,7 +933,7 @@ function App() {
             type="button"
             className="hamburger-btn"
             onClick={() => setIsNavOpen(true)}
-            aria-label="Open navigation menu"
+            aria-label={t('nav.openMenu')}
             aria-expanded={isNavOpen}
           >
             <span className="hamburger-line" />
@@ -939,7 +952,7 @@ function App() {
               type="button"
               className="back-btn"
               onClick={() => setActiveTab('home')}
-              aria-label="Back to Home"
+              aria-label={t('nav.backToHome')}
             >
               <svg
                 width="20"
@@ -976,16 +989,16 @@ function App() {
       <aside
         className={`nav-drawer ${isNavOpen ? 'open' : ''}`}
         role="navigation"
-        aria-label="Main Navigation"
+        aria-label={t('nav.brand')}
         aria-hidden={!isNavOpen}
       >
         <div className="nav-header">
-          <h2 className="nav-brand">InsuMinder</h2>
+          <h2 className="nav-brand">{t('nav.brand')}</h2>
           <button
             type="button"
             className="close-btn"
             onClick={() => setIsNavOpen(false)}
-            aria-label="Close navigation menu"
+            aria-label={t('nav.closeMenu')}
           >
             &times;
           </button>
@@ -1001,7 +1014,7 @@ function App() {
             }}
           >
             <span className="nav-icon" role="img" aria-label="home">🏠</span>
-            <span className="nav-label">Home</span>
+            <span className="nav-label">{t('nav.home')}</span>
           </button>
 
           <button
@@ -1013,7 +1026,7 @@ function App() {
             }}
           >
             <span className="nav-icon" role="img" aria-label="logs">📋</span>
-            <span className="nav-label">Injection Logs</span>
+            <span className="nav-label">{t('nav.logs')}</span>
             {todayLogs.length > 0 && <span className="badge">{todayLogs.length}</span>}
           </button>
 
@@ -1026,7 +1039,7 @@ function App() {
             }}
           >
             <span className="nav-icon" role="img" aria-label="profile">👤</span>
-            <span className="nav-label">Profile</span>
+            <span className="nav-label">{t('nav.profile')}</span>
           </button>
 
           <button
@@ -1038,7 +1051,7 @@ function App() {
             }}
           >
             <span className="nav-icon" role="img" aria-label="settings">⚙️</span>
-            <span className="nav-label">Settings</span>
+            <span className="nav-label">{t('nav.settings')}</span>
           </button>
         </nav>
 
@@ -1053,7 +1066,7 @@ function App() {
               }}
               role="button"
               tabIndex={0}
-              title="View Profile"
+              title={t('nav.viewProfile')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   setActiveTab('profile');
@@ -1089,7 +1102,7 @@ function App() {
               {isLoggedIn ? '🚪' : '🔐'}
             </span>
             <span className="nav-label">
-              {isLoggedIn ? 'Sign Out' : 'Log In'}
+              {isLoggedIn ? t('nav.signOut') : t('nav.logIn')}
             </span>
           </button>
         </div>
@@ -1117,7 +1130,7 @@ function App() {
             type="button"
             className="alert-close-btn"
             onClick={() => setNotification(null)}
-            aria-label="Dismiss message"
+            aria-label={t('common.dismiss')}
           >
             &times;
           </button>
@@ -1153,9 +1166,9 @@ function App() {
                     </svg>
                   </div>
                   <div className="auth-hero-text">
-                    <div className="auth-hero-title">Sign In or Sign Up</div>
+                    <div className="auth-hero-title">{t('home.heroTitle')}</div>
                     <p className="auth-hero-subtitle">
-                      Sign in or create an account to record your injections and manage your reminders.
+                      {t('home.heroSubtitle')}
                     </p>
                   </div>
                 </div>
@@ -1168,7 +1181,7 @@ function App() {
                       setIsAuthModalOpen(true);
                     }}
                   >
-                    Sign In
+                    {t('home.signIn')}
                   </button>
                   <button
                     type="button"
@@ -1178,7 +1191,7 @@ function App() {
                       setIsAuthModalOpen(true);
                     }}
                   >
-                    Sign Up
+                    {t('home.signUp')}
                   </button>
                 </div>
               </div>
@@ -1199,8 +1212,8 @@ function App() {
               >
                 <span className="telegram-alert-icon">⚠️</span>
                 <div className="telegram-alert-content">
-                  <span className="telegram-alert-text">Telegram not configured.</span>
-                  <span className="telegram-alert-action">Go to Settings to set it up.</span>
+                  <span className="telegram-alert-text">{t('home.telegramAlertText')}</span>
+                  <span className="telegram-alert-action">{t('home.telegramAlertAction')}</span>
                 </div>
               </div>
             )}
@@ -1217,7 +1230,7 @@ function App() {
                     role="radio"
                   >
                     <span className="context-icon">👤</span>
-                    <span>My Data</span>
+                    <span>{t('home.myData')}</span>
                   </button>
                   <button
                     type="button"
@@ -1233,7 +1246,7 @@ function App() {
                   >
                     <span className="context-icon">👥</span>
                     <span>
-                      Shared Data
+                      {t('home.sharedData')}
                       {shareStatus.sharedGroups[0] ? ` (${shareStatus.sharedGroups[0].ownerName || shareStatus.sharedGroups[0].ownerEmail})` : ''}
                     </span>
                   </button>
@@ -1242,13 +1255,13 @@ function App() {
                   <div className="shared-context-notice">
                     <span className="shared-context-dot" />
                     <span>
-                      Viewing shared records for{' '}
+                      {t('home.viewingSharedFor')}{' '}
                       <strong>
                         {shareStatus.sharedGroups.find(g => g.ownerId === activeOwnerId)?.ownerName ||
                          shareStatus.sharedGroups.find(g => g.ownerId === activeOwnerId)?.ownerEmail ||
                          shareStatus.sharedGroups[0]?.ownerName ||
                          shareStatus.sharedGroups[0]?.ownerEmail ||
-                         'Caregiver Account'}
+                         t('home.caregiverAccount')}
                       </strong>
                     </span>
                   </div>
@@ -1262,14 +1275,14 @@ function App() {
               className="log-injection-btn"
               disabled={!isLoggedIn}
               onClick={handleLogInjection}
-              title={!isLoggedIn ? 'Sign in or sign up to log injections' : 'Record the current time as your injection time'}
+              title={!isLoggedIn ? t('home.logInjectionSubtitleLoggedOut') : t('home.logInjectionSubtitleLoggedIn')}
             >
               <span className="log-injection-plus">+</span>
-              <span className="log-injection-title">Log Injection</span>
+              <span className="log-injection-title">{t('home.logInjection')}</span>
               <span className="log-injection-subtitle">
                 {!isLoggedIn
-                  ? 'Sign in or sign up to record injections'
-                  : 'Record the current time as your injection time'}
+                  ? t('home.logInjectionSubtitleLoggedOut')
+                  : t('home.logInjectionSubtitleLoggedIn')}
               </span>
             </button>
 
@@ -1289,7 +1302,7 @@ function App() {
                     setActiveTab('logs');
                   }
                 }}
-                title="View daily logs"
+                title={t('home.viewDailyLogs')}
               >
                 <div className="stat-card-header">
                   <span className="stat-icon-wrapper stat-pulse-icon">
@@ -1298,7 +1311,7 @@ function App() {
                     </svg>
                   </span>
                 </div>
-                <div className="stat-label">Daily Injections</div>
+                <div className="stat-label">{t('home.dailyInjections')}</div>
                 <div className="stat-value">{todayLogs.length}</div>
               </div>
 
@@ -1313,7 +1326,7 @@ function App() {
                     setActiveTab('logs');
                   }
                 }}
-                title="View injection details"
+                title={t('home.viewInjectionDetails')}
               >
                 <div className="stat-card-header">
                   <span className="stat-icon-wrapper stat-clock-icon">
@@ -1323,16 +1336,16 @@ function App() {
                     </svg>
                   </span>
                 </div>
-                <div className="stat-label">Last Injection</div>
+                <div className="stat-label">{t('home.lastInjection')}</div>
                 {latestLog ? (
                   <div className="stat-datetime-group">
-                    <div className="stat-datetime">{formatDateTime(latestLog.injected_at)}</div>
-                    <div className="stat-relative">{formatRelativeTime(latestLog.injected_at)}</div>
+                    <div className="stat-datetime"><span dir="ltr">{formatDateTime(latestLog.injected_at)}</span></div>
+                    <div className="stat-relative">{formatRelativeTime(latestLog.injected_at, language)}</div>
                   </div>
                 ) : (
                   <div className="stat-datetime-group">
-                    <div className="stat-datetime empty">None</div>
-                    <div className="stat-relative">No injections yet</div>
+                    <div className="stat-datetime empty">{t('common.none')}</div>
+                    <div className="stat-relative">{t('home.noInjectionsYet')}</div>
                   </div>
                 )}
               </div>
@@ -1340,7 +1353,7 @@ function App() {
 
             {/* Notifications Scheduled Section */}
             <div className="notifications-section">
-              <h2 className="section-title">Notifications Scheduled</h2>
+              <h2 className="section-title">{t('home.notificationsScheduled')}</h2>
 
               <div className="reminder-cards-list">
                 {/* 10-Minute Meal Reminder */}
@@ -1354,14 +1367,14 @@ function App() {
                   </div>
                   <div className="reminder-details">
                     <div className="reminder-title-row">
-                      <span className="reminder-title">10-Minute Meal Reminder</span>
+                      <span className="reminder-title">{t('home.rem10mTitle')}</span>
                       {latestLog && (
                         <button
                           type="button"
                           className={`reminder-badge reminder-badge-btn ${latest10m.badgeClass}`}
                           onClick={() => handleOpenReminderModal(latestLog, '10m')}
                           title={latest10m.title}
-                          aria-label={`10-Minute Meal Reminder: ${latest10m.label}. Click to view details.`}
+                          aria-label={`${t('home.rem10mTitle')}: ${latest10m.label}.`}
                         >
                           {latest10m.label}
                         </button>
@@ -1369,17 +1382,17 @@ function App() {
                     </div>
                     {latestLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp">{formatDateTime(latest10m.targetTime)}</span>
-                        <span className="reminder-relative">({formatRelativeTime(latest10m.targetTime)})</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latest10m.targetTime)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latest10m.targetTime, language)})</span>
                       </div>
                     ) : (
                       <div className="reminder-time-info">
                         <span className="reminder-timestamp empty">—</span>
-                        <span className="reminder-relative">(No injections logged yet)</span>
+                        <span className="reminder-relative">({t('home.noInjectionsLoggedYet')})</span>
                       </div>
                     )}
                     <p className="reminder-description">
-                      You will be reminded 10 minutes after injection that you can start your meal
+                      {t('home.rem10mDesc')}
                     </p>
                   </div>
                 </div>
@@ -1394,14 +1407,14 @@ function App() {
                   </div>
                   <div className="reminder-details">
                     <div className="reminder-title-row">
-                      <span className="reminder-title">2-Hour Reminder</span>
+                      <span className="reminder-title">{t('home.rem2hTitle')}</span>
                       {latestLog && (
                         <button
                           type="button"
                           className={`reminder-badge reminder-badge-btn ${latest2h.badgeClass}`}
                           onClick={() => handleOpenReminderModal(latestLog, '2h')}
                           title={latest2h.title}
-                          aria-label={`2-Hour Reminder: ${latest2h.label}. Click to view details.`}
+                          aria-label={`${t('home.rem2hTitle')}: ${latest2h.label}.`}
                         >
                           {latest2h.label}
                         </button>
@@ -1409,17 +1422,17 @@ function App() {
                     </div>
                     {latestLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp">{formatDateTime(latestLog.notify_2h_at)}</span>
-                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_2h_at)})</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestLog.notify_2h_at)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_2h_at, language)})</span>
                       </div>
                     ) : (
                       <div className="reminder-time-info">
                         <span className="reminder-timestamp empty">—</span>
-                        <span className="reminder-relative">(No injections logged yet)</span>
+                        <span className="reminder-relative">({t('home.noInjectionsLoggedYet')})</span>
                       </div>
                     )}
                     <p className="reminder-description">
-                      You will be reminded 2 hours after injection
+                      {t('home.rem2hDesc')}
                     </p>
                   </div>
                 </div>
@@ -1434,14 +1447,14 @@ function App() {
                   </div>
                   <div className="reminder-details">
                     <div className="reminder-title-row">
-                      <span className="reminder-title">3-Hour Reminder</span>
+                      <span className="reminder-title">{t('home.rem3hTitle')}</span>
                       {latestLog && (
                         <button
                           type="button"
                           className={`reminder-badge reminder-badge-btn ${latest3h.badgeClass}`}
                           onClick={() => handleOpenReminderModal(latestLog, '3h')}
                           title={latest3h.title}
-                          aria-label={`3-Hour Reminder: ${latest3h.label}. Click to view details.`}
+                          aria-label={`${t('home.rem3hTitle')}: ${latest3h.label}.`}
                         >
                           {latest3h.label}
                         </button>
@@ -1449,17 +1462,17 @@ function App() {
                     </div>
                     {latestLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp">{formatDateTime(latestLog.notify_3h_at)}</span>
-                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_3h_at)})</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestLog.notify_3h_at)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_3h_at, language)})</span>
                       </div>
                     ) : (
                       <div className="reminder-time-info">
                         <span className="reminder-timestamp empty">—</span>
-                        <span className="reminder-relative">(No injections logged yet)</span>
+                        <span className="reminder-relative">({t('home.noInjectionsLoggedYet')})</span>
                       </div>
                     )}
                     <p className="reminder-description">
-                      You will be reminded 3 hours after injection
+                      {t('home.rem3hDesc')}
                     </p>
                   </div>
                 </div>
@@ -1486,8 +1499,8 @@ function App() {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
-            <h3 className="auth-locked-title">Account Required</h3>
-            <p className="no-logs">Please sign in or create an account to view your injection history, daily logs, and weekly trends.</p>
+            <h3 className="auth-locked-title">{t('logs.accountRequired')}</h3>
+            <p className="no-logs">{t('logs.accountRequiredDesc')}</p>
             <button
               type="button"
               className="primary-btn auth-locked-btn"
@@ -1496,18 +1509,18 @@ function App() {
                 setIsAuthModalOpen(true);
               }}
             >
-              Sign In
+              {t('home.signIn')}
             </button>
           </div>
         ) : logs.length === 0 ? (
           <div className="empty-logs-container">
-            <p className="no-logs">No injections logged yet.</p>
+            <p className="no-logs">{t('logs.noLogsYet')}</p>
             <button
               type="button"
               className="primary-btn"
               onClick={() => setActiveTab('home')}
             >
-              Go to Home to Log
+              {t('logs.goToHomeToLog')}
             </button>
           </div>
         ) : (
@@ -1527,7 +1540,7 @@ function App() {
                       }}
                       aria-expanded={isLatestExpanded}
                     >
-                      <div className="latest-log-icon-wrapper" title="Latest Injection">
+                      <div className="latest-log-icon-wrapper" title={t('logs.latestInjection')}>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="m18 2 4 4" />
                           <path d="m17 7 3-3" />
@@ -1538,8 +1551,8 @@ function App() {
                       </div>
 
                       <div className="latest-log-meta">
-                        <div className="latest-log-timestamp">{formatDateTime(latestLog.injected_at)}</div>
-                        <div className="latest-log-relative">{formatRelativeTime(latestLog.injected_at)}</div>
+                        <div className="latest-log-timestamp"><span dir="ltr">{formatDateTime(latestLog.injected_at)}</span></div>
+                        <div className="latest-log-relative">{formatRelativeTime(latestLog.injected_at, language)}</div>
                       </div>
 
                       <div className={`latest-chevron ${isLatestExpanded ? 'open' : ''}`}>
@@ -1556,10 +1569,10 @@ function App() {
                         className={`latest-reminder-pill latest-reminder-pill-btn ${latest10m.pillClass}`}
                         onClick={() => handleOpenReminderModal(latestLog, '10m')}
                         title={latest10m.title}
-                        aria-label={`10-Minute Meal Reminder: ${latest10m.pillLabel}. Click to view details.`}
+                        aria-label={`${t('home.rem10mTitle')}: ${latest10m.pillLabel}.`}
                       >
                         <span className="pill-icon">{latest10m.icon}</span>
-                        <span className="pill-text">10m Meal Reminder: {latest10m.pillLabel}</span>
+                        <span className="pill-text">{t('logs.mealReminderPill')} {latest10m.pillLabel}</span>
                       </button>
 
                       <button
@@ -1567,10 +1580,10 @@ function App() {
                         className={`latest-reminder-pill latest-reminder-pill-btn ${latest2h.pillClass}`}
                         onClick={() => handleOpenReminderModal(latestLog, '2h')}
                         title={latest2h.title}
-                        aria-label={`2-Hour Reminder: ${latest2h.pillLabel}. Click to view details.`}
+                        aria-label={`${t('home.rem2hTitle')}: ${latest2h.pillLabel}.`}
                       >
                         <span className="pill-icon">{latest2h.icon}</span>
-                        <span className="pill-text">2-Hour Reminder: {latest2h.pillLabel}</span>
+                        <span className="pill-text">{t('logs.reminder2hPill')} {latest2h.pillLabel}</span>
                       </button>
 
                       <button
@@ -1578,10 +1591,10 @@ function App() {
                         className={`latest-reminder-pill latest-reminder-pill-btn ${latest3h.pillClass}`}
                         onClick={() => handleOpenReminderModal(latestLog, '3h')}
                         title={latest3h.title}
-                        aria-label={`3-Hour Reminder: ${latest3h.pillLabel}. Click to view details.`}
+                        aria-label={`${t('home.rem3hTitle')}: ${latest3h.pillLabel}.`}
                       >
                         <span className="pill-icon">{latest3h.icon}</span>
-                        <span className="pill-text">3-Hour Reminder: {latest3h.pillLabel}</span>
+                        <span className="pill-text">{t('logs.reminder3hPill')} {latest3h.pillLabel}</span>
                       </button>
                     </div>
 
@@ -1589,20 +1602,20 @@ function App() {
                     {isLatestExpanded && (
                       <div className="latest-expanded-panel">
                         <div className="expanded-row">
-                          <span className="expanded-label">Injected At:</span>
-                          <span className="expanded-value">{formatDateTime(latestLog.injected_at)}</span>
+                          <span className="expanded-label">{t('logs.injectedAt')}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.injected_at)}</span>
                         </div>
                         <div className="expanded-row">
-                          <span className="expanded-label">10m Meal Target:</span>
-                          <span className="expanded-value">{formatDateTime(latest10m.targetTime)}</span>
+                          <span className="expanded-label">{t('logs.mealTarget10m')}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latest10m.targetTime)}</span>
                         </div>
                         <div className="expanded-row">
-                          <span className="expanded-label">2h Target Time:</span>
-                          <span className="expanded-value">{formatDateTime(latestLog.notify_2h_at)}</span>
+                          <span className="expanded-label">{t('logs.targetTime2h')}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.notify_2h_at)}</span>
                         </div>
                         <div className="expanded-row">
-                          <span className="expanded-label">3h Target Time:</span>
-                          <span className="expanded-value">{formatDateTime(latestLog.notify_3h_at)}</span>
+                          <span className="expanded-label">{t('logs.targetTime3h')}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.notify_3h_at)}</span>
                         </div>
                       </div>
                     )}
@@ -1617,12 +1630,12 @@ function App() {
                 >
                   <div className="chart-card-header">
                     <div className="chart-title-group">
-                      <h3 className="chart-title">Weekly Injections</h3>
-                      <span className="chart-subtitle">Daily count for selected week</span>
+                      <h3 className="chart-title">{t('logs.weeklyInjections')}</h3>
+                      <span className="chart-subtitle">{t('logs.dailyCountForWeek')}</span>
                     </div>
                     <div className="chart-stats-badge">
                       <span className="chart-stat-number">{weeklyData.totalWeekInjections}</span>
-                      <span className="chart-stat-label">week total</span>
+                      <span className="chart-stat-label">{t('logs.weekTotal')}</span>
                     </div>
                   </div>
 
@@ -1637,7 +1650,7 @@ function App() {
                         aria-label="Previous Month"
                         title="Go to previous month"
                       >
-                        ‹
+                        {isRTL ? '›' : '‹'}
                       </button>
                       <span className="chart-month-label">{weekInfo.monthName}</span>
                       <button
@@ -1647,7 +1660,7 @@ function App() {
                         aria-label="Next Month"
                         title="Go to next month"
                       >
-                        ›
+                        {isRTL ? '‹' : '›'}
                       </button>
                     </div>
 
@@ -1658,14 +1671,14 @@ function App() {
                         className="chart-nav-btn chart-nav-week-btn"
                         onClick={handlePrevWeek}
                         aria-label="Previous Week"
-                        title="Go to previous week (or swipe right)"
+                        title="Go to previous week"
                       >
-                        ←
+                        {isRTL ? '→' : '←'}
                       </button>
 
                       <div className="chart-week-info">
-                        <span className="chart-week-title">Week {weekInfo.weekNumber}</span>
-                        <span className="chart-week-dates">({weeklyData.weekRangeStr})</span>
+                        <span className="chart-week-title">{t('logs.week')} {weekInfo.weekNumber}</span>
+                        <span className="chart-week-dates" dir="ltr">({weeklyData.weekRangeStr})</span>
                       </div>
 
                       <button
@@ -1673,9 +1686,9 @@ function App() {
                         className="chart-nav-btn chart-nav-week-btn"
                         onClick={handleNextWeek}
                         aria-label="Next Week"
-                        title="Go to next week (or swipe left)"
+                        title="Go to next week"
                       >
-                        →
+                        {isRTL ? '←' : '→'}
                       </button>
                     </div>
 
@@ -1703,9 +1716,9 @@ function App() {
                           type="button"
                           className="chart-reset-today-btn"
                           onClick={handleResetToCurrentWeek}
-                          title="Jump back to current week"
+                          title={t('logs.jumpToCurrentWeek')}
                         >
-                          ↺ Jump to Current Week
+                          {t('logs.jumpToCurrentWeek')}
                         </button>
                       </div>
                     )}
@@ -1713,12 +1726,12 @@ function App() {
 
                   <div className="chart-metrics-row">
                     <div className="metric-chip">
-                      <span className="metric-chip-label">Daily Avg:</span>
-                      <span className="metric-chip-value">{weeklyData.dailyAvg} / day</span>
+                      <span className="metric-chip-label">{t('logs.dailyAvg')}</span>
+                      <span className="metric-chip-value">{weeklyData.dailyAvg} {t('logs.perDay')}</span>
                     </div>
                     <div className="metric-chip">
-                      <span className="metric-chip-label">Active Days:</span>
-                      <span className="metric-chip-value">{weeklyData.activeDaysCount} of 7</span>
+                      <span className="metric-chip-label">{t('logs.activeDays')}</span>
+                      <span className="metric-chip-value">{weeklyData.activeDaysCount} {t('logs.of7')}</span>
                     </div>
                   </div>
 
@@ -1767,25 +1780,25 @@ function App() {
                       )}
                     </div>
                     <div className="rapid-header-text">
-                      <h3 className="rapid-title">Rapid Injection Trend</h3>
-                      <span className="rapid-subtitle">Intervals under the recommended 3-hour spacing</span>
+                      <h3 className="rapid-title">{t('logs.rapidTrendTitle')}</h3>
+                      <span className="rapid-subtitle">{t('logs.rapidTrendSubtitle')}</span>
                     </div>
                   </div>
 
                   {rapidInjections.rapidList.length > 0 ? (
                     <div className="rapid-content">
                       <p className="rapid-guidance">
-                        ⚠️ <strong>{rapidInjections.rapidList.length} dose{rapidInjections.rapidList.length === 1 ? '' : 's'}</strong> recorded today less than 3 hours after a prior injection. If logged by mistake, take note; if intentional correction, monitor blood glucose closely.
+                        ⚠️ <strong>{rapidInjections.rapidList.length} {rapidInjections.rapidList.length === 1 ? t('logs.rapidDoseSingle') : t('logs.rapidDosesPlural')}</strong> {t('logs.rapidWarningText')}
                       </p>
                       <div className="rapid-incidents-list">
                         {rapidInjections.rapidList.map((item, idx) => (
                           <div key={idx} className="rapid-incident-item">
                             <div className="incident-time-row">
-                              <span className="incident-time">{formatDateTime(item.currentInjectedAt)}</span>
-                              <span className="incident-interval-badge">+{item.intervalStr} after prior dose</span>
+                              <span className="incident-time" dir="ltr">{formatDateTime(item.currentInjectedAt)}</span>
+                              <span className="incident-interval-badge">+{item.intervalStr} {t('logs.afterPriorDose')}</span>
                             </div>
                             <div className="incident-prior-info">
-                              Prior injection was at {formatTimeOnly(item.previousInjectedAt)}
+                              {t('logs.priorInjectionWasAt')} <strong dir="ltr">{formatTimeOnly(item.previousInjectedAt)}</strong>
                             </div>
                           </div>
                         ))}
@@ -1794,7 +1807,7 @@ function App() {
                   ) : (
                     <div className="rapid-clear-content">
                       <span className="rapid-clear-text">
-                        All recorded injections today have maintained the recommended 3+ hour spacing. No premature doses detected.
+                        {t('logs.rapidClearText')}
                       </span>
                     </div>
                   )}
@@ -1804,17 +1817,17 @@ function App() {
                 <div className="daily-logs-section">
                   <div className="daily-logs-header">
                     <div className="daily-logs-title-group">
-                      <h3 className="daily-logs-title">Today's Injections</h3>
+                      <h3 className="daily-logs-title">{t('logs.todaysInjections')}</h3>
                       <span className="daily-logs-subtitle">{todayDateKey}</span>
                     </div>
                     <span className="daily-count-badge">
-                      {todayLogs.length} {todayLogs.length === 1 ? 'injection' : 'injections'}
+                      {todayLogs.length} {todayLogs.length === 1 ? t('logs.injectionSingle') : t('logs.injectionsPlural')}
                     </span>
                   </div>
 
                   {todayLogs.length === 0 ? (
                     <div className="daily-empty-card">
-                      <span className="daily-empty-text">No injections recorded today yet.</span>
+                      <span className="daily-empty-text">{t('logs.noInjectionsToday')}</span>
                     </div>
                   ) : (
                     <ul className="logs-list">
@@ -1824,62 +1837,62 @@ function App() {
                         return (
                           <li key={log.id} className={`log-item ${isRapid ? 'rapid-log-item' : ''}`}>
                             <div className="log-field">
-                              <span className="log-label">Injected:</span>
+                              <span className="log-label">{t('logs.injectedLabel')}</span>
                               <div className="log-value-group">
-                                <span className="log-value">{formatTimeOnly(log.injected_at)}</span>
+                                <span className="log-value" dir="ltr">{formatTimeOnly(log.injected_at)}</span>
                                 {isRapid && (
                                   <span className="log-rapid-pill" title="Logged under 3h after prior dose">
-                                    ⚠️ &lt; 3h
+                                    {t('logs.rapidPillBadge')}
                                   </span>
                                 )}
                               </div>
                             </div>
                             {(() => {
-                              const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured);
-                              const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured);
-                              const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured);
+                              const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured, language);
+                              const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured, language);
+                              const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured, language);
                               return (
                                 <>
                                   <div className="log-field">
-                                    <span className="log-label">10m Meal:</span>
+                                    <span className="log-label">{t('logs.mealLabel10m')}</span>
                                     <div className="log-value-row">
-                                      <span className="log-value">{formatTimeOnly(logRem10m.targetTime)}</span>
+                                      <span className="log-value" dir="ltr">{formatTimeOnly(logRem10m.targetTime)}</span>
                                       <button
                                         type="button"
                                         className={`log-status-pill log-status-pill-btn ${logRem10m.pillClass}`}
                                         onClick={() => handleOpenReminderModal(log, '10m')}
                                         title={logRem10m.title}
-                                        aria-label={`10-Minute Meal Reminder: ${logRem10m.label}. Click to view details.`}
+                                        aria-label={`${t('home.rem10mTitle')}: ${logRem10m.label}.`}
                                       >
                                         {logRem10m.icon} {logRem10m.label}
                                       </button>
                                     </div>
                                   </div>
                                   <div className="log-field">
-                                    <span className="log-label">2h Reminder:</span>
+                                    <span className="log-label">{t('logs.reminderLabel2h')}</span>
                                     <div className="log-value-row">
-                                      <span className="log-value">{formatTimeOnly(log.notify_2h_at)}</span>
+                                      <span className="log-value" dir="ltr">{formatTimeOnly(log.notify_2h_at)}</span>
                                       <button
                                         type="button"
                                         className={`log-status-pill log-status-pill-btn ${logRem2h.pillClass}`}
                                         onClick={() => handleOpenReminderModal(log, '2h')}
                                         title={logRem2h.title}
-                                        aria-label={`2-Hour Reminder: ${logRem2h.label}. Click to view details.`}
+                                        aria-label={`${t('home.rem2hTitle')}: ${logRem2h.label}.`}
                                       >
                                         {logRem2h.icon} {logRem2h.label}
                                       </button>
                                     </div>
                                   </div>
                                   <div className="log-field">
-                                    <span className="log-label">3h Reminder:</span>
+                                    <span className="log-label">{t('logs.reminderLabel3h')}</span>
                                     <div className="log-value-row">
-                                      <span className="log-value">{formatTimeOnly(log.notify_3h_at)}</span>
+                                      <span className="log-value" dir="ltr">{formatTimeOnly(log.notify_3h_at)}</span>
                                       <button
                                         type="button"
                                         className={`log-status-pill log-status-pill-btn ${logRem3h.pillClass}`}
                                         onClick={() => handleOpenReminderModal(log, '3h')}
                                         title={logRem3h.title}
-                                        aria-label={`3-Hour Reminder: ${logRem3h.label}. Click to view details.`}
+                                        aria-label={`${t('home.rem3hTitle')}: ${logRem3h.label}.`}
                                       >
                                         {logRem3h.icon} {logRem3h.label}
                                       </button>
@@ -1929,7 +1942,7 @@ function App() {
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                   </svg>
                 </div>
-                <h2 className="card-title">Language</h2>
+                <h2 className="card-title">{t('settings.language')}</h2>
               </div>
 
               <div className="language-options">
@@ -1962,21 +1975,6 @@ function App() {
                     </span>
                   )}
                 </button>
-
-                <button
-                  type="button"
-                  className={`language-btn ${language === 'ru' ? 'active' : ''}`}
-                  onClick={() => handleSelectLanguage('ru')}
-                >
-                  <span className="language-name">Русский</span>
-                  {language === 'ru' && (
-                    <span className="check-icon">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                      </svg>
-                    </span>
-                  )}
-                </button>
               </div>
             </div>
 
@@ -1990,15 +1988,15 @@ function App() {
                   </svg>
                 </div>
                 <div className="card-header-text">
-                  <h2 className="card-title">Telegram Notifications</h2>
-                  <p className="card-subtitle">Configure your Telegram bot to receive injection reminders</p>
+                  <h2 className="card-title">{t('settings.telegramTitle')}</h2>
+                  <p className="card-subtitle">{t('settings.telegramSubtitle')}</p>
                 </div>
               </div>
 
               {!isLoggedIn ? (
                 <div className="auth-locked-settings-notice">
                   <p className="auth-locked-text">
-                    Please sign in or create an account to configure Telegram notification destinations and manage your reminder bots.
+                    {t('settings.telegramAuthNotice')}
                   </p>
                   <button
                     type="button"
@@ -2008,7 +2006,7 @@ function App() {
                       setIsAuthModalOpen(true);
                     }}
                   >
-                    Sign In
+                    {t('home.signIn')}
                   </button>
                 </div>
               ) : (
@@ -2017,13 +2015,13 @@ function App() {
                   <form onSubmit={handleSaveTelegramSettings} className="settings-form">
                 <div className="form-group">
                   <label htmlFor="config-label" className="form-label">
-                    Configuration Name <span className="label-optional">(Optional)</span>
+                    {t('settings.configName')} <span className="label-optional">({t('common.optional')})</span>
                   </label>
                   <input
                     id="config-label"
                     type="text"
                     className="form-input"
-                    placeholder="e.g. My Phone, Channel"
+                    placeholder={t('settings.configNamePlaceholder')}
                     value={telegramLabel}
                     onChange={(e) => setTelegramLabel(e.target.value)}
                     autoComplete="off"
@@ -2032,12 +2030,12 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="bot-token" className="form-label">Bot Token</label>
+                  <label htmlFor="bot-token" className="form-label">{t('settings.botToken')}</label>
                   <input
                     id="bot-token"
                     type="text"
                     className="form-input"
-                    placeholder="Enter your Telegram bot token"
+                    placeholder={t('settings.botTokenPlaceholder')}
                     value={telegramBotToken}
                     onChange={(e) => setTelegramBotToken(e.target.value)}
                     autoComplete="off"
@@ -2046,14 +2044,14 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="chat-id" className="form-label">Chat ID</label>
+                  <label htmlFor="chat-id" className="form-label">{t('settings.chatId')}</label>
                   <div className="input-prefix-group">
                     <span className="input-prefix" aria-hidden="true">-</span>
                     <input
                       id="chat-id"
                       type="text"
                       className="form-input with-prefix"
-                      placeholder="e.g. 4304245048 or 1004304245048"
+                      placeholder={t('settings.chatIdPlaceholder')}
                       value={telegramChatId.replace(/^-+/, '')}
                       onChange={(e) => setTelegramChatId(e.target.value.replace(/^-+/, ''))}
                       autoComplete="off"
@@ -2063,7 +2061,7 @@ function App() {
                 </div>
 
                 <p className="settings-note">
-                  Notifications are sent 10 minutes, 2 hours, and 3 hours after each injection via Telegram. Newly saved destinations are automatically marked as default.
+                  {t('settings.telegramNote')}
                 </p>
 
                 <div className="form-actions">
@@ -2075,7 +2073,7 @@ function App() {
                         <polyline points="7 3 7 8 15 8" />
                       </svg>
                     </span>
-                    {isSavingSettings ? 'Saving...' : 'Save & Set as Default'}
+                    {isSavingSettings ? t('common.saving') : t('settings.saveAndSetDefault')}
                   </button>
 
                   <button
@@ -2090,7 +2088,7 @@ function App() {
                         <polygon points="22 2 15 22 11 13 2 9 22 2" />
                       </svg>
                     </span>
-                    {isTestingTelegram ? 'Sending Test...' : 'Send Test Notification'}
+                    {isTestingTelegram ? t('settings.sendingTest') : t('settings.sendTestNotification')}
                   </button>
                 </div>
               </form>
@@ -2098,15 +2096,15 @@ function App() {
               {/* 2. Saved Configurations List with Default Radio Button & Delete */}
               <div className="configs-section">
                 <div className="configs-header">
-                  <h3 className="configs-title">Saved Configurations</h3>
+                  <h3 className="configs-title">{t('settings.savedConfigs')}</h3>
                   <span className="configs-count-badge">
-                    {telegramConfigs.length} {telegramConfigs.length === 1 ? 'destination' : 'destinations'}
+                    {telegramConfigs.length} {telegramConfigs.length === 1 ? t('settings.destinationSingle') : t('settings.destinationsPlural')}
                   </span>
                 </div>
 
                 {telegramConfigs.length === 0 ? (
                   <div className="configs-empty-card">
-                    <span className="configs-empty-text">No configurations saved yet. Enter details above to add one.</span>
+                    <span className="configs-empty-text">{t('settings.noConfigsYet')}</span>
                   </div>
                 ) : (
                   <ul className="configs-list">
@@ -2131,14 +2129,14 @@ function App() {
                                   <div className="config-details">
                                     <span className="config-detail-item">
                                       <span className="config-chat-group">
-                                        <strong>Chat:</strong> {cfg.chatId}
+                                        <strong>{t('settings.chatPrefix')}</strong> {cfg.chatId}
                                         {cfg.isDefault && (
-                                          <span className="default-pill">DEFAULT</span>
+                                          <span className="default-pill">{t('settings.defaultPill')}</span>
                                         )}
                                       </span>
                                     </span>
                                     <span className="config-detail-item">
-                                      <strong>Token:</strong> {maskBotToken(cfg.botToken)}
+                                      <strong>{t('settings.tokenPrefix')}</strong> {maskBotToken(cfg.botToken)}
                                     </span>
                                   </div>
                                 </>
@@ -2146,16 +2144,16 @@ function App() {
                                 <>
                                   <div className="config-title-row">
                                     <span className="config-chat-group config-chat-title">
-                                      <strong className="config-chat-prefix">Chat:</strong>
+                                      <strong className="config-chat-prefix">{t('settings.chatPrefix')}</strong>
                                       <span className="config-chat-id-text">{cfg.chatId}</span>
                                       {cfg.isDefault && (
-                                        <span className="default-pill">DEFAULT</span>
+                                        <span className="default-pill">{t('settings.defaultPill')}</span>
                                       )}
                                     </span>
                                   </div>
                                   <div className="config-details">
                                     <span className="config-detail-item">
-                                      <strong>Token:</strong> {maskBotToken(cfg.botToken)}
+                                      <strong>{t('settings.tokenPrefix')}</strong> {maskBotToken(cfg.botToken)}
                                     </span>
                                   </div>
                                 </>
@@ -2171,14 +2169,14 @@ function App() {
                               onClick={() => handleTestTelegramNotification(cfg.botToken, cfg.chatId)}
                               disabled={isTestingTelegram}
                             >
-                              Test
+                              {t('settings.testBtn')}
                             </button>
                             <button
                               type="button"
                               className="config-row-delete-btn"
-                              title={hasCustom ? `Delete ${cfg.name}` : `Delete configuration for ${cfg.chatId}`}
+                              title={hasCustom ? t('settings.deleteConfigName', { name: cfg.name }) : t('settings.deleteConfigForChat', { chatId: cfg.chatId })}
                               onClick={() => handleOpenDeleteModal(cfg)}
-                              aria-label={hasCustom ? `Delete ${cfg.name}` : `Delete configuration for ${cfg.chatId}`}
+                              aria-label={hasCustom ? t('settings.deleteConfigName', { name: cfg.name }) : t('settings.deleteConfigForChat', { chatId: cfg.chatId })}
                             >
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="3 6 5 6 21 6" />
@@ -2208,9 +2206,9 @@ function App() {
               </svg>
             </div>
             <div className="card-header-text">
-              <h2 className="card-title">Shared Access (Family & Party)</h2>
+              <h2 className="card-title">{t('settings.sharedAccessTitle')}</h2>
               <p className="card-subtitle">
-                Share your injection logs and reminders with family or partners, or connect to another user&apos;s account.
+                {t('settings.sharedAccessSubtitle')}
               </p>
             </div>
           </div>
@@ -2218,7 +2216,7 @@ function App() {
           {!isLoggedIn ? (
             <div className="auth-locked-settings-notice">
               <p className="auth-locked-text">
-                Please sign in or create an account to share your records with family members or connect as a caregiver.
+                {t('settings.sharedAccessAuthNotice')}
               </p>
               <button
                 type="button"
@@ -2228,7 +2226,7 @@ function App() {
                   setIsAuthModalOpen(true);
                 }}
               >
-                Sign In
+                {t('home.signIn')}
               </button>
             </div>
           ) : (
@@ -2236,8 +2234,8 @@ function App() {
               {/* A. Personal Share Code Card */}
               <div className="share-code-box">
                 <div className="share-code-header">
-                  <span className="share-code-title">Your Share Code</span>
-                  <span className="share-role-badge">Group Admin</span>
+                  <span className="share-code-title">{t('settings.yourShareCode')}</span>
+                  <span className="share-role-badge">{t('settings.groupAdmin')}</span>
                 </div>
                 <div className="share-code-display-row">
                   <code className="share-code-value">{shareStatus.shareCode || 'Generating...'}</code>
@@ -2246,33 +2244,33 @@ function App() {
                       type="button"
                       className="copy-code-btn"
                       onClick={handleCopyShareCode}
-                      title="Copy Share Code"
+                      title={t('settings.copyCode')}
                     >
-                      {copiedCode ? '✓ Copied' : 'Copy Code'}
+                      {copiedCode ? t('settings.copiedCode') : t('settings.copyCode')}
                     </button>
                     <button
                       type="button"
                       className="copy-link-btn"
                       onClick={handleCopyInviteLink}
-                      title="Copy Invite Link"
+                      title={t('settings.copyLink')}
                     >
-                      {copiedLink ? '✓ Copied Link' : 'Copy Invite Link'}
+                      {copiedLink ? t('settings.copiedLink') : t('settings.copyLink')}
                     </button>
                   </div>
                 </div>
                 <p className="share-code-hint">
-                  Share this code or link with someone you trust. They will be able to view your doses, trends, and reminders.
+                  {t('settings.shareCodeHint')}
                 </p>
               </div>
 
               {/* B. Invite Caregiver by Email */}
               <form onSubmit={handleSendInviteEmail} className="share-invite-form">
-                <h3 className="share-sub-title">Invite Caregiver via Email</h3>
+                <h3 className="share-sub-title">{t('settings.inviteCaregiverTitle')}</h3>
                 <div className="share-input-row">
                   <input
                     type="email"
                     className="form-input share-email-input"
-                    placeholder="caregiver@example.com"
+                    placeholder={t('settings.caregiverEmailPlaceholder')}
                     value={shareInviteEmail}
                     onChange={(e) => setShareInviteEmail(e.target.value)}
                     disabled={isSendingInvite}
@@ -2283,7 +2281,7 @@ function App() {
                     className="save-btn share-invite-btn"
                     disabled={isSendingInvite || !shareInviteEmail.trim()}
                   >
-                    {isSendingInvite ? 'Sending...' : 'Send Invitation'}
+                    {isSendingInvite ? t('settings.sendingInvite') : t('settings.sendInvitation')}
                   </button>
                 </div>
               </form>
@@ -2291,15 +2289,15 @@ function App() {
               {/* C. Connected Members List (I am Admin) */}
               <div className="shared-members-section">
                 <div className="share-section-header">
-                  <h3 className="share-sub-title">Connected Members</h3>
+                  <h3 className="share-sub-title">{t('settings.connectedMembers')}</h3>
                   <span className="configs-count-badge">
-                    {shareStatus.members.length} {shareStatus.members.length === 1 ? 'member' : 'members'}
+                    {shareStatus.members.length} {shareStatus.members.length === 1 ? t('settings.memberSingle') : t('settings.membersPlural')}
                   </span>
                 </div>
 
                 {shareStatus.members.length === 0 ? (
                   <div className="configs-empty-card">
-                    <span className="configs-empty-text">No caregivers connected to your account yet.</span>
+                    <span className="configs-empty-text">{t('settings.noMembersYet')}</span>
                   </div>
                 ) : (
                   <ul className="shared-members-list">
@@ -2316,8 +2314,8 @@ function App() {
                           type="button"
                           className="config-row-delete-btn member-remove-btn"
                           onClick={() => handleOpenRemoveMemberModal(member)}
-                          title={`Remove member ${member.name || member.email}`}
-                          aria-label={`Remove member ${member.name || member.email}`}
+                          title={t('settings.removeMemberAction', { name: member.name || member.email })}
+                          aria-label={t('settings.removeMemberAction', { name: member.name || member.email })}
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="3 6 5 6 21 6" />
@@ -2332,15 +2330,15 @@ function App() {
 
               {/* D. Join Account via Share Code */}
               <form onSubmit={handleJoinSharedGroup} className="share-join-form">
-                <h3 className="share-sub-title">Connect to Another Account</h3>
+                <h3 className="share-sub-title">{t('settings.connectToAnotherTitle')}</h3>
                 <p className="settings-note">
-                  Enter a Share Code provided by another user to view and manage their reminders and logs.
+                  {t('settings.connectToAnotherNote')}
                 </p>
                 <div className="share-input-row">
                   <input
                     type="text"
                     className="form-input share-join-input"
-                    placeholder="e.g. INSU-A8B9C2"
+                    placeholder={t('settings.shareCodePlaceholder')}
                     value={shareJoinCode}
                     onChange={(e) => setShareJoinCode(e.target.value.toUpperCase())}
                     disabled={isJoiningShare}
@@ -2351,7 +2349,7 @@ function App() {
                     className="save-btn share-join-btn"
                     disabled={isJoiningShare || !shareJoinCode.trim()}
                   >
-                    {isJoiningShare ? 'Connecting...' : 'Connect Account'}
+                    {isJoiningShare ? t('settings.connecting') : t('settings.connectAccount')}
                   </button>
                 </div>
               </form>
@@ -2359,7 +2357,7 @@ function App() {
               {/* E. Accounts Shared With Me */}
               {shareStatus.sharedGroups.length > 0 && (
                 <div className="shared-groups-section">
-                  <h3 className="share-sub-title">Accounts Shared With You</h3>
+                  <h3 className="share-sub-title">{t('settings.accountsSharedWithYou')}</h3>
                   <ul className="shared-members-list">
                     {shareStatus.sharedGroups.map((group) => (
                       <li key={group.ownerId} className="shared-member-item">
@@ -2387,15 +2385,15 @@ function App() {
                                 : `Switch to view ${group.ownerName || group.ownerEmail}'s records`
                             }
                           >
-                            {activeContext === 'shared' && activeOwnerId === group.ownerId ? 'Viewing' : 'Switch to View'}
+                            {activeContext === 'shared' && activeOwnerId === group.ownerId ? t('settings.viewingActive') : t('settings.switchToView')}
                           </button>
                           <button
                             type="button"
                             className="group-leave-btn"
                             onClick={() => handleOpenLeaveGroupModal(group)}
-                            title="Leave shared account"
+                            title={t('settings.leaveGroup')}
                           >
-                            Leave
+                            {t('settings.leaveGroup')}
                           </button>
                         </div>
                       </li>
@@ -2408,7 +2406,7 @@ function App() {
               <div className="share-future-note">
                 <span className="future-note-icon">💡</span>
                 <span className="future-note-text">
-                  Currently supporting <strong>1 shared account + personal data switching</strong>. Support for multiple concurrent shared accounts will be available in a future update.
+                  {t('settings.futureNote')}
                 </span>
               </div>
             </div>
@@ -2431,19 +2429,19 @@ function App() {
                   <line x1="14" y1="11" x2="14" y2="17" />
                 </svg>
               </div>
-              <h3 id="delete-modal-title" className="modal-title">Delete Telegram Configuration?</h3>
+              <h3 id="delete-modal-title" className="modal-title">{t('modals.deleteConfigTitle')}</h3>
             </div>
             <div className="modal-body">
               <p className="delete-modal-text">
                 {isCustomConfigName(deleteModalConfig.name, deleteModalConfig.chatId) ? (
-                  <>Are you sure you want to delete <strong>{deleteModalConfig.name}</strong> ({deleteModalConfig.chatId})?</>
+                  <>{t('modals.deleteConfigConfirmText', { name: deleteModalConfig.name, chatId: deleteModalConfig.chatId })}</>
                 ) : (
-                  <>Are you sure you want to delete configuration for chat <strong>{deleteModalConfig.chatId}</strong>?</>
+                  <>{t('modals.deleteConfigConfirmSimple', { chatId: deleteModalConfig.chatId })}</>
                 )}
               </p>
               {deleteModalConfig.isDefault && (
                 <p className="delete-modal-warning">
-                  This is currently the default destination. If deleted, another saved destination will automatically become active.
+                  {t('modals.deleteConfigWarning')}
                 </p>
               )}
             </div>
@@ -2453,14 +2451,14 @@ function App() {
                 className="modal-btn cancel-btn"
                 onClick={handleCloseDeleteModal}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 className="modal-btn confirm-delete-btn"
                 onClick={handleConfirmDelete}
               >
-                Delete Configuration
+                {t('modals.deleteConfigBtn')}
               </button>
             </div>
           </div>
@@ -2486,14 +2484,14 @@ function App() {
                   <line x1="23" y1="8" x2="18" y2="13" />
                 </svg>
               </div>
-              <h3 id="remove-member-modal-title" className="modal-title">Remove Connected Member?</h3>
+              <h3 id="remove-member-modal-title" className="modal-title">{t('modals.removeMemberTitle')}</h3>
             </div>
             <div className="modal-body">
               <p className="delete-modal-text">
-                Are you sure you want to remove <strong>{removeMemberModalData.name || removeMemberModalData.email}</strong> from your shared group?
+                {t('modals.removeMemberConfirm', { name: removeMemberModalData.name || removeMemberModalData.email })}
               </p>
               <p className="delete-modal-warning">
-                They will immediately lose access to view your doses, history, and notifications.
+                {t('modals.removeMemberWarning')}
               </p>
             </div>
             <div className="modal-actions">
@@ -2502,14 +2500,14 @@ function App() {
                 className="modal-btn cancel-btn"
                 onClick={handleCloseRemoveMemberModal}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 className="modal-btn confirm-delete-btn"
                 onClick={handleConfirmRemoveMember}
               >
-                Remove Member
+                {t('modals.removeMemberBtn')}
               </button>
             </div>
           </div>
@@ -2534,14 +2532,14 @@ function App() {
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
               </div>
-              <h3 id="leave-group-modal-title" className="modal-title">Leave Shared Account?</h3>
+              <h3 id="leave-group-modal-title" className="modal-title">{t('modals.leaveGroupTitle')}</h3>
             </div>
             <div className="modal-body">
               <p className="delete-modal-text">
-                Are you sure you want to leave the shared account belonging to <strong>{leaveGroupModalData.ownerName || leaveGroupModalData.ownerEmail}</strong>?
+                {t('modals.leaveGroupConfirm', { name: leaveGroupModalData.ownerName || leaveGroupModalData.ownerEmail })}
               </p>
               <p className="delete-modal-warning">
-                You will no longer be able to view their logs or manage reminders.
+                {t('modals.leaveGroupWarning')}
               </p>
             </div>
             <div className="modal-actions">
@@ -2550,14 +2548,14 @@ function App() {
                 className="modal-btn cancel-btn"
                 onClick={handleCloseLeaveGroupModal}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 className="modal-btn confirm-delete-btn"
                 onClick={handleConfirmLeaveGroup}
               >
-                Leave Account
+                {t('modals.leaveGroupBtn')}
               </button>
             </div>
           </div>
@@ -2581,29 +2579,29 @@ function App() {
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </div>
-              <h3 id="viewing-explanation-modal-title" className="modal-title">What does &ldquo;Viewing&rdquo; mean?</h3>
+              <h3 id="viewing-explanation-modal-title" className="modal-title">{t('modals.whatViewingMeansTitle')}</h3>
             </div>
             <div className="modal-body">
               <p className="modal-explanation-intro">
-                You are currently viewing active records for <strong>{viewingExplanationModal.ownerName || viewingExplanationModal.ownerEmail}</strong>.
+                {t('modals.viewingIntro', { name: viewingExplanationModal.ownerName || viewingExplanationModal.ownerEmail })}
               </p>
               <div className="modal-explanation-box">
                 <div className="modal-explanation-item">
                   <span className="explanation-bullet">💉</span>
                   <div>
-                    <strong>Injection History &amp; Logs:</strong> All doses, times, insulin units, and weekly trends shown on the Home and Injection Logs tabs belong to this account.
+                    <strong>{t('modals.viewingHistoryTitle')}</strong> {t('modals.viewingHistoryDesc')}
                   </div>
                 </div>
                 <div className="modal-explanation-item">
                   <span className="explanation-bullet">⏰</span>
                   <div>
-                    <strong>Scheduled Reminders:</strong> The 10m meal delivery, 2h check, and 3h eligibility countdowns reflect this patient&apos;s schedule.
+                    <strong>{t('modals.viewingRemindersTitle')}</strong> {t('modals.viewingRemindersDesc')}
                   </div>
                 </div>
                 <div className="modal-explanation-item">
                   <span className="explanation-bullet">🔄</span>
                   <div>
-                    <strong>Switching Views:</strong> You can switch back to your own personal data anytime using the <strong>👤 My Data</strong> pill on Home or below.
+                    <strong>{t('modals.viewingSwitchTitle')}</strong> {t('modals.viewingSwitchDesc')}
                   </div>
                 </div>
               </div>
@@ -2617,14 +2615,14 @@ function App() {
                   setViewingExplanationModal(null);
                 }}
               >
-                Switch to My Data
+                {t('modals.switchToMyData')}
               </button>
               <button
                 type="button"
                 className="primary-btn modal-btn"
                 onClick={() => setViewingExplanationModal(null)}
               >
-                Got it
+                {t('common.gotIt')}
               </button>
             </div>
           </div>
@@ -2654,7 +2652,7 @@ function App() {
                 type="button"
                 className="modal-close-x-btn"
                 onClick={handleCloseReminderModal}
-                aria-label="Close modal"
+                aria-label={t('common.closeModal')}
               >
                 ×
               </button>
@@ -2662,7 +2660,7 @@ function App() {
 
             <div className="modal-body reminder-modal-body">
               <div className="reminder-modal-row">
-                <span className="reminder-modal-label">Status:</span>
+                <span className="reminder-modal-label">{t('modals.reminderStatusTitle')}:</span>
                 <span className={`reminder-modal-badge ${reminderModalData.badgeClass}`}>
                   {reminderModalData.label}
                 </span>
@@ -2670,9 +2668,9 @@ function App() {
 
               <div className="reminder-modal-row">
                 <span className="reminder-modal-label">
-                  {reminderModalData.status === 'sent' ? 'Sent Date & Time:' : 'Attempt / Target Time:'}
+                  {reminderModalData.status === 'sent' ? t('modals.sentDateLabel') : t('modals.targetTimeLabel')}
                 </span>
-                <span className="reminder-modal-value">
+                <span className="reminder-modal-value" dir="ltr">
                   {reminderModalData.formattedTime || '—'}
                 </span>
               </div>
@@ -2680,7 +2678,7 @@ function App() {
               <div className="reminder-modal-message-box">
                 {reminderModalData.status === 'sent' ? (
                   <p className="reminder-modal-success-text">
-                    Sent successfully to your configured Telegram destination.
+                    {t('modals.sentSuccessText')}
                   </p>
                 ) : reminderModalData.status === 'failed' ? (
                   <div className="reminder-modal-error-content">
@@ -2688,18 +2686,18 @@ function App() {
                       {reminderModalData.friendlyError?.category || 'Delivery Issue'}
                     </p>
                     <p className="reminder-modal-error-text">
-                      {reminderModalData.friendlyError?.message || 'The reminder could not be delivered to Telegram.'}
+                      {reminderModalData.friendlyError?.message || t('errors.deliveryFailedMsg')}
                     </p>
                     {reminderModalData.rawError &&
                      reminderModalData.rawError !== reminderModalData.friendlyError?.message && (
                       <p className="reminder-modal-error-raw">
-                        Details: {reminderModalData.rawError}
+                        {t('modals.reminderDetailsLabel')} {reminderModalData.rawError}
                       </p>
                     )}
                   </div>
                 ) : (
                   <p className="reminder-modal-upcoming-text">
-                    This reminder is scheduled for {reminderModalData.formattedTime}.
+                    {t('modals.scheduledForText', { time: reminderModalData.formattedTime })}
                   </p>
                 )}
               </div>
@@ -2711,7 +2709,7 @@ function App() {
                 className="modal-btn cancel-btn"
                 onClick={handleCloseReminderModal}
               >
-                Close
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -2734,6 +2732,14 @@ function App() {
         </p>
       </footer>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
 

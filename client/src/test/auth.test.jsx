@@ -80,6 +80,36 @@ describe('Authentication & User Experience Tests', () => {
       expect(authService.getCurrentUser()?.name).toBe('John Doe');
       expect(authService.getCurrentUser()?.firstName).toBe('John');
     });
+
+    it('persists language via updateLanguage to server profile and user localStorage', async () => {
+      authService.setSession('test-token', { id: 7, email: 'hebrew.user@med.com', language: 'en' });
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          success: true,
+          user: { id: 7, email: 'hebrew.user@med.com', language: 'he' }
+        })
+      });
+
+      const updated = await authService.updateLanguage('he');
+      expect(updated?.language).toBe('he');
+      expect(localStorage.getItem('insuminder_language')).toBe('he');
+      expect(localStorage.getItem('insuminder_language_7')).toBe('he');
+      expect(authService.getCurrentUser()?.language).toBe('he');
+    });
+
+    it('restores user language on login via setSession and preserves language on logout', () => {
+      authService.setSession('token-1', { id: 8, email: 'user8@med.com', language: 'he' });
+      expect(localStorage.getItem('insuminder_language')).toBe('he');
+      expect(localStorage.getItem('insuminder_language_8')).toBe('he');
+
+      // Logout clears session token and user, but preserves language preferences
+      authService.clearSession();
+      expect(authService.getToken()).toBeNull();
+      expect(authService.getCurrentUser()).toBeNull();
+      expect(localStorage.getItem('insuminder_language')).toBe('he');
+      expect(localStorage.getItem('insuminder_language_8')).toBe('he');
+    });
   });
 
   describe('AuthModal Component Tests', () => {
@@ -729,6 +759,57 @@ describe('Authentication & User Experience Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Please sign in or create an account to configure Telegram notification destinations/i)).toBeInTheDocument();
+      });
+    });
+
+    it('switches app to Hebrew when user signs in with account configured for Hebrew', async () => {
+      localStorage.setItem('insuminder_language', 'en');
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/google') {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              token: 'google-jwt-test',
+              user: {
+                id: 123,
+                email: 'hebrew.user@example.com',
+                name: 'Hebrew User',
+                language: 'he'
+              }
+            })
+          });
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      expect(document.documentElement.getAttribute('dir')).toBe('ltr');
+
+      // Click Sign In
+      const heroSignInBtn = screen.getByRole('button', { name: 'Sign In' });
+      fireEvent.click(heroSignInBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /Sign In to InsuMinder/i })).toBeInTheDocument();
+      });
+
+      // Click Continue with Google
+      const googleBtn = screen.getByRole('button', { name: /Continue with Google/i });
+      fireEvent.click(googleBtn);
+
+      await waitFor(() => {
+        expect(document.documentElement.getAttribute('dir')).toBe('rtl');
+        expect(document.documentElement.getAttribute('lang')).toBe('he');
+        expect(localStorage.getItem('insuminder_language')).toBe('he');
+        expect(localStorage.getItem('insuminder_language_123')).toBe('he');
       });
     });
   });

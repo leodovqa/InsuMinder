@@ -224,7 +224,8 @@ app.post('/api/auth/verify', async (req, res) => {
         lastName: user.last_name || '',
         phone: user.phone || '',
         avatar: user.avatar || '',
-        shareCode: user.share_code || ''
+        shareCode: user.share_code || '',
+        language: user.language || 'en'
       }
     });
   } catch (err) {
@@ -309,7 +310,8 @@ app.post('/api/auth/login', async (req, res) => {
         lastName: user.last_name || '',
         phone: user.phone || '',
         avatar: user.avatar || '',
-        shareCode: user.share_code || ''
+        shareCode: user.share_code || '',
+        language: user.language || 'en'
       }
     });
   } catch (err) {
@@ -443,7 +445,8 @@ app.post('/api/auth/google', async (req, res) => {
         lastName: user.last_name || '',
         phone: user.phone || '',
         avatar: user.avatar || '',
-        shareCode: user.share_code || ''
+        shareCode: user.share_code || '',
+        language: user.language || 'en'
       }
     });
   } catch (err) {
@@ -468,7 +471,8 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
           lastName: user.last_name || '',
           phone: user.phone || '',
           avatar: user.avatar || '',
-          shareCode: shareCode || user.share_code || ''
+          shareCode: shareCode || user.share_code || '',
+          language: user.language || 'en'
         }
       });
     });
@@ -478,7 +482,31 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // 6. Update User Profile (Onboarding Step & Profile Updates)
 const handleProfileUpdate = async (req, res) => {
   try {
-    const { firstName, lastName, phone } = req.body || {};
+    const { firstName, lastName, phone, language } = req.body || {};
+    const cleanLang = (language && ['en', 'he'].includes(language)) ? language : null;
+
+    if (cleanLang && firstName === undefined && lastName === undefined) {
+      await new Promise((resolve, reject) => {
+        db.updateUser(req.user.id, { language: cleanLang }, (err) => (err ? reject(err) : resolve()));
+      });
+      const updatedUser = await new Promise((resolve, reject) => {
+        db.getUserById(req.user.id, (err, u) => (err ? reject(err) : resolve(u)));
+      });
+      return res.json({
+        success: true,
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          name: updatedUser.name || updatedUser.email.split('@')[0],
+          firstName: updatedUser.first_name || '',
+          lastName: updatedUser.last_name || '',
+          phone: updatedUser.phone || '',
+          avatar: updatedUser.avatar || '',
+          shareCode: updatedUser.share_code || '',
+          language: updatedUser.language || cleanLang
+        }
+      });
+    }
 
     const cleanFirstName = String(firstName || '').trim();
     const cleanLastName = String(lastName || '').trim();
@@ -493,13 +521,16 @@ const handleProfileUpdate = async (req, res) => {
 
     const fullName = `${cleanFirstName} ${cleanLastName}`.trim();
 
+    const updates = {
+      name: fullName,
+      first_name: cleanFirstName,
+      last_name: cleanLastName,
+      phone: cleanPhone || null
+    };
+    if (cleanLang) updates.language = cleanLang;
+
     await new Promise((resolve, reject) => {
-      db.updateUser(req.user.id, {
-        name: fullName,
-        first_name: cleanFirstName,
-        last_name: cleanLastName,
-        phone: cleanPhone || null
-      }, (err) => (err ? reject(err) : resolve()));
+      db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
     });
 
     const updatedUser = await new Promise((resolve, reject) => {
@@ -516,7 +547,8 @@ const handleProfileUpdate = async (req, res) => {
         lastName: updatedUser.last_name || cleanLastName,
         phone: updatedUser.phone || '',
         avatar: updatedUser.avatar || '',
-        shareCode: updatedUser.share_code || ''
+        shareCode: updatedUser.share_code || '',
+        language: updatedUser.language || 'en'
       }
     });
   } catch (err) {

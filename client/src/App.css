@@ -1552,6 +1552,8 @@
   font-size: 12px;
   color: var(--text);
   font-family: var(--mono);
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
 }
 
 .chart-week-pills {
@@ -4292,5 +4294,184 @@
   color: #22c55e;
 }
 
+/* ==========================================================================
+   Right-to-Left (RTL) Hebrew Localization Styles
+   ========================================================================== */
 
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Universal Time, Clock, and Timestamp LTR Rule:
+   Time is universally formatted Left-to-Right in all languages. */
+.live-clock,
+.clock-digits,
+.clock-colon,
+.clock-millis,
+.stat-datetime,
+.stat-datetime span,
+.reminder-timestamp,
+.latest-log-timestamp,
+.latest-log-timestamp span,
+.incident-time,
+.expanded-value,
+.log-value,
+.eligibility-countdown,
+.reminder-modal-value,
+[dir="rtl"] .live-clock,
+[dir="rtl"] .clock-digits,
+[dir="rtl"] .clock-colon,
+[dir="rtl"] .clock-millis,
+[dir="rtl"] .stat-datetime,
+[dir="rtl"] .stat-datetime span,
+[dir="rtl"] .reminder-timestamp,
+[dir="rtl"] .latest-log-timestamp,
+[dir="rtl"] .latest-log-timestamp span,
+[dir="rtl"] .incident-time,
+[dir="rtl"] .expanded-value,
+[dir="rtl"] .log-value,
+[dir="rtl"] .eligibility-countdown,
+[dir="rtl"] .reminder-modal-value,
+[dir="rtl"] .chart-week-dates {
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+
+.live-clock,
+[dir="rtl"] .live-clock {
+  flex-direction: row !important;
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+
+.eligibility-countdown,
+[dir="rtl"] .eligibility-countdown {
+  flex-direction: row !important;
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+
+/* Navigation Drawer in RTL */
+[dir="rtl"] .nav-drawer {
+  left: auto;
+  right: 0;
+  border-right: none;
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+  transform: translateX(100%);
+  text-align: right;
+}
+
+[dir="rtl"] .nav-drawer.open {
+  transform: translateX(0);
+}
+
+[dir="rtl"] .nav-item {
+  text-align: right;
+}
+
+[dir="rtl"] .nav-label {
+  text-align: right;
+}
+
+[dir="rtl"] .nav-auth-btn {
+  text-align: right;
+}
+
+[dir="rtl"] .back-arrow-svg,
+[dir="rtl"] .nav-back-icon {
+  transform: scaleX(-1);
+}
+
+/* Home View, Cards, Stat Cards, and Reminders in RTL */
+[dir="rtl"] .home-view,
+[dir="rtl"] .hero-card,
+[dir="rtl"] .dose-button-card,
+[dir="rtl"] .telegram-alert-banner,
+[dir="rtl"] .stat-card,
+[dir="rtl"] .stat-label,
+[dir="rtl"] .stat-value,
+[dir="rtl"] .stat-datetime,
+[dir="rtl"] .stat-relative,
+[dir="rtl"] .reminders-section,
+[dir="rtl"] .reminder-card,
+[dir="rtl"] .reminder-details,
+[dir="rtl"] .reminder-title,
+[dir="rtl"] .reminder-description,
+[dir="rtl"] .reminder-relative,
+[dir="rtl"] .eligibility-card,
+[dir="rtl"] .eligibility-content,
+[dir="rtl"] .eligibility-message,
+[dir="rtl"] .eligibility-time-note {
+  text-align: right;
+}
+
+/* Logs View & Trend Cards in RTL */
+[dir="rtl"] .latest-log-card,
+[dir="rtl"] .latest-log-meta,
+[dir="rtl"] .latest-log-relative,
+[dir="rtl"] .trends-chart-card,
+[dir="rtl"] .chart-title-group,
+[dir="rtl"] .rapid-trend-card,
+[dir="rtl"] .rapid-header-text,
+[dir="rtl"] .rapid-guidance,
+[dir="rtl"] .rapid-clear-content,
+[dir="rtl"] .rapid-incident-item,
+[dir="rtl"] .incident-prior-info,
+[dir="rtl"] .daily-logs-section,
+[dir="rtl"] .daily-log-item,
+[dir="rtl"] .expanded-label {
+  text-align: right;
+}
+
+/* Settings & Profile View in RTL */
+[dir="rtl"] .settings-card,
+[dir="rtl"] .config-row-details,
+[dir="rtl"] .settings-note,
+[dir="rtl"] .share-hint,
+[dir="rtl"] .member-info,
+[dir="rtl"] .form-label,
+[dir="rtl"] .form-input,
+[dir="rtl"] .profile-card,
+[dir="rtl"] .profile-field-label,
+[dir="rtl"] .profile-field-value {
+  text-align: right;
+}
+
+/* Modals & Forms in RTL */
+[dir="rtl"] .modal-content,
+[dir="rtl"] .reminder-modal-content,
+[dir="rtl"] .modal-body,
+[dir="rtl"] .delete-modal-text,
+[dir="rtl"] .delete-modal-warning,
+[dir="rtl"] .modal-explanation-intro,
+[dir="rtl"] .modal-explanation-box,
+[dir="rtl"] .modal-explanation-item,
+[dir="rtl"] .reminder-modal-row,
+[dir="rtl"] .reminder-modal-label,
+[dir="rtl"] .reminder-modal-message-box,
+[dir="rtl"] .auth-modal,
+[dir="rtl"] .auth-tab-btn,
+[dir="rtl"] .auth-label,
+[dir="rtl"] .auth-input,
+[dir="rtl"] .input-validation-error,
+[dir="rtl"] .phone-validation-error {
+  text-align: right;
+}
+
+/* Phone input container remains LTR */
+[dir="rtl"] .phone-input-container {
+  direction: ltr;
+}
+
+/* Telegram ID input prefix in RTL */
+[dir="rtl"] .input-prefix {
+  left: auto;
+  right: 14px;
+}
+
+[dir="rtl"] .form-input.with-prefix {
+  padding-left: 14px;
+  padding-right: 28px;
+}
 
