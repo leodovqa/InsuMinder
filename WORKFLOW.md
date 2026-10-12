@@ -156,3 +156,18 @@ Clean Commits:
 Keep edits focused and concise.
 
 Explain changes in 1–2 sentences before writing code.
+
+---
+
+## Internationalization & Hebrew Localization
+
+- **Source of Truth**: `client/src/i18n/translations.js` maintains dictionaries for `en` (English) and `he` (Hebrew).
+- **Hebrew Standards**: Terminology must use natural, logical, and medically accurate Israeli diabetes terms (e.g., הזרקת אינסולין, חלון ארוחה, בדיקת סוכר, חלון בטוח, יומן הזרקות, הצטברות אינסולין).
+- **Parity Requirement**:
+  - Every UI string, feature, dialog, notification, and card must exist in both `en` and `he` with 100% key parity.
+  - No empty or missing translations are permitted.
+  - Parameter tokens (e.g. `{name}`, `{time}`, `{count}`) must match across languages.
+- **Enforcement**:
+  - Pre-commit hook runs `npm run check:i18n`.
+  - CI workflow runs `npm --prefix client run check:i18n` under the `lint` job.
+  - Automated tests run `client/src/test/i18n.test.js`.

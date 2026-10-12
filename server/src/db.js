@@ -32,6 +32,7 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'email'", () => {});
       db.run("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0", () => {});
       db.run("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP", () => {});
+      db.run("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'", () => {});
     });
 
   // Verification codes table
@@ -168,7 +169,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -207,6 +208,10 @@ function updateUser(id, updates, callback) {
   if (updates.google_id !== undefined) {
     fields.push("google_id = ?");
     values.push(updates.google_id);
+  }
+  if (updates.language !== undefined) {
+    fields.push("language = ?");
+    values.push(updates.language);
   }
   if (updates.auth_provider !== undefined) {
     fields.push("auth_provider = ?");

@@ -3,8 +3,10 @@ import { isValidPhoneNumber, getExampleNumber } from 'libphonenumber-js/max';
 import examples from 'libphonenumber-js/examples.mobile.json';
 import { authService } from './authService';
 import { detectCountry } from './countryCallingCodes';
+import { useTranslation } from './i18n';
 
 export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin }) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState(() => user?.firstName || '');
   const [lastName, setLastName] = useState(() => user?.lastName || '');
@@ -48,16 +50,16 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
             </div>
-            <h3 className="auth-locked-title">Account Required</h3>
+            <h3 className="auth-locked-title">{t('profile.accountRequired')}</h3>
             <p className="no-logs">
-              Please sign in or create an account to view and edit your profile.
+              {t('profile.accountRequiredDesc')}
             </p>
             <button
               type="button"
               className="primary-btn auth-locked-btn"
               onClick={onOpenLogin}
             >
-              Sign In
+              {t('home.signIn')}
             </button>
           </div>
         </div>
@@ -143,14 +145,14 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
     const lastLetters = cleanLast.replace(/[^\p{L}]/gu, '');
 
     if (firstLetters.length < 2) {
-      setFirstNameError('First name must be at least 2 characters');
+      setFirstNameError(t('profile.firstNameMin'));
       hasValidationError = true;
     } else {
       setFirstNameError(null);
     }
 
     if (lastLetters.length < 2) {
-      setLastNameError('Last name must be at least 2 characters');
+      setLastNameError(t('profile.lastNameMin'));
       hasValidationError = true;
     } else {
       setLastNameError(null);
@@ -158,7 +160,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
 
     // Phone is optional: only validate if non-empty
     if (cleanPhone && !isValidPhoneNumber('+' + cleanPhone)) {
-      setPhoneError('Invalid phone number');
+      setPhoneError(t('auth.invalidPhone'));
       hasValidationError = true;
     } else {
       setPhoneError(null);
@@ -187,7 +189,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
       }
 
       setIsEditing(false);
-      setSuccessMessage('Profile updated successfully!');
+      setSuccessMessage(t('profile.profileUpdated'));
     } catch (err) {
       setError(err.message || 'Failed to update profile.');
     } finally {
@@ -216,8 +218,8 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
               </svg>
             </div>
             <div className="card-header-text">
-              <h2 className="card-title">User Profile</h2>
-              <p className="card-subtitle">Manage your personal details and contact number</p>
+              <h2 className="card-title">{t('profile.profileTitle')}</h2>
+              <p className="card-subtitle">{t('profile.profileSubtitle')}</p>
             </div>
           </div>
 
@@ -237,12 +239,12 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
 
           <div className="profile-account-info">
             <div className="profile-info-item">
-              <span className="profile-info-label">Account Email</span>
+              <span className="profile-info-label">{t('profile.accountEmail')}</span>
               <span className="profile-info-value">{user.email}</span>
             </div>
             {user.shareCode && (
               <div className="profile-info-item">
-                <span className="profile-info-label">Share Code</span>
+                <span className="profile-info-label">{t('profile.shareCodeLabel')}</span>
                 <span className="profile-info-value profile-code-pill">{user.shareCode}</span>
               </div>
             )}
@@ -251,7 +253,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
           <form onSubmit={handleSave} className="profile-form" noValidate>
             <div className="form-group">
               <label htmlFor="profile-first-name-input" className="form-label">
-                First Name <span className="auth-required-star">*</span>
+                {t('auth.firstName')} <span className="auth-required-star">*</span>
               </label>
               <input
                 id="profile-first-name-input"
@@ -274,7 +276,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
 
             <div className="form-group">
               <label htmlFor="profile-last-name-input" className="form-label">
-                Last Name <span className="auth-required-star">*</span>
+                {t('auth.lastName')} <span className="auth-required-star">*</span>
               </label>
               <input
                 id="profile-last-name-input"
@@ -297,7 +299,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
 
             <div className="form-group">
               <label htmlFor="profile-phone-input" className="form-label">
-                Phone Number <span className="auth-optional-tag">(Optional)</span>
+                {t('auth.phoneNumber')} <span className="auth-optional-tag">({t('common.optional')})</span>
               </label>
               <div
                 className={`phone-input-container ${
@@ -345,7 +347,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
                   className="primary-btn profile-btn profile-edit-btn"
                   onClick={handleStartEdit}
                 >
-                  Edit
+                  {t('common.edit')}
                 </button>
               ) : (
                 <div className="profile-edit-btn-group">
@@ -355,7 +357,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
                     onClick={handleSave}
                     disabled={isSaving}
                   >
-                    {isSaving ? 'Saving...' : 'Save'}
+                    {isSaving ? t('common.saving') : t('common.save')}
                   </button>
                   <button
                     type="button"
@@ -363,7 +365,7 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
                     onClick={handleCancelEdit}
                     disabled={isSaving}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               )}

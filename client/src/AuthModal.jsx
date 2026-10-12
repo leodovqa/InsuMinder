@@ -3,8 +3,10 @@ import { isValidPhoneNumber, getExampleNumber } from 'libphonenumber-js/max';
 import examples from 'libphonenumber-js/examples.mobile.json';
 import { authService } from './authService';
 import { detectCountry } from './countryCallingCodes';
+import { useTranslation } from './i18n';
 
 export default function AuthModal({ isOpen, initialMode = 'login', shareCode = null, onClose, onSuccess }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'verify' | 'profile'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,7 +71,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         if (prev <= 1) {
           clearInterval(timer);
           setIsCodeExpired(true);
-          setError('Verification code has expired. Please enter your email and password to start a new verification process.');
+          setError(t('auth.codeExpiredError'));
           return 0;
         }
         return prev - 1;
@@ -77,7 +79,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [mode]);
+  }, [mode, t]);
 
   // Google Identity Services (GIS) integration hooks (must be unconditionally declared)
   const googleBtnRef = useRef(null);
@@ -208,12 +210,12 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
   const handleVerifySubmit = async (e) => {
     e.preventDefault();
     if (isCodeExpired) {
-      setError('Verification code has expired. Please enter your email and password to start a new verification process.');
+      setError(t('auth.codeExpiredError'));
       return;
     }
 
     if (!code || code.trim().length !== 6) {
-      setError('Please enter the full 6-digit verification code.');
+      setError(t('auth.codeLengthError'));
       return;
     }
 
@@ -377,7 +379,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     }
 
     // In production without Client ID:
-    setError('Google Sign-In is not configured. Please sign up with email or configure VITE_GOOGLE_CLIENT_ID.');
+    setError(t('auth.googleNotConfigured'));
   };
 
   return (
@@ -422,21 +424,21 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
           </div>
           <h2 id="auth-modal-title" className="auth-title">
             {mode === 'profile'
-              ? 'Complete Your Profile'
+              ? t('auth.completeProfileTitle')
               : mode === 'verify'
-              ? 'Verify Email'
+              ? t('auth.verifyEmailTitle')
               : mode === 'register'
-              ? 'Create InsuMinder Account'
-              : 'Sign In to InsuMinder'}
+              ? t('auth.registerTitle')
+              : t('auth.loginTitle')}
           </h2>
           <p className="auth-subtitle">
             {mode === 'profile'
-              ? 'Enter your name to complete your registration'
+              ? t('auth.completeProfileSubtitle')
               : mode === 'verify'
-              ? `Enter the 6-digit code sent to ${email}`
+              ? t('auth.verifyEmailSubtitle', { email })
               : mode === 'register'
-              ? 'Register with email or Google to log insulin and track doses'
-              : 'Sign in to access your doses, trends, and scheduled reminders'}
+              ? t('auth.registerSubtitle')
+              : t('auth.loginSubtitle')}
           </p>
         </div>
 
@@ -444,7 +446,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         {shareCode && (
           <div className="auth-share-banner">
             <span className="auth-share-icon">🔗</span>
-            <span>You are connecting via Share Code: <strong>{shareCode}</strong></span>
+            <span>{t('auth.connectingViaShareCode')} <strong>{shareCode}</strong></span>
           </div>
         )}
 
@@ -458,7 +460,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
               role="tab"
               aria-selected={mode === 'login'}
             >
-              Sign In
+              {t('auth.signInTab')}
             </button>
             <button
               type="button"
@@ -467,7 +469,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
               role="tab"
               aria-selected={mode === 'register'}
             >
-              Sign Up
+              {t('auth.signUpTab')}
             </button>
           </div>
         )}
@@ -487,7 +489,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
           <form onSubmit={handleProfileSubmit} className="auth-form" autoComplete="off">
             <div className="form-group">
               <label htmlFor="auth-first-name-input" className="form-label">
-                First Name <span className="auth-required-star">*</span>
+                {t('auth.firstName')} <span className="auth-required-star">*</span>
               </label>
               <input
                 id="auth-first-name-input"
@@ -505,7 +507,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
 
             <div className="form-group">
               <label htmlFor="auth-last-name-input" className="form-label">
-                Last Name <span className="auth-required-star">*</span>
+                {t('auth.lastName')} <span className="auth-required-star">*</span>
               </label>
               <input
                 id="auth-last-name-input"
@@ -522,7 +524,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
 
             <div className="form-group">
               <label htmlFor="auth-phone-input" className="form-label">
-                Phone Number <span className="auth-optional-tag">(Optional)</span>
+                {t('auth.phoneNumber')} <span className="auth-optional-tag">({t('common.optional')})</span>
               </label>
               <div className={`phone-input-container ${isPhoneError ? 'phone-error' : ''}`}>
                 <div className="phone-prefix-addon" aria-hidden="true">
@@ -552,7 +554,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
               </div>
               {isPhoneError && (
                 <div className="phone-validation-error" role="alert">
-                  Invalid phone number
+                  {t('auth.invalidPhone')}
                 </div>
               )}
             </div>
@@ -563,7 +565,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                 className="primary-btn auth-submit-btn"
                 disabled={isSubmitting || !firstName.trim() || !lastName.trim() || isPhoneError}
               >
-                {isSubmitting ? 'Completing Registration...' : 'Complete Registration'}
+                {isSubmitting ? t('auth.completingRegistration') : t('auth.completeRegistrationBtn')}
               </button>
             </div>
           </form>
@@ -590,10 +592,10 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
               </svg>
               <span className="timer-text">
                 {isCodeExpired ? (
-                  <strong className="timer-expired-text">Expired</strong>
+                  <strong className="timer-expired-text">{t('auth.timerExpired')}</strong>
                 ) : (
                   <>
-                    Code expires in: <strong>{formatTimer(secondsRemaining)}</strong>
+                    {t('auth.timerExpiresIn')} <strong>{formatTimer(secondsRemaining)}</strong>
                   </>
                 )}
               </span>
@@ -601,21 +603,21 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
 
             {devCode && (
               <div className="dev-code-hint">
-                <span className="dev-hint-label">Dev Test Code:</span>
+                <span className="dev-hint-label">{t('auth.devTestCode')}</span>
                 <button
                   type="button"
                   className="dev-code-btn"
                   onClick={() => setCode(devCode)}
                   title="Click to auto-fill code"
                 >
-                  {devCode} (Click to fill)
+                  {t('auth.devClickToFill', { code: devCode })}
                 </button>
               </div>
             )}
 
             <div className="form-group code-input-group">
               <label htmlFor="verify-code-input" className="form-label">
-                6-Digit Verification Code
+                {t('auth.verificationCodeLabel')}
               </label>
               <input
                 id="verify-code-input"
@@ -641,7 +643,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                   className="primary-btn auth-submit-btn"
                   onClick={handleStartOver}
                 >
-                  Start New Process
+                  {t('auth.startNewProcess')}
                 </button>
               ) : (
                 <button
@@ -649,7 +651,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                   className="primary-btn auth-submit-btn"
                   disabled={isSubmitting || code.length !== 6}
                 >
-                  {isSubmitting ? 'Verifying...' : 'Verify Code & Continue'}
+                  {isSubmitting ? t('auth.verifying') : t('auth.verifyCodeBtn')}
                 </button>
               )}
             </div>
@@ -660,7 +662,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                 className="auth-link-btn"
                 onClick={handleStartOver}
               >
-                &larr; Back to Email / Change Address
+                {t('auth.backToEmail')}
               </button>
             </div>
           </form>
@@ -696,14 +698,14 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>Continue with Google</span>
+                  <span>{t('auth.continueWithGoogle')}</span>
                 </button>
               )}
             </div>
 
             <div className="auth-divider">
               <span className="auth-divider-line"></span>
-              <span className="auth-divider-text">or continue with email</span>
+              <span className="auth-divider-text">{t('auth.orContinueWithEmail')}</span>
               <span className="auth-divider-line"></span>
             </div>
 
@@ -714,7 +716,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
             >
               <div className="form-group">
                 <label htmlFor="auth-email-input" className="form-label">
-                  Email Address
+                  {t('auth.emailAddress')}
                 </label>
                 <input
                   id="auth-email-input"
@@ -731,14 +733,14 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
 
               <div className="form-group">
                 <label htmlFor="auth-password-input" className="form-label">
-                  Password
+                  {t('auth.password')}
                 </label>
                 <input
                   id="auth-password-input"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={mode === 'register' ? 'At least 6 characters' : 'Enter your password'}
+                  placeholder={mode === 'register' ? t('auth.passwordRegisterPlaceholder') : t('auth.passwordLoginPlaceholder')}
                   className="auth-input"
                   minLength={6}
                   required
@@ -754,17 +756,17 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                   disabled={isSubmitting}
                 >
                   {isSubmitting
-                    ? 'Please wait...'
+                    ? t('auth.pleaseWait')
                     : mode === 'register'
-                    ? 'Continue & Send Code'
-                    : 'Sign In'}
+                    ? t('auth.continueAndSendCode')
+                    : t('home.signIn')}
                 </button>
               </div>
 
               <div className="auth-switch-row">
                 {mode === 'login' ? (
                   <p className="auth-switch-text">
-                    Don&apos;t have an account?{' '}
+                    {t('auth.dontHaveAccount')}{' '}
                     <button
                       type="button"
                       className="auth-link-btn"
@@ -773,12 +775,12 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                         setError(null);
                       }}
                     >
-                      Sign Up
+                      {t('home.signUp')}
                     </button>
                   </p>
                 ) : (
                   <p className="auth-switch-text">
-                    Already have an account?{' '}
+                    {t('auth.alreadyHaveAccount')}{' '}
                     <button
                       type="button"
                       className="auth-link-btn"
@@ -787,7 +789,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                         setError(null);
                       }}
                     >
-                      Sign In
+                      {t('home.signIn')}
                     </button>
                   </p>
                 )}
