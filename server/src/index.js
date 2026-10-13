@@ -860,8 +860,16 @@ app.post('/api/settings', optionalAuth, (req, res) => {
 // Test Telegram notification API
 app.post('/api/telegram/test', optionalAuth, async (req, res) => {
   try {
-    let { telegramBotToken, telegramChatId, configId } = req.body || {};
+    let { telegramBotToken, telegramChatId, configId, language } = req.body || {};
     const userId = req.user ? req.user.id : null;
+    let userLang = language;
+
+    if (!userLang && userId) {
+      const user = await new Promise((resolve) => db.getUserById(userId, (err, row) => resolve(row)));
+      if (user && user.language) {
+        userLang = user.language;
+      }
+    }
 
     if (configId) {
       const configs = await new Promise((resolve, reject) => {
@@ -888,15 +896,20 @@ app.post('/api/telegram/test', optionalAuth, async (req, res) => {
     if (!telegramBotToken || !telegramChatId) {
       return res.status(400).json({
         success: false,
-        error: 'Both Bot Token and Chat ID are required to send a test message.'
+        error: userLang === 'he'
+          ? 'נדרשים גם טוקן בוט וגם מזהה שיחה לשליחת הודעת בדיקה.'
+          : 'Both Bot Token and Chat ID are required to send a test message.'
       });
     }
 
-    const testMessage = "From InsuMinder:\nTelegram connection successful! Your injection reminders are active.";
+    const testMessage = scheduler.buildTestMessage(userLang || 'en', true);
     const result = await sendTelegramMessage(telegramBotToken, telegramChatId, testMessage);
 
     if (result.ok) {
-      res.json({ success: true, message: 'Test message sent successfully!' });
+      res.json({
+        success: true,
+        message: userLang === 'he' ? 'הודעת בדיקה נשלחה בהצלחה!' : 'Test message sent successfully!'
+      });
     } else {
       res.status(400).json({ success: false, error: result.error });
     }

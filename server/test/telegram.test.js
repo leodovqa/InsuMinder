@@ -290,6 +290,32 @@ describe('Telegram Notification Integration Tests', () => {
       const prodMsg3h = scheduler.buildMessage3h(testIso, false);
       assert.match(prodMsg3h, /🎯 From InsuMinder:/);
       assert.match(prodMsg3h, new RegExp(`💉 Dose logged at: ${expectedTime}`));
+
+      // Hebrew localized message builders (Local vs Prod)
+      const testMsgHebLocal = scheduler.buildTestMessage('he', true);
+      assert.match(testMsgHebLocal, /מאת InsuMinder \(Local\):/);
+      assert.match(testMsgHebLocal, /חיבור הטלגרם הצליח!/);
+
+      const testMsgHebProd = scheduler.buildTestMessage('he', false);
+      assert.match(testMsgHebProd, /מאת InsuMinder:/);
+      assert.doesNotMatch(testMsgHebProd, /\(Local\)/);
+
+      const hebMsg10mLocal = scheduler.buildMessage10m(testIso, true, 'he');
+      assert.match(hebMsg10mLocal, /🍽️ מאת InsuMinder \(Local\):/);
+
+      const hebMsg10mProd = scheduler.buildMessage10m(testIso, false, 'he');
+      assert.match(hebMsg10mProd, /🍽️ מאת InsuMinder:/);
+      assert.doesNotMatch(hebMsg10mProd, /\(Local\)/);
+      assert.match(hebMsg10mProd, /תזכורת זמן ארוחה/);
+      assert.match(hebMsg10mProd, new RegExp(`💉 הזרקה נרשמה בשעה: ${expectedTime}`));
+
+      const hebMsg2h = scheduler.buildMessage2h(testIso, false, 'he');
+      assert.match(hebMsg2h, /🩸 מאת InsuMinder:/);
+      assert.match(hebMsg2h, /בדיקת סוכר לאחר שעתיים/);
+
+      const hebMsg3h = scheduler.buildMessage3h(testIso, false, 'he');
+      assert.match(hebMsg3h, /🎯 מאת InsuMinder:/);
+      assert.match(hebMsg3h, /חלון הזרקה בטוח/);
     });
 
     it('expires stale notifications overdue by more than the threshold to prevent flooding', async () => {

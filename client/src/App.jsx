@@ -806,7 +806,8 @@ function AppContent() {
         headers: authService.getAuthHeaders(),
         body: JSON.stringify({
           telegramBotToken: cleanToken,
-          telegramChatId: cleanChatId
+          telegramChatId: cleanChatId,
+          language
         }),
       });
       const data = await response.json();
@@ -850,7 +851,7 @@ function AppContent() {
   };
 
   const handlePrevMonth = () => {
-    const info = getWeekDisplayInfo(selectedWeekStart);
+    const info = getWeekDisplayInfo(selectedWeekStart, language);
     let targetYear = info.anchorYear;
     let targetMonth = info.anchorMonth - 1;
     if (targetMonth < 0) {
@@ -863,7 +864,7 @@ function AppContent() {
   };
 
   const handleNextMonth = () => {
-    const info = getWeekDisplayInfo(selectedWeekStart);
+    const info = getWeekDisplayInfo(selectedWeekStart, language);
     let targetYear = info.anchorYear;
     let targetMonth = info.anchorMonth + 1;
     if (targetMonth > 11) {
@@ -906,8 +907,8 @@ function AppContent() {
 
   const todayDateKey = formatDateOnly(new Date().toISOString());
   const todayLogs = logs.filter(log => formatDateOnly(log.injected_at) === todayDateKey);
-  const weekInfo = getWeekDisplayInfo(selectedWeekStart);
-  const weeklyData = getWeeklyTrendData(logs, selectedWeekStart);
+  const weekInfo = getWeekDisplayInfo(selectedWeekStart, language);
+  const weeklyData = getWeeklyTrendData(logs, selectedWeekStart, language);
   const rapidInjections = getRapidInjections(logs, todayDateKey);
 
   const getPageTitle = () => {
@@ -1647,20 +1648,20 @@ function AppContent() {
                         type="button"
                         className="chart-nav-btn chart-nav-month-btn"
                         onClick={handlePrevMonth}
-                        aria-label="Previous Month"
-                        title="Go to previous month"
+                        aria-label={t('logs.prevMonth')}
+                        title={t('logs.prevMonth')}
                       >
-                        {isRTL ? '›' : '‹'}
+                        ‹
                       </button>
                       <span className="chart-month-label">{weekInfo.monthName}</span>
                       <button
                         type="button"
                         className="chart-nav-btn chart-nav-month-btn"
                         onClick={handleNextMonth}
-                        aria-label="Next Month"
-                        title="Go to next month"
+                        aria-label={t('logs.nextMonth')}
+                        title={t('logs.nextMonth')}
                       >
-                        {isRTL ? '‹' : '›'}
+                        ›
                       </button>
                     </div>
 
@@ -1670,8 +1671,8 @@ function AppContent() {
                         type="button"
                         className="chart-nav-btn chart-nav-week-btn"
                         onClick={handlePrevWeek}
-                        aria-label="Previous Week"
-                        title="Go to previous week"
+                        aria-label={t('logs.prevWeek')}
+                        title={t('logs.prevWeek')}
                       >
                         {isRTL ? '→' : '←'}
                       </button>
@@ -1685,8 +1686,8 @@ function AppContent() {
                         type="button"
                         className="chart-nav-btn chart-nav-week-btn"
                         onClick={handleNextWeek}
-                        aria-label="Next Week"
-                        title="Go to next week"
+                        aria-label={t('logs.nextWeek')}
+                        title={t('logs.nextWeek')}
                       >
                         {isRTL ? '←' : '→'}
                       </button>
@@ -1702,9 +1703,9 @@ function AppContent() {
                           onClick={() => handleSelectWeek(wDate)}
                           role="tab"
                           aria-selected={idx === weekInfo.activeWeekIndex}
-                          title={`Week ${idx + 1}`}
+                          title={`${t('logs.week')} ${idx + 1}`}
                         >
-                          W{idx + 1}
+                          {t('logs.weekPill', { num: idx + 1 })}
                         </button>
                       ))}
                     </div>
@@ -1725,10 +1726,6 @@ function AppContent() {
                   </div>
 
                   <div className="chart-metrics-row">
-                    <div className="metric-chip">
-                      <span className="metric-chip-label">{t('logs.dailyAvg')}</span>
-                      <span className="metric-chip-value">{weeklyData.dailyAvg} {t('logs.perDay')}</span>
-                    </div>
                     <div className="metric-chip">
                       <span className="metric-chip-label">{t('logs.activeDays')}</span>
                       <span className="metric-chip-value">{weeklyData.activeDaysCount} {t('logs.of7')}</span>
@@ -1755,7 +1752,12 @@ function AppContent() {
                               title={`${day.dateStr}: ${day.count} injections`}
                             />
                           </div>
-                          <div className="bar-day-name">{day.dayName}</div>
+                          <div
+                            className="bar-day-name"
+                            title={day.fullDayName ? `${day.fullDayName}, ${day.shortDate}` : day.dayName}
+                          >
+                            {day.dayName}
+                          </div>
                           <div className="bar-short-date">{day.shortDate}</div>
                         </div>
                       );

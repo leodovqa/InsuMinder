@@ -238,23 +238,47 @@ export function formatDoseTime(isoString) {
   }
 }
 
-export function buildMessage10m(injectedAt, isLocal = false) {
-  const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
+export function buildTestMessage(lang = 'en', isLocal = false) {
+  if (lang === 'he') {
+    const prefix = isLocal ? "מאת InsuMinder (Local):" : "מאת InsuMinder:";
+    return `${prefix}\nחיבור הטלגרם הצליח! תזכורות ההזרקה שלך פעילות.`;
+  }
+  const prefix = isLocal ? "From InsuMinder (Local):" : "From InsuMinder:";
+  return `${prefix}\nTelegram connection successful! Your injection reminders are active.`;
+}
+
+export function buildMessage10m(injectedAt, isLocal = false, lang = 'en') {
   const doseTime = formatDoseTime(injectedAt);
+  if (lang === 'he') {
+    const prefix = isLocal ? "🍽️ מאת InsuMinder (Local):" : "🍽️ מאת InsuMinder:";
+    const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
+    return `${prefix}\n⏰ תזכורת זמן ארוחה${doseLine}\n\nחלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!`;
+  }
+  const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ Meal Time Reminder${doseLine}\n\n10 minutes have passed since your injection. You can now start your meal!`;
 }
 
-export function buildMessage2h(injectedAt, isLocal = false) {
-  const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
+export function buildMessage2h(injectedAt, isLocal = false, lang = 'en') {
   const doseTime = formatDoseTime(injectedAt);
+  if (lang === 'he') {
+    const prefix = isLocal ? "🩸 מאת InsuMinder (Local):" : "🩸 מאת InsuMinder:";
+    const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
+    return `${prefix}\n⏰ בדיקת סוכר לאחר שעתיים${doseLine}\n\nנא לבדוק את רמת הסוכר לאחר שעתיים מההזרקה.`;
+  }
+  const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease go and check your Glucose level after 2 Hours.`;
 }
 
-export function buildMessage3h(injectedAt, isLocal = false) {
-  const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
+export function buildMessage3h(injectedAt, isLocal = false, lang = 'en') {
   const doseTime = formatDoseTime(injectedAt);
+  if (lang === 'he') {
+    const prefix = isLocal ? "🎯 מאת InsuMinder (Local):" : "🎯 מאת InsuMinder:";
+    const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
+    return `${prefix}\n⏰ חלון הזרקה בטוח (3 שעות)${doseLine}\n\nחלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.`;
+  }
+  const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ 3-Hour Injection Eligibility${doseLine}\n\n3 hours have passed since your injection. Safe window reached for your next dose if needed.`;
 }
@@ -315,6 +339,18 @@ export async function dispatchDueNotifications(db) {
       return await db.prepare(`SELECT * FROM telegram_configs WHERE is_default = 1 LIMIT 1`).first();
     };
 
+    const getLanguageForLog = async (log) => {
+      if (log.user_id) {
+        const userRow = await db.prepare(
+          `SELECT language FROM users WHERE id = ? LIMIT 1`
+        ).bind(log.user_id).first();
+        if (userRow && userRow.language) {
+          return userRow.language;
+        }
+      }
+      return 'en';
+    };
+
     let count = 0;
 
     if (due10m && due10m.length > 0) {
@@ -337,7 +373,8 @@ export async function dispatchDueNotifications(db) {
             .run();
           continue;
         }
-        const msg = buildMessage10m(log.injected_at, false);
+        const lang = await getLanguageForLog(log);
+        const msg = buildMessage10m(log.injected_at, false, lang);
         const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_10m_sent = 1, error_10m = NULL WHERE id = ?`).bind(log.id).run();
@@ -368,7 +405,8 @@ export async function dispatchDueNotifications(db) {
             .run();
           continue;
         }
-        const msg = buildMessage2h(log.injected_at, false);
+        const lang = await getLanguageForLog(log);
+        const msg = buildMessage2h(log.injected_at, false, lang);
         const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_2h_sent = 1, error_2h = NULL WHERE id = ?`).bind(log.id).run();
@@ -399,7 +437,8 @@ export async function dispatchDueNotifications(db) {
             .run();
           continue;
         }
-        const msg = buildMessage3h(log.injected_at, false);
+        const lang = await getLanguageForLog(log);
+        const msg = buildMessage3h(log.injected_at, false, lang);
         const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
         if (sendRes.ok) {
           await db.prepare(`UPDATE injection_logs SET status_3h_sent = 1, error_3h = NULL WHERE id = ?`).bind(log.id).run();
