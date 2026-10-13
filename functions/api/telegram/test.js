@@ -1,12 +1,28 @@
-import { ensureTablesExist, sendTelegramMessage } from '../_telegram.js';
+import { ensureTablesExist, sendTelegramMessage, buildTestMessage } from '../_telegram.js';
+import { getAuthUser } from '../_auth.js';
 
 export async function onRequestPost(context) {
   try {
     const db = context.env.DB;
-    let { telegramBotToken, telegramChatId, configId } = (await context.request.json().catch(() => ({}))) || {};
+    let { telegramBotToken, telegramChatId, configId, language } = (await context.request.json().catch(() => ({}))) || {};
+
+    let userLang = language;
 
     if (db) {
       await ensureTablesExist(db);
+
+      if (!userLang) {
+        const authUser = await getAuthUser(context.request, context.env);
+        if (authUser && authUser.userId) {
+          const userRow = await db
+            .prepare("SELECT language FROM users WHERE id = ?")
+            .bind(authUser.userId)
+            .first();
+          if (userRow && userRow.language) {
+            userLang = userRow.language;
+          }
+        }
+      }
 
       if (configId) {
         const found = await db
@@ -34,18 +50,25 @@ export async function onRequestPost(context) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Both Bot Token and Chat ID are required to send a test message.'
+          error: userLang === 'he'
+            ? 'נדרשים גם טוקן בוט וגם מזהה שיחה לשליחת הודעת בדיקה.'
+            : 'Both Bot Token and Chat ID are required to send a test message.'
         }),
         { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     }
 
-    const testMessage = "From InsuMinder:\nTelegram connection successful! Your injection reminders are active.";
+    const url = new URL(context.request.url);
+    const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const testMessage = buildTestMessage(userLang || 'en', isLocal);
     const result = await sendTelegramMessage(telegramBotToken, telegramChatId, testMessage);
 
     if (result.ok) {
       return new Response(
-        JSON.stringify({ success: true, message: 'Test message sent successfully!' }),
+        JSON.stringify({
+          success: true,
+          message: userLang === 'he' ? 'הודעת בדיקה נשלחה בהצלחה!' : 'Test message sent successfully!'
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
     } else {

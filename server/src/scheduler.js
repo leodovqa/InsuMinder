@@ -20,23 +20,47 @@ function formatDoseTime(isoString) {
   }
 }
 
-function buildMessage10m(injectedAt, isLocal = true) {
-  const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
+function buildTestMessage(lang = 'en', isLocal = true) {
+  if (lang === 'he') {
+    const prefix = isLocal ? "מאת InsuMinder (Local):" : "מאת InsuMinder:";
+    return `${prefix}\nחיבור הטלגרם הצליח! תזכורות ההזרקה שלך פעילות.`;
+  }
+  const prefix = isLocal ? "From InsuMinder (Local):" : "From InsuMinder:";
+  return `${prefix}\nTelegram connection successful! Your injection reminders are active.`;
+}
+
+function buildMessage10m(injectedAt, isLocal = true, lang = 'en') {
   const doseTime = formatDoseTime(injectedAt);
+  if (lang === 'he') {
+    const prefix = isLocal ? "🍽️ מאת InsuMinder (Local):" : "🍽️ מאת InsuMinder:";
+    const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
+    return `${prefix}\n⏰ תזכורת זמן ארוחה${doseLine}\n\nחלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!`;
+  }
+  const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ Meal Time Reminder${doseLine}\n\n10 minutes have passed since your injection. You can now start your meal!`;
 }
 
-function buildMessage2h(injectedAt, isLocal = true) {
-  const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
+function buildMessage2h(injectedAt, isLocal = true, lang = 'en') {
   const doseTime = formatDoseTime(injectedAt);
+  if (lang === 'he') {
+    const prefix = isLocal ? "🩸 מאת InsuMinder (Local):" : "🩸 מאת InsuMinder:";
+    const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
+    return `${prefix}\n⏰ בדיקת סוכר לאחר שעתיים${doseLine}\n\nנא לבדוק את רמת סוכר לאחר שעתיים מההזרקה.`;
+  }
+  const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease go and check your Glucose level after 2 Hours.`;
 }
 
-function buildMessage3h(injectedAt, isLocal = true) {
-  const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
+function buildMessage3h(injectedAt, isLocal = true, lang = 'en') {
   const doseTime = formatDoseTime(injectedAt);
+  if (lang === 'he') {
+    const prefix = isLocal ? "🎯 מאת InsuMinder (Local):" : "🎯 מאת InsuMinder:";
+    const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
+    return `${prefix}\n⏰ חלון הזרקה בטוח (3 שעות)${doseLine}\n\nחלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.`;
+  }
+  const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ 3-Hour Injection Eligibility${doseLine}\n\n3 hours have passed since your injection. Safe window reached for your next dose if needed.`;
 }
@@ -216,6 +240,7 @@ module.exports = {
   MESSAGE_2H,
   MESSAGE_3H,
   formatDoseTime,
+  buildTestMessage,
   buildMessage10m,
   buildMessage2h,
   buildMessage3h,

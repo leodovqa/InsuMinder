@@ -27,6 +27,24 @@ export const translations = {
       backToHome: 'Back to Home',
       viewProfile: 'View Profile'
     },
+    daysShort: {
+      sun: 'Sun',
+      mon: 'Mon',
+      tue: 'Tue',
+      wed: 'Wed',
+      thu: 'Thu',
+      fri: 'Fri',
+      sat: 'Sat'
+    },
+    daysFull: {
+      sun: 'Sunday',
+      mon: 'Monday',
+      tue: 'Tuesday',
+      wed: 'Wednesday',
+      thu: 'Thursday',
+      fri: 'Friday',
+      sat: 'Saturday'
+    },
     common: {
       save: 'Save',
       saving: 'Saving...',
@@ -104,6 +122,11 @@ export const translations = {
       dailyCountForWeek: 'Daily count for selected week',
       weekTotal: 'week total',
       week: 'Week',
+      weekPill: 'W{num}',
+      prevMonth: 'Previous Month',
+      nextMonth: 'Next Month',
+      prevWeek: 'Previous Week',
+      nextWeek: 'Next Week',
       jumpToCurrentWeek: '↺ Jump to Current Week',
       dailyAvg: 'Daily Avg:',
       perDay: '/ day',
@@ -346,6 +369,24 @@ export const translations = {
       backToHome: 'חזרה לדף הבית',
       viewProfile: 'צפייה בפרופיל'
     },
+    daysShort: {
+      sun: 'א',
+      mon: 'ב',
+      tue: 'ג',
+      wed: 'ד',
+      thu: 'ה',
+      fri: 'ו',
+      sat: 'ש'
+    },
+    daysFull: {
+      sun: 'יום ראשון',
+      mon: 'יום שני',
+      tue: 'יום שלישי',
+      wed: 'יום רביעי',
+      thu: 'יום חמישי',
+      fri: 'יום שישי',
+      sat: 'יום שבת'
+    },
     common: {
       save: 'שמירה',
       saving: 'שומר...',
@@ -423,6 +464,11 @@ export const translations = {
       dailyCountForWeek: 'מספר הזרקות יומי לשבוע הנבחר',
       weekTotal: 'סה״כ לשבוע',
       week: 'שבוע',
+      weekPill: 'ש{num}',
+      prevMonth: 'חודש קודם',
+      nextMonth: 'חודש הבא',
+      prevWeek: 'שבוע קודם',
+      nextWeek: 'שבוע הבא',
       jumpToCurrentWeek: '↺ חזרה לשבוע הנוכחי',
       dailyAvg: 'ממוצע יומי:',
       perDay: 'ליום',

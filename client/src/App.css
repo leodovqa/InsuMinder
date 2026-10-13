@@ -4332,7 +4332,8 @@
 [dir="rtl"] .log-value,
 [dir="rtl"] .eligibility-countdown,
 [dir="rtl"] .reminder-modal-value,
-[dir="rtl"] .chart-week-dates {
+[dir="rtl"] .chart-week-dates,
+[dir="rtl"] .bar-short-date {
   direction: ltr !important;
   unicode-bidi: isolate !important;
 }

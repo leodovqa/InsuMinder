@@ -168,17 +168,20 @@ describe('Utility Functions & Helpers', () => {
       }
     });
 
-    it('returns accurate week display info', () => {
+    it('returns accurate week display info in English and Hebrew', () => {
       const weekStart = getStartOfWeek(new Date(2026, 9, 9));
-      const info = getWeekDisplayInfo(weekStart);
+      const infoEn = getWeekDisplayInfo(weekStart, 'en');
 
-      expect(info.monthName).toContain('October 2026');
-      expect(info.weekNumber).toBe(1);
-      expect(info.totalWeeks).toBe(4);
-      expect(info.activeWeekIndex).toBe(0);
+      expect(infoEn.monthName).toContain('October 2026');
+      expect(infoEn.weekNumber).toBe(1);
+      expect(infoEn.totalWeeks).toBe(4);
+      expect(infoEn.activeWeekIndex).toBe(0);
+
+      const infoHe = getWeekDisplayInfo(weekStart, 'he');
+      expect(infoHe.monthName).toContain('אוקטובר 2026');
     });
 
-    it('calculates weekly trend data for 7 calendar days', () => {
+    it('calculates weekly trend data for 7 calendar days with localization', () => {
       const weekStart = getStartOfWeek(new Date(2026, 9, 9));
       const mockLogs = [
         { id: 1, injected_at: '2026-10-09T08:00:00Z' },
@@ -186,13 +189,28 @@ describe('Utility Functions & Helpers', () => {
         { id: 3, injected_at: '2026-10-04T12:00:00Z' }
       ];
 
-      const trendData = getWeeklyTrendData(mockLogs, weekStart);
+      // English
+      const trendDataEn = getWeeklyTrendData(mockLogs, weekStart, 'en');
+      expect(trendDataEn.days).toHaveLength(7);
+      expect(trendDataEn.days[0].dayName).toBe('Sun');
+      expect(trendDataEn.days[0].fullDayName).toBe('Sunday');
+      expect(trendDataEn.days[6].dayName).toBe('Sat');
+      expect(trendDataEn.days[6].fullDayName).toBe('Saturday');
+      expect(trendDataEn.totalWeekInjections).toBe(3);
+      expect(trendDataEn.activeDaysCount).toBe(2);
 
-      expect(trendData.days).toHaveLength(7);
-      expect(trendData.days[0].dayName).toBe('Sun');
-      expect(trendData.days[6].dayName).toBe('Sat');
-      expect(trendData.totalWeekInjections).toBe(3);
-      expect(trendData.activeDaysCount).toBe(2);
+      // Hebrew
+      const trendDataHe = getWeeklyTrendData(mockLogs, weekStart, 'he');
+      expect(trendDataHe.days).toHaveLength(7);
+      expect(trendDataHe.days[0].dayName).toBe('א');
+      expect(trendDataHe.days[0].fullDayName).toBe('יום ראשון');
+      expect(trendDataHe.days[1].dayName).toBe('ב');
+      expect(trendDataHe.days[2].dayName).toBe('ג');
+      expect(trendDataHe.days[3].dayName).toBe('ד');
+      expect(trendDataHe.days[4].dayName).toBe('ה');
+      expect(trendDataHe.days[5].dayName).toBe('ו');
+      expect(trendDataHe.days[6].dayName).toBe('ש');
+      expect(trendDataHe.days[6].fullDayName).toBe('יום שבת');
     });
   });
 

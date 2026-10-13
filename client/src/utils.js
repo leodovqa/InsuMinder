@@ -140,7 +140,7 @@ export const getWeeksBelongingToMonth = (year, monthIndex) => {
   return weeks;
 };
 
-export const getWeekDisplayInfo = (selectedWeekStart) => {
+export const getWeekDisplayInfo = (selectedWeekStart, lang = 'en') => {
   const wednesday = new Date(
     selectedWeekStart.getFullYear(),
     selectedWeekStart.getMonth(),
@@ -156,7 +156,8 @@ export const getWeekDisplayInfo = (selectedWeekStart) => {
     activeWeekIndex = 0;
   }
 
-  const monthName = wednesday.toLocaleDateString('en-US', {
+  const locale = lang === 'he' ? 'he-IL' : 'en-US';
+  const monthName = wednesday.toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric'
   });
@@ -172,7 +173,7 @@ export const getWeekDisplayInfo = (selectedWeekStart) => {
   };
 };
 
-export const getWeeklyTrendData = (logsList, selectedWeekStart) => {
+export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => {
   const days = [];
   const todayStr = formatDateOnly(new Date().toISOString());
   const anchorWednesday = new Date(
@@ -181,6 +182,7 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart) => {
     selectedWeekStart.getDate() + 3
   );
   const anchorMonth = anchorWednesday.getMonth();
+  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
   for (let i = 0; i < 7; i++) {
     const d = new Date(
@@ -192,7 +194,9 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart) => {
       0
     );
     const dateStr = formatDateOnly(d.toISOString());
-    const dayName = d.toLocaleDateString('en-IL', { weekday: 'short' });
+    const dayKey = dayKeys[d.getDay()];
+    const dayName = translate(`daysShort.${dayKey}`, {}, lang);
+    const fullDayName = translate(`daysFull.${dayKey}`, {}, lang);
     const dayNum = d.getDate();
     const monthNum = d.getMonth() + 1;
     const isToday = dateStr === todayStr;
@@ -204,6 +208,7 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart) => {
       date: d,
       dateStr,
       dayName,
+      fullDayName,
       shortDate: `${dayNum}/${monthNum}`,
       count,
       isToday,
