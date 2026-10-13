@@ -225,7 +225,8 @@ app.post('/api/auth/verify', async (req, res) => {
         phone: user.phone || '',
         avatar: user.avatar || '',
         shareCode: user.share_code || '',
-        language: user.language || 'en'
+        language: user.language || 'en',
+        basalTime: user.basal_time || '20:00'
       }
     });
   } catch (err) {
@@ -311,7 +312,8 @@ app.post('/api/auth/login', async (req, res) => {
         phone: user.phone || '',
         avatar: user.avatar || '',
         shareCode: user.share_code || '',
-        language: user.language || 'en'
+        language: user.language || 'en',
+        basalTime: user.basal_time || '20:00'
       }
     });
   } catch (err) {
@@ -446,7 +448,8 @@ app.post('/api/auth/google', async (req, res) => {
         phone: user.phone || '',
         avatar: user.avatar || '',
         shareCode: user.share_code || '',
-        language: user.language || 'en'
+        language: user.language || 'en',
+        basalTime: user.basal_time || '20:00'
       }
     });
   } catch (err) {
@@ -472,7 +475,8 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
           phone: user.phone || '',
           avatar: user.avatar || '',
           shareCode: shareCode || user.share_code || '',
-          language: user.language || 'en'
+          language: user.language || 'en',
+          basalTime: user.basal_time || '20:00'
         }
       });
     });
@@ -482,12 +486,17 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // 6. Update User Profile (Onboarding Step & Profile Updates)
 const handleProfileUpdate = async (req, res) => {
   try {
-    const { firstName, lastName, phone, language } = req.body || {};
+    const { firstName, lastName, phone, language, basalTime } = req.body || {};
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
+    const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
 
-    if (cleanLang && firstName === undefined && lastName === undefined) {
+    if ((cleanLang || cleanBasalTime) && firstName === undefined && lastName === undefined) {
+      const updates = {};
+      if (cleanLang) updates.language = cleanLang;
+      if (cleanBasalTime) updates.basal_time = cleanBasalTime;
+
       await new Promise((resolve, reject) => {
-        db.updateUser(req.user.id, { language: cleanLang }, (err) => (err ? reject(err) : resolve()));
+        db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
       });
       const updatedUser = await new Promise((resolve, reject) => {
         db.getUserById(req.user.id, (err, u) => (err ? reject(err) : resolve(u)));
@@ -503,7 +512,8 @@ const handleProfileUpdate = async (req, res) => {
           phone: updatedUser.phone || '',
           avatar: updatedUser.avatar || '',
           shareCode: updatedUser.share_code || '',
-          language: updatedUser.language || cleanLang
+          language: updatedUser.language || cleanLang || 'en',
+          basalTime: updatedUser.basal_time || '20:00'
         }
       });
     }
@@ -528,6 +538,7 @@ const handleProfileUpdate = async (req, res) => {
       phone: cleanPhone || null
     };
     if (cleanLang) updates.language = cleanLang;
+    if (cleanBasalTime) updates.basal_time = cleanBasalTime;
 
     await new Promise((resolve, reject) => {
       db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -548,7 +559,8 @@ const handleProfileUpdate = async (req, res) => {
         phone: updatedUser.phone || '',
         avatar: updatedUser.avatar || '',
         shareCode: updatedUser.share_code || '',
-        language: updatedUser.language || 'en'
+        language: updatedUser.language || 'en',
+        basalTime: updatedUser.basal_time || '20:00'
       }
     });
   } catch (err) {
@@ -571,13 +583,21 @@ app.post('/api/auth/logout', (req, res) => {
 // Injections API: Log injection (Requires authentication, supports shared context)
 app.post('/api/injections', requireAuth, resolveContext, (req, res) => {
   const targetUserId = req.effectiveUserId || req.user.id;
-  db.insertInjectionLog(targetUserId, function(err) {
+  const { type = 'bolus' } = req.body || {};
+  const cleanType = type === 'basal' ? 'basal' : 'bolus';
+  db.insertInjectionLog(targetUserId, cleanType, function(err) {
     if (err) {
       const status = err.status || 500;
       res.status(status).json({ success: false, error: err.message });
     } else {
-      scheduler.checkAndDispatchNotifications();
-      res.json({ success: true, id: this.lastID });
+      if (cleanType !== 'basal') {
+        scheduler.checkAndDispatchNotifications();
+      } else {
+        // If basal injection logged, ensure basal reminder is marked as 'Already injected' if not already sent
+        const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
+        db.recordBasalReminder(targetUserId, todayDate, req.user?.basal_time || '20:00', 0, 'Already injected', () => {});
+      }
+      res.json({ success: true, id: this.lastID, type: cleanType });
     }
   });
 });
@@ -586,7 +606,7 @@ app.post('/api/injections', requireAuth, resolveContext, (req, res) => {
 app.get('/api/logs', optionalAuth, resolveContext, (req, res) => {
   if (!req.user || !req.user.id) {
     // When logged out: return empty list so unauthenticated visitors see clean empty state
-    return res.json({ success: true, logs: [] });
+    return res.json({ success: true, logs: [], basalReminder: null });
   }
 
   const targetUserId = req.effectiveUserId || req.user.id;
@@ -594,7 +614,14 @@ app.get('/api/logs', optionalAuth, resolveContext, (req, res) => {
     if (err) {
       res.status(500).json({ success: false, error: err.message });
     } else {
-      res.json({ success: true, logs: rows || [] });
+      const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
+      db.getTodayBasalReminder(targetUserId, todayDate, (bErr, basalReminder) => {
+        res.json({
+          success: true,
+          logs: rows || [],
+          basalReminder: basalReminder || null
+        });
+      });
     }
   });
 });

@@ -15,10 +15,12 @@ import {
   getRapidInjections,
   maskBotToken,
   isCustomConfigName,
-  getReminderStatus
+  getReminderStatus,
+  getBasalReminderStatus
 } from './utils';
 import AuthModal from './AuthModal';
 import Profile from './Profile';
+import TimePicker24h from './TimePicker24h';
 import { authService } from './authService';
 import { LanguageProvider, useTranslation } from './i18n';
 
@@ -156,6 +158,7 @@ function InjectionEligibility({ latestLog }) {
 function AppContent() {
   const { t, language, setLanguage, isRTL } = useTranslation();
   const [logs, setLogs] = useState([]);
+  const [basalReminder, setBasalReminder] = useState(null);
   const [activeTab, setActiveTab] = useState(() => getTabFromUrl()); // 'home' | 'logs' | 'settings'
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -242,7 +245,58 @@ function AppContent() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
 
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const [basalTime, setBasalTime] = useState(() => {
+    const userStored = authService.getCurrentUser()?.basalTime;
+    if (userStored) return userStored;
+    try {
+      return localStorage.getItem('insuminder_basal_time') || '20:00';
+    } catch {
+      return '20:00';
+    }
+  });
+  const [basalTimeInput, setBasalTimeInput] = useState(basalTime);
+
+  const handleSaveBasalTime = async (newTime) => {
+    if (!newTime || !/^([01]\d|2[0-3]):[0-5]\d$/.test(newTime)) return;
+    setBasalTime(newTime);
+    try {
+      localStorage.setItem('insuminder_basal_time', newTime);
+    } catch {
+      // ignore
+    }
+    if (isLoggedIn) {
+      try {
+        const res = await fetch('/api/auth/profile', {
+          method: 'PUT',
+          headers: {
+            ...authService.getAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ basalTime: newTime })
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(data.user);
+          authService.setSession(authService.getToken(), data.user);
+        }
+      } catch (err) {
+        console.error('Failed to sync basal time to server:', err);
+      }
+    }
+    setNotification({
+      type: 'success',
+      message: t('settings.basalTimeSaved')
+    });
+  };
+
   const latestLog = logs.length > 0 ? logs[0] : null;
+  const latestBolusLog = logs.find(log => !log.type || log.type === 'bolus') || null;
   const isTelegramConfigured = telegramConfigs.length > 0
     ? telegramConfigs.some(c => c.isDefault)
     : Boolean(
@@ -250,12 +304,22 @@ function AppContent() {
         (localStorage.getItem('insuminder_telegram_bot_token') && localStorage.getItem('insuminder_telegram_chat_id')) ||
         (telegramBotToken.trim() && telegramChatId.trim())
       );
-  const latest10m = getReminderStatus(latestLog, '10m', isTelegramConfigured, language);
-  const latest2h = getReminderStatus(latestLog, '2h', isTelegramConfigured, language);
-  const latest3h = getReminderStatus(latestLog, '3h', isTelegramConfigured, language);
+  const latest10m = getReminderStatus(latestBolusLog, '10m', isTelegramConfigured, language);
+  const latest2h = getReminderStatus(latestBolusLog, '2h', isTelegramConfigured, language);
+  const latest3h = getReminderStatus(latestBolusLog, '3h', isTelegramConfigured, language);
 
   const handleOpenReminderModal = (log, type) => {
     if (!log) return;
+    if (type === 'basal') {
+      const hasLoggedBasalToday = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at) === todayDateKey);
+      const statusInfo = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, hasLoggedBasalToday);
+      setReminderModalData({
+        ...statusInfo,
+        title: t('modals.basalReminderTitle'),
+        formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime) : (basalTime || '20:00')
+      });
+      return;
+    }
     const statusInfo = getReminderStatus(log, type, isTelegramConfigured, language);
     const title = type === '10m'
       ? t('home.rem10mTitle')
@@ -311,8 +375,11 @@ function AppContent() {
     })
       .then(response => response.json())
       .then(data => {
-        if (data.success && Array.isArray(data.logs)) {
-          setLogs(data.logs);
+        if (data.success) {
+          if (Array.isArray(data.logs)) {
+            setLogs(data.logs);
+          }
+          setBasalReminder(data.basalReminder || null);
         }
       })
       .catch(error => console.error('Error fetching logs:', error));
@@ -357,6 +424,15 @@ function AppContent() {
         if (currUser) {
           setUser(currUser);
           setIsLoggedIn(true);
+          if (currUser.basalTime) {
+            setBasalTime(currUser.basalTime);
+            setBasalTimeInput(currUser.basalTime);
+            try {
+              localStorage.setItem('insuminder_basal_time', currUser.basalTime);
+            } catch {
+              // ignore
+            }
+          }
           if (currUser.language && ['en', 'he', 'ru'].includes(currUser.language)) {
             setLanguage(currUser.language);
           }
@@ -382,6 +458,16 @@ function AppContent() {
     setIsLoggedIn(true);
     setIsAuthModalOpen(false);
     setUrlShareCode(null);
+
+    if (authUser && authUser.basalTime) {
+      setBasalTime(authUser.basalTime);
+      setBasalTimeInput(authUser.basalTime);
+      try {
+        localStorage.setItem('insuminder_basal_time', authUser.basalTime);
+      } catch {
+        // ignore
+      }
+    }
 
     if (authUser && authUser.language && ['en', 'he', 'ru'].includes(authUser.language)) {
       setLanguage(authUser.language);
@@ -423,6 +509,7 @@ function AppContent() {
     setActiveOwnerId(null);
     setShareStatus({ shareCode: '', members: [], sharedGroups: [] });
     setLogs([]);
+    setBasalReminder(null);
     setTelegramConfigs([]);
     setIsNavOpen(false);
     setNotification({
@@ -611,7 +698,7 @@ function AppContent() {
     }
   }, [notification]);
 
-  const handleLogInjection = () => {
+  const handleLogInjection = (type = 'bolus') => {
     if (!isLoggedIn) {
       setAuthModalMode('login');
       setIsAuthModalOpen(true);
@@ -630,18 +717,40 @@ function AppContent() {
       return;
     }
 
+    const cleanType = type === 'basal' ? 'basal' : 'bolus';
+
     fetch('/api/injections', {
       method: 'POST',
-      headers: authService.getAuthHeaders(),
+      headers: {
+        ...authService.getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ type: cleanType })
     })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
         const injectedTime = formatTimeOnly(now.toISOString());
+        const successMsg = cleanType === 'basal'
+          ? t('notifications.basalLoggedSuccess', { time: injectedTime })
+          : t('notifications.injectionLoggedSuccess', { time: injectedTime });
         setNotification({
           type: 'success',
-          message: t('notifications.injectionLoggedSuccess', { time: injectedTime })
+          message: successMsg
         });
+        const newLog = {
+          id: data.id || Date.now(),
+          user_id: user?.id,
+          injected_at: now.toISOString(),
+          type: cleanType,
+          notify_10m_at: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
+          notify_2h_at: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+          notify_3h_at: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+          status_10m_sent: cleanType === 'basal' ? 1 : 0,
+          status_2h_sent: cleanType === 'basal' ? 1 : 0,
+          status_3h_sent: cleanType === 'basal' ? 1 : 0
+        };
+        setLogs(prev => [newLog, ...prev.filter(l => l.id !== newLog.id)]);
         fetchLogs();
       } else {
         setNotification({
@@ -910,6 +1019,13 @@ function AppContent() {
   const weekInfo = getWeekDisplayInfo(selectedWeekStart, language);
   const weeklyData = getWeeklyTrendData(logs, selectedWeekStart, language);
   const rapidInjections = getRapidInjections(logs, todayDateKey);
+
+  const [basalHour, basalMin] = (basalTime || '20:00').split(':').map(n => parseInt(n, 10));
+  const currentHour = currentTime.getHours();
+  const currentMinute = currentTime.getMinutes();
+  const isAfterBasalTime = (currentHour > basalHour) || (currentHour === basalHour && currentMinute >= basalMin);
+  const hasLoggedBasalToday = todayLogs.some(log => log.type === 'basal');
+  const showSplitButton = isLoggedIn && isAfterBasalTime && !hasLoggedBasalToday;
 
   const getPageTitle = () => {
     switch (activeTab) {
@@ -1270,22 +1386,49 @@ function AppContent() {
               </div>
             )}
 
-            {/* Big Action Button: Log Injection */}
-            <button
-              type="button"
-              className="log-injection-btn"
-              disabled={!isLoggedIn}
-              onClick={handleLogInjection}
-              title={!isLoggedIn ? t('home.logInjectionSubtitleLoggedOut') : t('home.logInjectionSubtitleLoggedIn')}
-            >
-              <span className="log-injection-plus">+</span>
-              <span className="log-injection-title">{t('home.logInjection')}</span>
-              <span className="log-injection-subtitle">
-                {!isLoggedIn
-                  ? t('home.logInjectionSubtitleLoggedOut')
-                  : t('home.logInjectionSubtitleLoggedIn')}
-              </span>
-            </button>
+            {/* Big Action Button: Log Injection (Split into Bolus & Basal if after basal time and not logged today) */}
+            {showSplitButton ? (
+              <div className="log-injection-split-group">
+                <button
+                  type="button"
+                  className="log-injection-btn split-btn btn-bolus"
+                  disabled={!isLoggedIn}
+                  onClick={() => handleLogInjection('bolus')}
+                  title={t('home.logBolusSubtitle')}
+                >
+                  <span className="log-injection-plus">+</span>
+                  <span className="log-injection-title">{t('home.logBolus')}</span>
+                  <span className="log-injection-subtitle">{t('home.logBolusSubtitle')}</span>
+                </button>
+                <button
+                  type="button"
+                  className="log-injection-btn split-btn btn-basal"
+                  disabled={!isLoggedIn}
+                  onClick={() => handleLogInjection('basal')}
+                  title={t('home.logBasalSubtitle')}
+                >
+                  <span className="log-injection-plus">+</span>
+                  <span className="log-injection-title">{t('home.logBasal')}</span>
+                  <span className="log-injection-subtitle">{t('home.logBasalSubtitle')}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="log-injection-btn"
+                disabled={!isLoggedIn}
+                onClick={() => handleLogInjection('bolus')}
+                title={!isLoggedIn ? t('home.logInjectionSubtitleLoggedOut') : t('home.logInjectionSubtitleLoggedIn')}
+              >
+                <span className="log-injection-plus">+</span>
+                <span className="log-injection-title">{t('home.logInjection')}</span>
+                <span className="log-injection-subtitle">
+                  {!isLoggedIn
+                    ? t('home.logInjectionSubtitleLoggedOut')
+                    : t('home.logInjectionSubtitleLoggedIn')}
+                </span>
+              </button>
+            )}
 
             {/* Show personal injection data, notifications and eligibility ONLY when logged in */}
             {isLoggedIn && (
@@ -1369,11 +1512,11 @@ function AppContent() {
                   <div className="reminder-details">
                     <div className="reminder-title-row">
                       <span className="reminder-title">{t('home.rem10mTitle')}</span>
-                      {latestLog && (
+                      {latestBolusLog && (
                         <button
                           type="button"
                           className={`reminder-badge reminder-badge-btn ${latest10m.badgeClass}`}
-                          onClick={() => handleOpenReminderModal(latestLog, '10m')}
+                          onClick={() => handleOpenReminderModal(latestBolusLog, '10m')}
                           title={latest10m.title}
                           aria-label={`${t('home.rem10mTitle')}: ${latest10m.label}.`}
                         >
@@ -1381,7 +1524,7 @@ function AppContent() {
                         </button>
                       )}
                     </div>
-                    {latestLog ? (
+                    {latestBolusLog ? (
                       <div className="reminder-time-info">
                         <span className="reminder-timestamp" dir="ltr">{formatDateTime(latest10m.targetTime)}</span>
                         <span className="reminder-relative">({formatRelativeTime(latest10m.targetTime, language)})</span>
@@ -1409,11 +1552,11 @@ function AppContent() {
                   <div className="reminder-details">
                     <div className="reminder-title-row">
                       <span className="reminder-title">{t('home.rem2hTitle')}</span>
-                      {latestLog && (
+                      {latestBolusLog && (
                         <button
                           type="button"
                           className={`reminder-badge reminder-badge-btn ${latest2h.badgeClass}`}
-                          onClick={() => handleOpenReminderModal(latestLog, '2h')}
+                          onClick={() => handleOpenReminderModal(latestBolusLog, '2h')}
                           title={latest2h.title}
                           aria-label={`${t('home.rem2hTitle')}: ${latest2h.label}.`}
                         >
@@ -1421,10 +1564,10 @@ function AppContent() {
                         </button>
                       )}
                     </div>
-                    {latestLog ? (
+                    {latestBolusLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestLog.notify_2h_at)}</span>
-                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_2h_at, language)})</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestBolusLog.notify_2h_at)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latestBolusLog.notify_2h_at, language)})</span>
                       </div>
                     ) : (
                       <div className="reminder-time-info">
@@ -1449,11 +1592,11 @@ function AppContent() {
                   <div className="reminder-details">
                     <div className="reminder-title-row">
                       <span className="reminder-title">{t('home.rem3hTitle')}</span>
-                      {latestLog && (
+                      {latestBolusLog && (
                         <button
                           type="button"
                           className={`reminder-badge reminder-badge-btn ${latest3h.badgeClass}`}
-                          onClick={() => handleOpenReminderModal(latestLog, '3h')}
+                          onClick={() => handleOpenReminderModal(latestBolusLog, '3h')}
                           title={latest3h.title}
                           aria-label={`${t('home.rem3hTitle')}: ${latest3h.label}.`}
                         >
@@ -1461,10 +1604,10 @@ function AppContent() {
                         </button>
                       )}
                     </div>
-                    {latestLog ? (
+                    {latestBolusLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestLog.notify_3h_at)}</span>
-                        <span className="reminder-relative">({formatRelativeTime(latestLog.notify_3h_at, language)})</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestBolusLog.notify_3h_at)}</span>
+                        <span className="reminder-relative">({formatRelativeTime(latestBolusLog.notify_3h_at, language)})</span>
                       </div>
                     ) : (
                       <div className="reminder-time-info">
@@ -1481,7 +1624,7 @@ function AppContent() {
             </div>
 
             {/* Injection Eligibility Status (Below Notifications Scheduled) */}
-            <InjectionEligibility latestLog={latestLog} />
+            <InjectionEligibility latestLog={latestBolusLog} />
           </>
         )}
       </div>
@@ -1730,6 +1873,14 @@ function AppContent() {
                       <span className="metric-chip-label">{t('logs.activeDays')}</span>
                       <span className="metric-chip-value">{weeklyData.activeDaysCount} {t('logs.of7')}</span>
                     </div>
+                    <div className="metric-chip metric-chip-bolus">
+                      <span className="metric-chip-label">{t('logs.bolusThisWeek')}</span>
+                      <span className="metric-chip-value">{weeklyData.totalBolusInjections || 0}</span>
+                    </div>
+                    <div className="metric-chip metric-chip-basal">
+                      <span className="metric-chip-label">{t('logs.basalThisWeek')}</span>
+                      <span className="metric-chip-value">{weeklyData.totalBasalInjections || 0}</span>
+                    </div>
                   </div>
 
                   {/* 7-Day Bar Chart */}
@@ -1738,6 +1889,8 @@ function AppContent() {
                       const heightPercent = weeklyData.maxCount > 0
                         ? Math.round((day.count / weeklyData.maxCount) * 100)
                         : 0;
+                      const basalPercent = day.count > 0 ? (day.basalCount / day.count) * 100 : 0;
+                      const bolusPercent = day.count > 0 ? (day.bolusCount / day.count) * 100 : 0;
 
                       return (
                         <div
@@ -1746,11 +1899,32 @@ function AppContent() {
                         >
                           <div className="bar-count-label">{day.count > 0 ? day.count : ''}</div>
                           <div className="bar-track">
-                            <div
-                              className={`bar-fill ${day.count > 0 ? 'has-data' : 'empty-data'}`}
-                              style={{ height: `${Math.max(6, heightPercent)}%` }}
-                              title={`${day.dateStr}: ${day.count} injections`}
-                            />
+                            {day.count > 0 ? (
+                              <div
+                                className="bar-stack bar-fill has-data"
+                                style={{ height: `${Math.max(6, heightPercent)}%` }}
+                                title={`${day.dateStr}: ${day.count} (${day.bolusCount} ${t('logs.typeBolus')}, ${day.basalCount} ${t('logs.typeBasal')})`}
+                              >
+                                {day.basalCount > 0 && (
+                                  <div
+                                    className="bar-segment bar-segment-basal"
+                                    style={{ height: `${basalPercent}%` }}
+                                  />
+                                )}
+                                {day.bolusCount > 0 && (
+                                  <div
+                                    className="bar-segment bar-segment-bolus"
+                                    style={{ height: `${bolusPercent}%` }}
+                                  />
+                                )}
+                              </div>
+                            ) : (
+                              <div
+                                className="bar-fill empty-data"
+                                style={{ height: '6%' }}
+                                title={`${day.dateStr}: 0`}
+                              />
+                            )}
                           </div>
                           <div
                             className="bar-day-name"
@@ -1827,7 +2001,7 @@ function AppContent() {
                     </span>
                   </div>
 
-                  {todayLogs.length === 0 ? (
+                  {todayLogs.length === 0 && hasLoggedBasalToday ? (
                     <div className="daily-empty-card">
                       <span className="daily-empty-text">{t('logs.noInjectionsToday')}</span>
                     </div>
@@ -1837,11 +2011,14 @@ function AppContent() {
                         const isRapid = rapidInjections.rapidIds.has(log.id);
 
                         return (
-                          <li key={log.id} className={`log-item ${isRapid ? 'rapid-log-item' : ''}`}>
+                          <li key={log.id} className={`log-item ${log.type === 'basal' ? 'basal-log-item' : ''} ${isRapid ? 'rapid-log-item' : ''}`}>
                             <div className="log-field">
                               <span className="log-label">{t('logs.injectedLabel')}</span>
                               <div className="log-value-group">
                                 <span className="log-value" dir="ltr">{formatTimeOnly(log.injected_at)}</span>
+                                <span className={`log-type-badge ${log.type === 'basal' ? 'badge-basal' : 'badge-bolus'}`}>
+                                  {log.type === 'basal' ? t('logs.typeBasal') : t('logs.typeBolus')}
+                                </span>
                                 {isRapid && (
                                   <span className="log-rapid-pill" title="Logged under 3h after prior dose">
                                     {t('logs.rapidPillBadge')}
@@ -1849,63 +2026,119 @@ function AppContent() {
                                 )}
                               </div>
                             </div>
-                            {(() => {
-                              const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured, language);
-                              const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured, language);
-                              const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured, language);
-                              return (
-                                <>
+                            {log.type === 'basal' ? (
+                              (() => {
+                                const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, true);
+                                return (
                                   <div className="log-field">
-                                    <span className="log-label">{t('logs.mealLabel10m')}</span>
+                                    <span className="log-label">{t('logs.basalReminderLabel')}</span>
                                     <div className="log-value-row">
-                                      <span className="log-value" dir="ltr">{formatTimeOnly(logRem10m.targetTime)}</span>
+                                      <span className="log-value" dir="ltr">{basalTime || '20:00'}</span>
                                       <button
                                         type="button"
-                                        className={`log-status-pill log-status-pill-btn ${logRem10m.pillClass}`}
-                                        onClick={() => handleOpenReminderModal(log, '10m')}
-                                        title={logRem10m.title}
-                                        aria-label={`${t('home.rem10mTitle')}: ${logRem10m.label}.`}
+                                        className={`log-status-pill log-status-pill-btn ${basalStatus.pillClass}`}
+                                        onClick={() => handleOpenReminderModal(basalReminder || {}, 'basal')}
+                                        title={basalStatus.title}
+                                        aria-label={`${t('modals.basalReminderTitle')}: ${basalStatus.label}.`}
                                       >
-                                        {logRem10m.icon} {logRem10m.label}
+                                        {basalStatus.icon} {basalStatus.label}
                                       </button>
                                     </div>
                                   </div>
-                                  <div className="log-field">
-                                    <span className="log-label">{t('logs.reminderLabel2h')}</span>
-                                    <div className="log-value-row">
-                                      <span className="log-value" dir="ltr">{formatTimeOnly(log.notify_2h_at)}</span>
-                                      <button
-                                        type="button"
-                                        className={`log-status-pill log-status-pill-btn ${logRem2h.pillClass}`}
-                                        onClick={() => handleOpenReminderModal(log, '2h')}
-                                        title={logRem2h.title}
-                                        aria-label={`${t('home.rem2hTitle')}: ${logRem2h.label}.`}
-                                      >
-                                        {logRem2h.icon} {logRem2h.label}
-                                      </button>
+                                );
+                              })()
+                            ) : (
+                              (() => {
+                                const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured, language);
+                                const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured, language);
+                                const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured, language);
+                                return (
+                                  <>
+                                    <div className="log-field">
+                                      <span className="log-label">{t('logs.mealLabel10m')}</span>
+                                      <div className="log-value-row">
+                                        <span className="log-value" dir="ltr">{formatTimeOnly(logRem10m.targetTime)}</span>
+                                        <button
+                                          type="button"
+                                          className={`log-status-pill log-status-pill-btn ${logRem10m.pillClass}`}
+                                          onClick={() => handleOpenReminderModal(log, '10m')}
+                                          title={logRem10m.title}
+                                          aria-label={`${t('home.rem10mTitle')}: ${logRem10m.label}.`}
+                                        >
+                                          {logRem10m.icon} {logRem10m.label}
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="log-field">
-                                    <span className="log-label">{t('logs.reminderLabel3h')}</span>
-                                    <div className="log-value-row">
-                                      <span className="log-value" dir="ltr">{formatTimeOnly(log.notify_3h_at)}</span>
-                                      <button
-                                        type="button"
-                                        className={`log-status-pill log-status-pill-btn ${logRem3h.pillClass}`}
-                                        onClick={() => handleOpenReminderModal(log, '3h')}
-                                        title={logRem3h.title}
-                                        aria-label={`${t('home.rem3hTitle')}: ${logRem3h.label}.`}
-                                      >
-                                        {logRem3h.icon} {logRem3h.label}
-                                      </button>
+                                    <div className="log-field">
+                                      <span className="log-label">{t('logs.reminderLabel2h')}</span>
+                                      <div className="log-value-row">
+                                        <span className="log-value" dir="ltr">{formatTimeOnly(log.notify_2h_at)}</span>
+                                        <button
+                                          type="button"
+                                          className={`log-status-pill log-status-pill-btn ${logRem2h.pillClass}`}
+                                          onClick={() => handleOpenReminderModal(log, '2h')}
+                                          title={logRem2h.title}
+                                          aria-label={`${t('home.rem2hTitle')}: ${logRem2h.label}.`}
+                                        >
+                                          {logRem2h.icon} {logRem2h.label}
+                                        </button>
+                                      </div>
                                     </div>
-                                  </div>
-                                </>
-                              );
-                            })()}
+                                    <div className="log-field">
+                                      <span className="log-label">{t('logs.reminderLabel3h')}</span>
+                                      <div className="log-value-row">
+                                        <span className="log-value" dir="ltr">{formatTimeOnly(log.notify_3h_at)}</span>
+                                        <button
+                                          type="button"
+                                          className={`log-status-pill log-status-pill-btn ${logRem3h.pillClass}`}
+                                          onClick={() => handleOpenReminderModal(log, '3h')}
+                                          title={logRem3h.title}
+                                          aria-label={`${t('home.rem3hTitle')}: ${logRem3h.label}.`}
+                                        >
+                                          {logRem3h.icon} {logRem3h.label}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </>
+                                );
+                              })()
+                            )}
                           </li>
                         );
                       })}
+                      {!hasLoggedBasalToday && (
+                        <li className="log-item basal-log-item pending-basal-log-item">
+                          <div className="log-field">
+                            <span className="log-label">{t('logs.injectedLabel')}</span>
+                            <div className="log-value-group">
+                              <span className="log-value log-value-muted">{t('logs.notInjectedYet')}</span>
+                              <span className="log-type-badge badge-basal">
+                                {t('logs.typeBasal')}
+                              </span>
+                            </div>
+                          </div>
+                          {(() => {
+                            const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, false);
+                            return (
+                              <div className="log-field">
+                                <span className="log-label">{t('logs.basalReminderLabel')}</span>
+                                <div className="log-value-row">
+                                  <span className="log-value" dir="ltr">{basalTime || '20:00'}</span>
+                                  <button
+                                    type="button"
+                                    className={`log-status-pill log-status-pill-btn ${basalStatus.pillClass}`}
+                                    onClick={() => handleOpenReminderModal(basalReminder || {}, 'basal')}
+                                    title={basalStatus.title}
+                                    aria-label={`${t('modals.basalReminderTitle')}: ${basalStatus.label}.`}
+                                  >
+                                    {basalStatus.icon} {basalStatus.label}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </li>
+                      )}
                     </ul>
                   )}
                 </div>
@@ -1921,6 +2154,15 @@ function AppContent() {
           user={user}
           onUpdateUser={(updatedUser) => {
             setUser(updatedUser);
+            if (updatedUser?.basalTime) {
+              setBasalTime(updatedUser.basalTime);
+              setBasalTimeInput(updatedUser.basalTime);
+              try {
+                localStorage.setItem('insuminder_basal_time', updatedUser.basalTime);
+              } catch {
+                // ignore
+              }
+            }
           }}
           isLoggedIn={isLoggedIn}
           onOpenLogin={() => {
@@ -1995,7 +2237,43 @@ function AppContent() {
               </div>
             </div>
 
-            {/* 2. Telegram Notifications Card */}
+            {/* 2. Basal Insulin Schedule Card */}
+            <div className="settings-card basal-settings-card">
+              <div className="card-header">
+                <div className="card-icon-wrapper moon-icon-wrapper">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                  </svg>
+                </div>
+                <div className="card-header-text">
+                  <h2 className="card-title">{t('settings.basalTime')}</h2>
+                  <p className="card-subtitle">{t('settings.basalTimeDesc')}</p>
+                </div>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveBasalTime(basalTimeInput);
+                }}
+                className="basal-time-form"
+              >
+                <div className="basal-time-setting-row">
+                  <TimePicker24h
+                    value={basalTimeInput}
+                    onChange={(val) => setBasalTimeInput(val)}
+                  />
+                  <button
+                    type="submit"
+                    className="save-btn basal-save-btn"
+                  >
+                    {t('settings.save')}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* 3. Telegram Notifications Card */}
             <div className="settings-card">
               <div className="card-header">
                 <div className="card-icon-wrapper telegram-icon-wrapper">

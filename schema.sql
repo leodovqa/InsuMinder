@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar TEXT,
     is_verified BOOLEAN DEFAULT 0,
     share_code TEXT UNIQUE,
+    basal_time TEXT DEFAULT '20:00',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS injection_logs (
     error_10m TEXT,
     error_2h TEXT,
     error_3h TEXT,
+    type TEXT DEFAULT 'bolus',
     FOREIGN KEY(user_id) REFERENCES users(id)
 );
 
@@ -68,3 +70,17 @@ CREATE TABLE IF NOT EXISTS share_invites (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS basal_reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    reminder_date TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
+    status_sent BOOLEAN DEFAULT 0,
+    sent_at TIMESTAMP,
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, reminder_date),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+

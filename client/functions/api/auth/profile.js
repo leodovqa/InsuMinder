@@ -31,17 +31,30 @@ export async function onRequest(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { firstName, lastName, phone, language } = body;
+    const { firstName, lastName, phone, language, basalTime } = body;
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
+    const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
 
-    if (cleanLang && firstName === undefined && lastName === undefined) {
-      await db
-        .prepare('UPDATE users SET language = ? WHERE id = ?')
-        .bind(cleanLang, authUser.userId)
-        .run();
+    if ((cleanLang || cleanBasalTime) && firstName === undefined && lastName === undefined) {
+      if (cleanLang && cleanBasalTime) {
+        await db
+          .prepare('UPDATE users SET language = ?, basal_time = ? WHERE id = ?')
+          .bind(cleanLang, cleanBasalTime, authUser.userId)
+          .run();
+      } else if (cleanLang) {
+        await db
+          .prepare('UPDATE users SET language = ? WHERE id = ?')
+          .bind(cleanLang, authUser.userId)
+          .run();
+      } else if (cleanBasalTime) {
+        await db
+          .prepare('UPDATE users SET basal_time = ? WHERE id = ?')
+          .bind(cleanBasalTime, authUser.userId)
+          .run();
+      }
 
       const updatedUser = await db
-        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language FROM users WHERE id = ?')
+        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time FROM users WHERE id = ?')
         .bind(authUser.userId)
         .first();
 
@@ -56,7 +69,8 @@ export async function onRequest(context) {
           phone: updatedUser.phone || '',
           avatar: updatedUser.avatar || '',
           shareCode: updatedUser.share_code || '',
-          language: updatedUser.language || cleanLang
+          language: updatedUser.language || cleanLang || 'en',
+          basalTime: updatedUser.basal_time || '20:00'
         }
       }), {
         status: 200,
@@ -80,10 +94,20 @@ export async function onRequest(context) {
 
     const fullName = `${cleanFirstName} ${cleanLastName}`.trim();
 
-    if (cleanLang) {
+    if (cleanLang && cleanBasalTime) {
+      await db
+        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ?, language = ?, basal_time = ? WHERE id = ?')
+        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, cleanLang, cleanBasalTime, authUser.userId)
+        .run();
+    } else if (cleanLang) {
       await db
         .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ?, language = ? WHERE id = ?')
         .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, cleanLang, authUser.userId)
+        .run();
+    } else if (cleanBasalTime) {
+      await db
+        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ?, basal_time = ? WHERE id = ?')
+        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, cleanBasalTime, authUser.userId)
         .run();
     } else {
       await db
@@ -93,7 +117,7 @@ export async function onRequest(context) {
     }
 
     const updatedUser = await db
-      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language FROM users WHERE id = ?')
+      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time FROM users WHERE id = ?')
       .bind(authUser.userId)
       .first();
 
@@ -108,7 +132,8 @@ export async function onRequest(context) {
         phone: updatedUser.phone || '',
         avatar: updatedUser.avatar || '',
         shareCode: updatedUser.share_code || '',
-        language: updatedUser.language || 'en'
+        language: updatedUser.language || 'en',
+        basalTime: updatedUser.basal_time || '20:00'
       }
     }), {
       status: 200,

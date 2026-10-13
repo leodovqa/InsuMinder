@@ -127,7 +127,8 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Log Injection/i })).toBeInTheDocument();
+        const btn = document.querySelector('.log-injection-btn');
+        expect(btn).toBeInTheDocument();
       });
     });
 
@@ -611,7 +612,7 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(screen.getByText('Telegram Notifications')).toBeInTheDocument();
         expect(screen.getByLabelText(/Bot Token/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Chat ID/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Save/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /Save/i }).length).toBeGreaterThanOrEqual(1);
         expect(screen.getByRole('button', { name: /Send Test Notification/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /English/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /עברית/i })).toBeInTheDocument();
@@ -918,6 +919,128 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Are you sure you want to delete configuration for chat/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Basal Insulin & 24h Time Schedule UI', () => {
+    it('renders Basal Insulin Schedule card in Settings with 24-hour time picker and Save button', async () => {
+      window.history.pushState({}, '', '/?page=settings');
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        if (url === '/api/settings') return Promise.resolve({ json: () => Promise.resolve({ success: true, settings: {} }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Basal Insulin Time')).toBeInTheDocument();
+        expect(screen.getByText(/Scheduled daily time when nighttime Basal option becomes available/i)).toBeInTheDocument();
+        // Time picker button
+        expect(screen.getByRole('button', { name: /Time: 20:00/i })).toBeInTheDocument();
+        // Save button for basal time
+        expect(document.querySelector('.basal-save-btn')).toBeInTheDocument();
+      });
+    });
+
+    it('renders split Bolus and Basal buttons when after basal time and basal not logged today', async () => {
+      // User with basal_time 00:00 so it is guaranteed to be after basal time
+      const nightUser = { id: 1, email: 'patient@health.org', name: 'Test Patient', basalTime: '00:00' };
+      authService.setSession('test-token', nightUser);
+      window.history.pushState({}, '', '/');
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: nightUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Bolus Insulin')).toBeInTheDocument();
+        expect(screen.getByText('Basal Insulin')).toBeInTheDocument();
+      });
+    });
+
+    it('renders single Log Injection button when before basal time', async () => {
+      // User with basal_time 23:59 (almost end of day, practically always before)
+      const daytimeUser = { id: 1, email: 'patient@health.org', name: 'Test Patient', basalTime: '23:59' };
+      authService.setSession('test-token', daytimeUser);
+      window.history.pushState({}, '', '/');
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: daytimeUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Log Injection')).toBeInTheDocument();
+        expect(screen.queryByText('Log Basal Insulin')).not.toBeInTheDocument();
+      });
+    });
+
+    it('reverts split button to single button after basal insulin has been logged today', async () => {
+      const nightUser = { id: 1, email: 'patient@health.org', name: 'Test Patient', basalTime: '00:00' };
+      authService.setSession('test-token', nightUser);
+      window.history.pushState({}, '', '/');
+
+      // Logs include a basal log today
+      const logsWithBasal = [
+        {
+          id: 5,
+          injected_at: new Date().toISOString(),
+          type: 'basal',
+          notify_10m_at: new Date().toISOString(),
+          notify_2h_at: new Date().toISOString(),
+          notify_3h_at: new Date().toISOString()
+        }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: nightUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: logsWithBasal }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Log Injection/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Log Basal Insulin/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('renders Bolus and Basal metric chips and stacked bar chart on Injection Logs tab', async () => {
+      window.history.pushState({}, '', '/?page=logs');
+      const testLogs = [
+        { id: 10, injected_at: new Date().toISOString(), type: 'bolus' },
+        { id: 11, injected_at: new Date().toISOString(), type: 'basal' }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: testLogs }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Bolus this week:')).toBeInTheDocument();
+        expect(screen.getByText('Basal this week:')).toBeInTheDocument();
+        expect(document.querySelector('.bar-segment-basal')).toBeInTheDocument();
+        expect(document.querySelector('.bar-segment-bolus')).toBeInTheDocument();
       });
     });
   });

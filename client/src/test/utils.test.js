@@ -16,6 +16,7 @@ import {
   maskBotToken,
   isCustomConfigName,
   getReminderStatus,
+  getBasalReminderStatus,
   getFriendlyReminderError
 } from '../utils';
 
@@ -229,6 +230,43 @@ describe('Utility Functions & Helpers', () => {
       expect(trendDataRu.days[6].dayName).toBe('Сб');
       expect(trendDataRu.days[6].fullDayName).toBe('Суббота');
     });
+
+    it('accurately tallies bolus and basal injections for days and weekly totals', () => {
+      const weekStart = new Date(2026, 9, 4); // Sunday Oct 4, 2026
+      const mockLogs = [
+        // Sunday: 3 bolus, 1 basal
+        { id: 1, injected_at: '2026-10-04T08:00:00Z', type: 'bolus' },
+        { id: 2, injected_at: '2026-10-04T12:00:00Z', type: 'bolus' },
+        { id: 3, injected_at: '2026-10-04T14:00:00Z', type: 'bolus' },
+        { id: 4, injected_at: '2026-10-04T17:00:00Z', type: 'basal' },
+        // Monday: 2 bolus, 1 basal
+        { id: 5, injected_at: '2026-10-05T08:00:00Z', type: 'bolus' },
+        { id: 6, injected_at: '2026-10-05T12:00:00Z', type: 'bolus' },
+        { id: 7, injected_at: '2026-10-05T17:00:00Z', type: 'basal' },
+        // Wednesday: 1 legacy log (no type field, should default to bolus)
+        { id: 8, injected_at: '2026-10-07T12:00:00Z' }
+      ];
+
+      const data = getWeeklyTrendData(mockLogs, weekStart, 'en');
+      expect(data.totalWeekInjections).toBe(8);
+      expect(data.totalBolusInjections).toBe(6);
+      expect(data.totalBasalInjections).toBe(2);
+
+      // Sunday checks (index 0)
+      expect(data.days[0].count).toBe(4);
+      expect(data.days[0].bolusCount).toBe(3);
+      expect(data.days[0].basalCount).toBe(1);
+
+      // Monday checks (index 1)
+      expect(data.days[1].count).toBe(3);
+      expect(data.days[1].bolusCount).toBe(2);
+      expect(data.days[1].basalCount).toBe(1);
+
+      // Wednesday checks (index 3)
+      expect(data.days[3].count).toBe(1);
+      expect(data.days[3].bolusCount).toBe(1);
+      expect(data.days[3].basalCount).toBe(0);
+    });
   });
 
   describe('Rapid Injections Detector (< 3 hours)', () => {
@@ -284,6 +322,19 @@ describe('Utility Functions & Helpers', () => {
       const unscopedResult = getRapidInjections(logs);
       expect(unscopedResult.rapidList).toHaveLength(1);
       expect(unscopedResult.rapidIds.has(2)).toBe(true);
+    });
+
+    it('ignores basal injections so nighttime background dose close to bolus does not trigger rapid alert', () => {
+      const logs = [
+        // Basal dose at 20:30 (1 hour after 19:30 dinner bolus)
+        { id: 2, injected_at: '2026-10-09T20:30:00Z', type: 'basal' },
+        // Dinner bolus dose at 19:30
+        { id: 1, injected_at: '2026-10-09T19:30:00Z', type: 'bolus' }
+      ];
+
+      const { rapidList, rapidIds } = getRapidInjections(logs);
+      expect(rapidList).toHaveLength(0);
+      expect(rapidIds.size).toBe(0);
     });
   });
 
@@ -486,6 +537,53 @@ describe('Utility Functions & Helpers', () => {
       const res = getFriendlyReminderError('Notification expired without delivery.');
       expect(res.category).toBe('Reminder Expired');
       expect(res.message).toContain('24 hours');
+    });
+  });
+
+  describe('getBasalReminderStatus', () => {
+    it('returns sent status when status_sent is 1', () => {
+      const res = getBasalReminderStatus({
+        status_sent: 1,
+        sent_at: '2026-10-13T20:00:00Z',
+        scheduled_time: '20:00'
+      }, '20:00', true, 'en');
+
+      expect(res.status).toBe('sent');
+      expect(res.pillClass).toBe('sent');
+      expect(res.icon).toBe('✅');
+      expect(res.label).toBe('Sent');
+    });
+
+    it('returns localized sent status in Hebrew and Russian', () => {
+      const resHe = getBasalReminderStatus({ status_sent: 1 }, '20:00', true, 'he');
+      expect(resHe.label).toBe('נשלח');
+
+      const resRu = getBasalReminderStatus({ status_sent: 1 }, '20:00', true, 'ru');
+      expect(resRu.label).toBe('Отправлено');
+    });
+
+    it('returns failed status when delivery error is recorded', () => {
+      const res = getBasalReminderStatus({
+        status_sent: 0,
+        error: 'Bad Request: chat not found',
+        scheduled_time: '20:00'
+      }, '20:00', true, 'en');
+
+      expect(res.status).toBe('failed');
+      expect(res.pillClass).toBe('failed');
+      expect(res.icon).toBe('⚠️');
+      expect(res.label).toBe('Not Sent');
+      expect(res.friendlyError.category).toBe('Telegram Configuration Issue');
+    });
+
+    it('returns upcoming status for future scheduled time', () => {
+      // Future time 23:59
+      const res = getBasalReminderStatus(null, '23:59', true, 'en');
+      expect(res.status).toBe('upcoming');
+      expect(res.pillClass).toBe('pending');
+      expect(res.icon).toBe('⏳');
+      expect(res.label).toBe('Upcoming');
+      expect(res.pillLabel).toBe('Pending');
     });
   });
 });

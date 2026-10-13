@@ -205,7 +205,10 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
     const isToday = dateStr === todayStr;
     const isOtherMonth = d.getMonth() !== anchorMonth;
 
-    const count = logsList.filter(log => formatDateOnly(log.injected_at) === dateStr).length;
+    const dayLogs = logsList.filter(log => formatDateOnly(log.injected_at) === dateStr);
+    const bolusCount = dayLogs.filter(log => !log.type || log.type === 'bolus').length;
+    const basalCount = dayLogs.filter(log => log.type === 'basal').length;
+    const count = bolusCount + basalCount;
 
     days.push({
       date: d,
@@ -214,12 +217,16 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
       fullDayName,
       shortDate: `${dayNum}/${monthNum}`,
       count,
+      bolusCount,
+      basalCount,
       isToday,
       isOtherMonth
     });
   }
 
-  const totalWeekInjections = days.reduce((sum, d) => sum + d.count, 0);
+  const totalBolusInjections = days.reduce((sum, d) => sum + d.bolusCount, 0);
+  const totalBasalInjections = days.reduce((sum, d) => sum + d.basalCount, 0);
+  const totalWeekInjections = totalBolusInjections + totalBasalInjections;
   const maxCount = Math.max(3, ...days.map(d => d.count));
   const activeDaysCount = days.filter(d => d.count > 0).length;
   const dailyAvg = (totalWeekInjections / 7).toFixed(1);
@@ -239,6 +246,8 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
   return {
     days,
     totalWeekInjections,
+    totalBolusInjections,
+    totalBasalInjections,
     maxCount,
     activeDaysCount,
     dailyAvg,
@@ -250,10 +259,11 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
 export const getRapidInjections = (logsList, targetDateKey = null) => {
   const rapidList = [];
   const rapidIds = new Set();
+  const bolusLogs = (logsList || []).filter(log => !log.type || log.type === 'bolus');
 
-  for (let i = 0; i < logsList.length - 1; i++) {
-    const current = logsList[i];
-    const previous = logsList[i + 1];
+  for (let i = 0; i < bolusLogs.length - 1; i++) {
+    const current = bolusLogs[i];
+    const previous = bolusLogs[i + 1];
     const currentMs = new Date(current.injected_at).getTime();
     const prevMs = new Date(previous.injected_at).getTime();
     const diffMs = currentMs - prevMs;
@@ -436,6 +446,90 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
     pillClass: 'pending',
     title: targetTime ? `Scheduled for ${formatDateTime(targetTime)}` : 'Scheduled',
     targetTime,
+    friendlyError: null,
+    rawError: null
+  };
+};
+
+export const getBasalReminderStatus = (basalReminder, basalTime = '20:00', isTelegramConfigured = true, lang = 'en') => {
+  const scheduledTime = basalReminder?.scheduled_time || basalTime || '20:00';
+  const isSent = Boolean(basalReminder?.status_sent === 1 || basalReminder?.status_sent === true || basalReminder?.status_sent === '1');
+  const rawError = basalReminder?.error || null;
+
+  if (isSent) {
+    return {
+      type: 'basal',
+      status: 'sent',
+      label: translate('status.sent', {}, lang),
+      pillLabel: translate('status.sent', {}, lang),
+      icon: '✅',
+      badgeClass: 'badge-sent',
+      pillClass: 'sent',
+      title: 'Reminder delivered to Telegram.',
+      targetTime: basalReminder?.sent_at || null,
+      scheduledTime,
+      friendlyError: null,
+      rawError: null
+    };
+  }
+
+  // Check whether current time is past scheduled basal time
+  const now = new Date();
+  const [bHour, bMin] = scheduledTime.split(':').map(n => parseInt(n, 10));
+  const curHour = now.getHours();
+  const curMin = now.getMinutes();
+  const isDueOrPast = (curHour > bHour) || (curHour === bHour && curMin >= bMin);
+
+  // If there's an explicit delivery error recorded (other than 'Already injected')
+  if (rawError && rawError !== 'Already injected') {
+    const friendly = getFriendlyReminderError(rawError, isTelegramConfigured, lang);
+    return {
+      type: 'basal',
+      status: 'failed',
+      label: translate('status.notSent', {}, lang),
+      pillLabel: translate('status.notSent', {}, lang),
+      icon: '⚠️',
+      badgeClass: 'badge-failed',
+      pillClass: 'failed',
+      title: friendly.message,
+      targetTime: null,
+      scheduledTime,
+      friendlyError: friendly,
+      rawError: String(rawError).trim()
+    };
+  }
+
+  if (isDueOrPast) {
+    if (!isTelegramConfigured) {
+      const friendly = getFriendlyReminderError('', false, lang);
+      return {
+        type: 'basal',
+        status: 'failed',
+        label: translate('status.notSent', {}, lang),
+        pillLabel: translate('status.notSent', {}, lang),
+        icon: '⚠️',
+        badgeClass: 'badge-failed',
+        pillClass: 'failed',
+        title: friendly.message,
+        targetTime: null,
+        scheduledTime,
+        friendlyError: friendly,
+        rawError: rawError ? String(rawError).trim() : null
+      };
+    }
+  }
+
+  return {
+    type: 'basal',
+    status: 'upcoming',
+    label: translate('status.upcoming', {}, lang),
+    pillLabel: translate('status.pending', {}, lang),
+    icon: '⏳',
+    badgeClass: 'badge-upcoming',
+    pillClass: 'pending',
+    title: `Scheduled for ${scheduledTime}`,
+    targetTime: null,
+    scheduledTime,
     friendlyError: null,
     rawError: null
   };

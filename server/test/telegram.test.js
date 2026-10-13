@@ -126,6 +126,35 @@ describe('Telegram Notification Integration Tests', () => {
       assert.ok(target.notify_10m_at);
       assert.ok(target.notify_2h_at);
       assert.ok(target.notify_3h_at);
+      assert.strictEqual(target.type, 'bolus');
+    });
+
+    it('inserts basal injection log without scheduling pending notifications', async () => {
+      const basalLogId = await new Promise((resolve, reject) => {
+        db.insertInjectionLog(8888, 'basal', function(err) {
+          if (err) return reject(err);
+          resolve(this.lastID);
+        });
+      });
+
+      assert.ok(basalLogId > 0);
+
+      const logs = await new Promise((resolve, reject) => {
+        db.getLogsFromLast24Hours(8888, (err, rows) => (err ? reject(err) : resolve(rows)));
+      });
+
+      const basalEntry = logs.find(l => l.id === basalLogId);
+      assert.ok(basalEntry);
+      assert.strictEqual(basalEntry.type, 'basal');
+      assert.strictEqual(basalEntry.status_10m_sent, 1);
+      assert.strictEqual(basalEntry.status_2h_sent, 1);
+      assert.strictEqual(basalEntry.status_3h_sent, 1);
+
+      // Verify that getDueNotifications does not pick up basal entries
+      const due = await new Promise((resolve, reject) => {
+        db.getDueNotifications((err, rows) => (err ? reject(err) : resolve(rows)));
+      });
+      assert.ok(!due.some(l => l.id === basalLogId));
     });
 
     it('records notification errors and clears error upon successful delivery', async () => {
@@ -342,6 +371,57 @@ describe('Telegram Notification Integration Tests', () => {
       const ruMsg3h = scheduler.buildMessage3h(testIso, false, 'ru');
       assert.match(ruMsg3h, /🎯 От InsuMinder:/);
       assert.match(ruMsg3h, /Безопасное окно для инъекции/);
+
+      // Basal reminder messages
+      const basalEn = scheduler.buildMessageBasal(true, 'en');
+      assert.match(basalEn, /🌙 From InsuMinder \(Local\):/);
+      assert.match(basalEn, /⏰ Basal Injection Reminder/);
+
+      const basalHe = scheduler.buildMessageBasal(false, 'he');
+      assert.match(basalHe, /🌙 מאת InsuMinder:/);
+      assert.match(basalHe, /תזכורת להזרקת אינסולין בזאלי/);
+
+      const basalRu = scheduler.buildMessageBasal(false, 'ru');
+      assert.match(basalRu, /🌙 От InsuMinder:/);
+      assert.match(basalRu, /Напоминание о базальном инсулине/);
+    });
+
+    it('records and queries basal reminders with idempotency', async () => {
+      const testUserId = 7777;
+      const testDate = '2026-10-13';
+
+      // 1. Record pending / failed
+      await new Promise((resolve, reject) => {
+        db.recordBasalReminder(testUserId, testDate, '20:00', 0, 'Telegram is not configured.', (err) => (err ? reject(err) : resolve()));
+      });
+
+      const reminder1 = await new Promise((resolve, reject) => {
+        db.getTodayBasalReminder(testUserId, testDate, (err, row) => (err ? reject(err) : resolve(row)));
+      });
+      assert.ok(reminder1);
+      assert.strictEqual(reminder1.status_sent, 0);
+      assert.strictEqual(reminder1.error, 'Telegram is not configured.');
+
+      // 2. Record success (updates status_sent=1)
+      await new Promise((resolve, reject) => {
+        db.recordBasalReminder(testUserId, testDate, '20:00', 1, null, (err) => (err ? reject(err) : resolve()));
+      });
+
+      const reminder2 = await new Promise((resolve, reject) => {
+        db.getTodayBasalReminder(testUserId, testDate, (err, row) => (err ? reject(err) : resolve(row)));
+      });
+      assert.strictEqual(reminder2.status_sent, 1);
+      assert.strictEqual(reminder2.error, null);
+
+      // 3. Trying to overwrite already sent reminder with 'Already injected' preserves status_sent=1
+      await new Promise((resolve, reject) => {
+        db.recordBasalReminder(testUserId, testDate, '20:00', 0, 'Already injected', (err) => (err ? reject(err) : resolve()));
+      });
+
+      const reminder3 = await new Promise((resolve, reject) => {
+        db.getTodayBasalReminder(testUserId, testDate, (err, row) => (err ? reject(err) : resolve(row)));
+      });
+      assert.strictEqual(reminder3.status_sent, 1);
     });
 
     it('expires stale notifications overdue by more than the threshold to prevent flooding', async () => {

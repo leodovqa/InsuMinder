@@ -91,6 +91,10 @@ export const translations = {
       logInjection: 'Log Injection',
       logInjectionSubtitleLoggedIn: 'Record the current time as your injection time',
       logInjectionSubtitleLoggedOut: 'Sign in or sign up to record injections',
+      logBolus: 'Bolus Insulin',
+      logBasal: 'Basal Insulin',
+      logBolusSubtitle: 'Mealtime / daytime dose',
+      logBasalSubtitle: 'Nighttime background dose',
       dailyInjections: 'Daily Injections',
       lastInjection: 'Last Injection',
       noInjectionsYet: 'No injections yet',
@@ -149,7 +153,16 @@ export const translations = {
       mealLabel10m: '10m Meal:',
       reminderLabel2h: '2h Reminder:',
       reminderLabel3h: '3h Reminder:',
-      rapidPillBadge: '⚠️ < 3h'
+      rapidPillBadge: '⚠️ < 3h',
+      bolusThisWeek: 'Bolus this week:',
+      basalThisWeek: 'Basal this week:',
+      typeBolus: 'Bolus',
+      typeBasal: 'Basal',
+      basalNoReminders: 'Background dose (no reminders)',
+      basalReminderLabel: 'Basal Reminder:',
+      notInjectedYet: 'Not injected yet',
+      basalReminderTitle: 'Basal Injection Reminder',
+      basalReminderDesc: 'Daily reminder sent if basal insulin is not injected by your scheduled time.'
     },
     settings: {
       language: 'Language',
@@ -204,7 +217,11 @@ export const translations = {
       viewingActive: 'Viewing',
       switchToView: 'Switch to View',
       leaveGroup: 'Leave',
-      futureNote: 'Currently supporting 1 shared account + personal data switching. Support for multiple concurrent shared accounts will be available in a future update.'
+      futureNote: 'Currently supporting 1 shared account + personal data switching. Support for multiple concurrent shared accounts will be available in a future update.',
+      basalTime: 'Basal Insulin Time',
+      basalTimeDesc: 'Scheduled daily time when nighttime Basal option becomes available',
+      basalTimeSaved: 'Basal insulin time saved successfully!',
+      save: 'Save'
     },
     modals: {
       deleteConfigTitle: 'Delete Telegram Configuration?',
@@ -234,7 +251,8 @@ export const translations = {
       targetTimeLabel: 'Attempt / Target Time:',
       sentSuccessText: 'Sent successfully to your configured Telegram destination.',
       scheduledForText: 'This reminder is scheduled for {time}.',
-      reminderDetailsLabel: 'Details:'
+      reminderDetailsLabel: 'Details:',
+      basalReminderTitle: 'Basal Injection Reminder'
     },
     auth: {
       completeProfileTitle: 'Complete Your Profile',
@@ -339,6 +357,7 @@ export const translations = {
       networkErrorLeaving: 'Network error leaving shared group.',
       rateLimitOnePerMinute: 'An injection has already been recorded this minute. You can only log once per minute.',
       injectionLoggedSuccess: 'Insulin injection logged successfully at {time}!',
+      basalLoggedSuccess: 'Basal insulin injection logged at {time}!',
       failedToLogInjection: 'Failed to log injection. Please check your connection.',
       provideBotTokenAndChatId: 'Please provide both Bot Token and Chat ID.',
       telegramSavedAndDefault: 'Telegram configuration saved and set as default!',
@@ -433,6 +452,10 @@ export const translations = {
       logInjection: 'תיעוד הזרקה',
       logInjectionSubtitleLoggedIn: 'רישום השעה הנוכחית כזמן ביצוע ההזרקה',
       logInjectionSubtitleLoggedOut: 'התחברו או הירשמו כדי לתעד הזרקות',
+      logBolus: 'אינסולין בולוס',
+      logBasal: 'אינסולין בזאלי',
+      logBolusSubtitle: 'מינון יום / לארוחה',
+      logBasalSubtitle: 'מינון רקע לילי',
       dailyInjections: 'הזרקות היום',
       lastInjection: 'הזרקה אחרונה',
       noInjectionsYet: 'טרם תועדו הזרקות',
@@ -491,7 +514,16 @@ export const translations = {
       mealLabel10m: 'ארוחה (10 דק׳):',
       reminderLabel2h: 'בדיקה (שעתיים):',
       reminderLabel3h: 'בטוח (3 שעות):',
-      rapidPillBadge: '⚠️ < 3 שעות'
+      rapidPillBadge: '⚠️ < 3 שעות',
+      bolusThisWeek: 'בולוס השבוע:',
+      basalThisWeek: 'בזאלי השבוע:',
+      typeBolus: 'בולוס',
+      typeBasal: 'בזאלי',
+      basalNoReminders: 'מינון רקע (ללא תזכורות)',
+      basalReminderLabel: 'תזכורת בזאלית:',
+      notInjectedYet: 'טרם הוזרק',
+      basalReminderTitle: 'תזכורת להזרקת אינסולין בזאלי',
+      basalReminderDesc: 'תזכורת יומית הנשלחת במידה ואינסולין בזאלי לא הוזרק עד השעה שנקבעה.'
     },
     settings: {
       language: 'שפה',
@@ -546,7 +578,11 @@ export const translations = {
       viewingActive: 'מוצג כעת',
       switchToView: 'עבור לתצוגה',
       leaveGroup: 'עזיבה',
-      futureNote: 'המערכת תומכת כרגע בחשבון משותף 1 + מעבר לנתונים אישיים. תמיכה במספר חשבונות משותפים במקביל תתווסף בעדכון הבא.'
+      futureNote: 'המערכת תומכת כרגע בחשבון משותף 1 + מעבר לנתונים אישיים. תמיכה במספר חשבונות משותפים במקביל תתווסף בעדכון הבא.',
+      basalTime: 'שעת אינסולין בזאלי',
+      basalTimeDesc: 'שעה מתוזמנת שבה מופיעה אפשרות הבזאלי הלילי',
+      basalTimeSaved: 'שעת האינסולין הבזאלי נשמרה בהצלחה!',
+      save: 'שמירה'
     },
     modals: {
       deleteConfigTitle: 'מחיקת הגדרת טלגרם?',
@@ -576,7 +612,8 @@ export const translations = {
       targetTimeLabel: 'זמן יעד מתוכנן:',
       sentSuccessText: 'ההתראה נשלחה בהצלחה ליעד הטלגרם המוגדר.',
       scheduledForText: 'תזכורת זו מתוזמנת לשעה {time}.',
-      reminderDetailsLabel: 'פרטים נוספים:'
+      reminderDetailsLabel: 'פרטים נוספים:',
+      basalReminderTitle: 'תזכורת להזרקת אינסולין בזאלי'
     },
     auth: {
       completeProfileTitle: 'השלמת פרטי הפרופיל',
@@ -681,6 +718,7 @@ export const translations = {
       networkErrorLeaving: 'שגיאת רשת בעזיבת הקבוצה.',
       rateLimitOnePerMinute: 'הזרקה כבר נרשמה בדקה זו. ניתן לתעד הזרקה אחת בלבד בכל דקה.',
       injectionLoggedSuccess: 'הזרקת אינסולין תועדה בהצלחה בשעה {time}!',
+      basalLoggedSuccess: 'הזרקת אינסולין בזאלי נרשמה בהצלחה בשעה {time}!',
       failedToLogInjection: 'תיעוד ההזרקה נכשל. אנא בדקו את חיבור הרשת.',
       provideBotTokenAndChatId: 'נא להזין גם טוקן בוט וגם מזהה שיחה.',
       telegramSavedAndDefault: 'הגדרת טלגרם נשמרה והוגדרה כברירת מחדל!',
@@ -775,6 +813,10 @@ export const translations = {
       logInjection: 'Зафиксировать инъекцию',
       logInjectionSubtitleLoggedIn: 'Записать текущее время как время инъекции',
       logInjectionSubtitleLoggedOut: 'Войдите или зарегистрируйтесь для фиксации инъекций',
+      logBolus: 'Болюсный инсулин',
+      logBasal: 'Базальный инсулин',
+      logBolusSubtitle: 'Дневная доза / перед едой',
+      logBasalSubtitle: 'Ночная продлённая доза',
       dailyInjections: 'Инъекций за сегодня',
       lastInjection: 'Последняя инъекция',
       noInjectionsYet: 'Инъекций пока нет',
@@ -833,7 +875,16 @@ export const translations = {
       mealLabel10m: 'Еда через 10 мин:',
       reminderLabel2h: 'Через 2 ч:',
       reminderLabel3h: 'Через 3 ч:',
-      rapidPillBadge: '⚠️ < 3ч'
+      rapidPillBadge: '⚠️ < 3ч',
+      bolusThisWeek: 'Болюс за неделю:',
+      basalThisWeek: 'Базал за неделю:',
+      typeBolus: 'Болюс',
+      typeBasal: 'Базал',
+      basalNoReminders: 'Продлённая доза (без напоминаний)',
+      basalReminderLabel: 'Напоминание о базале:',
+      notInjectedYet: 'Ещё не введено',
+      basalReminderTitle: 'Напоминание о базальном инсулине',
+      basalReminderDesc: 'Ежедневное напоминание, отправляемое, если базальный инсулин не был введён к заданному времени.'
     },
     settings: {
       language: 'Язык',
@@ -888,7 +939,11 @@ export const translations = {
       viewingActive: 'Просмотр',
       switchToView: 'Переключиться',
       leaveGroup: 'Покинуть',
-      futureNote: 'В настоящее время поддерживается 1 общий аккаунт + переключение на личные данные. Поддержка одновременного просмотра нескольких аккаунтов появится в следующем обновлении.'
+      futureNote: 'В настоящее время поддерживается 1 общий аккаунт + переключение на личные данные. Поддержка одновременного просмотра нескольких аккаунтов появится в следующем обновлении.',
+      basalTime: 'Время базального инсулина',
+      basalTimeDesc: 'Время суток, когда становится доступна кнопка базального инсулина',
+      basalTimeSaved: 'Время базального инсулина успешно сохранено!',
+      save: 'Сохранить'
     },
     modals: {
       deleteConfigTitle: 'Удалить конфигурацию Telegram?',
@@ -918,7 +973,8 @@ export const translations = {
       targetTimeLabel: 'Контрольное время / попытка:',
       sentSuccessText: 'Успешно отправлено в настроенный чат Telegram.',
       scheduledForText: 'Это напоминание запланировано на {time}.',
-      reminderDetailsLabel: 'Подробности:'
+      reminderDetailsLabel: 'Подробности:',
+      basalReminderTitle: 'Напоминание о базальном инсулине'
     },
     auth: {
       completeProfileTitle: 'Заполните ваш профиль',
@@ -1023,6 +1079,7 @@ export const translations = {
       networkErrorLeaving: 'Сетевая ошибка при выходе из группы.',
       rateLimitOnePerMinute: 'Инъекция уже зафиксирована в эту минуту. Запись возможна не чаще одного раза в минуту.',
       injectionLoggedSuccess: 'Инъекция инсулина успешно зафиксирована в {time}!',
+      basalLoggedSuccess: 'Базальный инсулин успешно записан в {time}!',
       failedToLogInjection: 'Не удалось зафиксировать инъекцию. Проверьте соединение с интернетом.',
       provideBotTokenAndChatId: 'Пожалуйста, укажите токен бота и ID чата.',
       telegramSavedAndDefault: 'Конфигурация Telegram сохранена и назначена по умолчанию!',

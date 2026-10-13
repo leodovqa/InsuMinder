@@ -33,6 +33,7 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0", () => {});
       db.run("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP", () => {});
       db.run("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'", () => {});
+      db.run("ALTER TABLE users ADD COLUMN basal_time TEXT DEFAULT '20:00'", () => {});
     });
 
   // Verification codes table
@@ -69,6 +70,7 @@ db.serialize(() => {
       db.run("ALTER TABLE injection_logs ADD COLUMN error_10m TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_2h TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_3h TEXT", () => {});
+      db.run("ALTER TABLE injection_logs ADD COLUMN type TEXT DEFAULT 'bolus'", () => {});
     });
 
   // Settings table (legacy backward compatibility)
@@ -116,6 +118,20 @@ db.serialize(() => {
     + "share_code TEXT NOT NULL,"
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
     + "FOREIGN KEY(owner_id) REFERENCES users(id)"
+    + ")");
+
+  // Basal reminders table
+  db.run("CREATE TABLE IF NOT EXISTS basal_reminders ("
+    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    + "user_id INTEGER NOT NULL,"
+    + "reminder_date TEXT NOT NULL,"
+    + "scheduled_time TEXT NOT NULL,"
+    + "status_sent BOOLEAN DEFAULT 0,"
+    + "sent_at TIMESTAMP,"
+    + "error TEXT,"
+    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+    + "UNIQUE(user_id, reminder_date),"
+    + "FOREIGN KEY(user_id) REFERENCES users(id)"
     + ")");
 });
 
@@ -169,7 +185,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -233,6 +249,10 @@ function updateUser(id, updates, callback) {
     fields.push("share_code = ?");
     values.push(updates.share_code);
   }
+  if (updates.basal_time !== undefined) {
+    fields.push("basal_time = ?");
+    values.push(updates.basal_time);
+  }
 
   if (fields.length === 0) return callback(null);
 
@@ -269,9 +289,14 @@ function consumeVerificationCode(id, callback) {
    INJECTION LOGS METHODS
    ========================================================================= */
 
-function insertInjectionLog(userIdOrCallback, maybeCallback) {
-  const userId = typeof userIdOrCallback === 'number' ? userIdOrCallback : null;
-  const callback = typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback;
+function insertInjectionLog(userIdOrCallback, typeOrCallback, maybeCallback) {
+  const userId = typeof userIdOrCallback === 'number'
+    ? userIdOrCallback
+    : (typeof userIdOrCallback === 'string' && !isNaN(parseInt(userIdOrCallback, 10)) ? parseInt(userIdOrCallback, 10) : null);
+  const type = typeof typeOrCallback === 'string' ? (typeOrCallback === 'basal' ? 'basal' : 'bolus') : 'bolus';
+  const callback = typeof typeOrCallback === 'function'
+    ? typeOrCallback
+    : (typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback);
 
   const now = new Date();
   const currentMinute = now.toISOString().slice(0, 16);
@@ -292,14 +317,16 @@ function insertInjectionLog(userIdOrCallback, maybeCallback) {
     }
 
     const injected_at = now.toISOString();
+    const isBasal = type === 'basal';
     const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
     const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
     const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
+    const status_sent = isBasal ? 1 : 0;
 
     const stmt = db.prepare(
-      "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
-    stmt.run(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, callback);
+    stmt.run(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, type, callback);
     stmt.finalize();
   });
 }
@@ -577,7 +604,7 @@ function getDueNotifications(callback) {
   const nowIso = now.toISOString();
   const cutoff24hAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   db.all(
-    "SELECT * FROM injection_logs WHERE ((status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ?) OR (status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ?)) ORDER BY injected_at ASC",
+    "SELECT * FROM injection_logs WHERE (type IS NULL OR type = 'bolus') AND ((status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ?) OR (status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ?)) ORDER BY injected_at ASC",
     [nowIso, cutoff24hAgo, nowIso, cutoff24hAgo, nowIso, cutoff24hAgo],
     callback
   );
@@ -740,6 +767,89 @@ function createShareInvite(ownerId, inviteEmail, callback) {
   });
 }
 
+function getTodayBasalReminder(userId, dateStr, callback) {
+  if (!userId) return callback(null, null);
+  db.get(
+    "SELECT * FROM basal_reminders WHERE user_id = ? AND reminder_date = ? LIMIT 1",
+    [userId, dateStr],
+    callback
+  );
+}
+
+function recordBasalReminder(userId, dateStr, scheduledTime, statusSent, errorMsg, callback) {
+  if (!userId) return callback ? callback(null) : undefined;
+  const sentAt = statusSent ? new Date().toISOString() : null;
+  const cleanError = errorMsg ? String(errorMsg).trim() : null;
+
+  db.run(
+    "INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error) "
+    + "VALUES (?, ?, ?, ?, ?, ?) "
+    + "ON CONFLICT(user_id, reminder_date) DO UPDATE SET "
+    + "status_sent = CASE WHEN basal_reminders.status_sent = 1 THEN 1 ELSE excluded.status_sent END, "
+    + "sent_at = COALESCE(basal_reminders.sent_at, excluded.sent_at), "
+    + "error = CASE WHEN basal_reminders.status_sent = 1 THEN NULL ELSE excluded.error END",
+    [userId, dateStr, scheduledTime || '20:00', statusSent ? 1 : 0, sentAt, cleanError],
+    callback
+  );
+}
+
+function getUsersPendingBasalReminder(currentTimeStr, dateStr, callback) {
+  db.all(
+    "SELECT u.id, u.email, u.language, COALESCE(u.basal_time, '20:00') as basal_time "
+    + "FROM users u "
+    + "WHERE COALESCE(u.basal_time, '20:00') <= ? "
+    + "AND NOT EXISTS ("
+    + "  SELECT 1 FROM basal_reminders r "
+    + "  WHERE r.user_id = u.id "
+    + "    AND r.reminder_date = ?"
+    + ")",
+    [currentTimeStr, dateStr],
+    (err, users) => {
+      if (err) return callback(err);
+      if (!users || users.length === 0) return callback(null, []);
+
+      const pending = [];
+      let pendingCount = users.length;
+
+      users.forEach(user => {
+        db.all(
+          "SELECT id, injected_at FROM injection_logs WHERE user_id = ? AND type = 'basal' ORDER BY injected_at DESC LIMIT 10",
+          [user.id],
+          (logErr, logs) => {
+            if (!logErr && logs) {
+              const alreadyLoggedToday = logs.some(l => {
+                try {
+                  const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'Asia/Jerusalem',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                  }).formatToParts(new Date(l.injected_at));
+                  const m = Object.fromEntries(parts.map(p => [p.type, p.value]));
+                  return `${m.year}-${m.month}-${m.day}` === dateStr;
+                } catch {
+                  return false;
+                }
+              });
+              if (alreadyLoggedToday) {
+                recordBasalReminder(user.id, dateStr, user.basal_time, 0, 'Already injected', () => {});
+              } else {
+                pending.push(user);
+              }
+            } else {
+              pending.push(user);
+            }
+            pendingCount--;
+            if (pendingCount === 0) {
+              callback(null, pending);
+            }
+          }
+        );
+      });
+    }
+  );
+}
+
 module.exports = {
   db,
   createUser,
@@ -770,5 +880,8 @@ module.exports = {
   removeSharedMember,
   leaveSharedGroup,
   isSharedMember,
-  createShareInvite
+  createShareInvite,
+  getTodayBasalReminder,
+  recordBasalReminder,
+  getUsersPendingBasalReminder
 };

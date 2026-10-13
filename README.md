@@ -38,7 +38,13 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 ## 🚀 Application Capabilities & Features
 
 ### 1. Dashboard & Smart Timers
-- **One-Click Injection Logging:** Instant logging button with safety confirmation dialog and floating toast feedback.
+- **Bolus & Basal Dual-Modality Logging:** Supports both rapid-acting mealtime doses (**Bolus**) and long-acting background doses (**Basal**).
+- **Dynamic Split Button:** Standard full-width button logs Bolus insulin throughout the day. At the user's configured Basal time (e.g. 20:00:00), the button dynamically splits in half:
+  - **Left (Blue):** Bolus Insulin (triggers 10m meal reminder, 2h check, 3h eligibility countdown).
+  - **Right (Orange):** Basal Insulin (one-time background dose; logs event without queuing reminder alerts).
+  - **Smart Reversion:** Logging a Basal dose immediately reverts the button back to the single Bolus button. The split also resets cleanly at midnight (`00:00:00`).
+- **Modern 24-Hour Clock Picker:** Settings provides a sleek custom 24-hour clock picker with quick steppers, two synchronized 24-hour scroll columns (`00`–`23` and `00`–`59`), and evening presets (`20:00`, `21:00`, `22:00`, `23:00`). Strictly enforces 24-hour format across all locales with zero AM/PM.
+- **Safe Timer Anchoring:** Active timers (10-minute meal window, 2-hour check, 3-hour eligibility) remain strictly anchored to the latest Bolus injection, ensuring evening basal doses do not interrupt ongoing meal timers.
 - **Live Real-Time Clock:** Continuous 24-hour clock synced to local Jerusalem time (`Asia/Jerusalem`).
 - **Dynamic State Cards:** Real-time countdowns for 10-minute meal window, 2-hour check, and 3-hour eligibility status.
 - **Daily Metrics:** Real-time summary tiles showing today's injection count and the exact time of the last dose.
@@ -61,8 +67,11 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 
 ### 4. Injection Logs & Weekly Israeli Calendar Analytics
 - **Slide-Out Drawer:** Clean left-sided drawer housing the complete logs view.
-- **Israeli Calendar Weekly Chart (Sunday–Saturday):** Visual bar chart grouped by week from Sunday through Saturday with previous/next week navigation.
-- **Per-Dose Delivery Pills:** Each log entry displays pills for 10m, 2h, and 3h reminder statuses (`Sent`, `Pending`, or `Not Sent` with delivery error diagnostics tooltip).
+- **Stacked Israeli Calendar Weekly Chart (Sunday–Saturday):** Visual stacked bar chart grouped by week with previous/next week navigation. Bolus doses form the foundation (blue for historical days, purple for today), and Basal doses are stacked on top in vibrant orange (`#ea580c`).
+- **Weekly Modality Metric Chips:** Quick-glance chips above the chart display weekly counts: `Bolus this week` and `Basal this week`.
+- **Dose Type Badges & Reminders Notice:** Each log entry displays a `Bolus` or `Basal` badge.
+- **Basal Scheduled Reminder Status (In Logs Only):** If basal insulin has not yet been injected today, a dedicated basal status row appears under today's logs showing `Not injected yet` alongside its scheduled reminder time and live status pill (`⏳ Pending`, `✓ Sent`, or `✕ Not Sent`). Once injected, it displays the logged dose time and the reminder dispatch status. Clicking the status pill opens the reminder details modal with comprehensive delivery diagnostics.
+- **Per-Dose Delivery Pills:** Each bolus log entry displays pills for 10m, 2h, and 3h reminder statuses (`Sent`, `Pending`, or `Not Sent` with delivery error diagnostics tooltip).
 - **Direct URL Deep Linking:** Direct navigation via query parameters (e.g. `/?page=logs`, `/?page=settings`, `/?page=profile`).
 
 ### 5. Multi-Destination Telegram Reminders
