@@ -70,3 +70,17 @@ CREATE TABLE IF NOT EXISTS share_invites (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS basal_reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    reminder_date TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
+    status_sent BOOLEAN DEFAULT 0,
+    sent_at TIMESTAMP,
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, reminder_date),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+

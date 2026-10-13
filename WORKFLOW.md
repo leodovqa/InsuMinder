@@ -110,12 +110,24 @@ CREATE TABLE IF NOT EXISTS group_members (
     role TEXT DEFAULT 'member',
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS basal_reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    reminder_date TEXT NOT NULL,
+    scheduled_time TEXT NOT NULL,
+    status_sent BOOLEAN DEFAULT 0,
+    sent_at TIMESTAMP,
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, reminder_date)
+);
 ```
 
 Core API Endpoints
 - **Injections & Logs**:
-  - `POST /api/injections`: Records injection (`type`: `'bolus'` | `'basal'`), sets 10m, 2h, and 3h reminder targets (marked as sent for `'basal'`).
-  - `GET /api/logs`: Retrieves user-scoped logs (or viewed group member logs).
+  - `POST /api/injections`: Records injection (`type`: `'bolus'` | `'basal'`), sets 10m, 2h, and 3h reminder targets for bolus. When basal, marks `basal_reminders` as already injected if not already sent.
+  - `GET /api/logs`: Retrieves user-scoped logs (or viewed group member logs) and today's `basalReminder` status.
 - **Authentication**:
   - `POST /api/auth/send-code`: Generates 6-digit code for email.
   - `POST /api/auth/verify-code`: Verifies code, logs in, returns session user.

@@ -1,4 +1,4 @@
-import { ensureTablesExist, dispatchDueNotifications } from './_telegram.js';
+import { ensureTablesExist, dispatchDueNotifications, getJerusalemDateAndTime } from './_telegram.js';
 import { getAuthUser, getEffectiveUserId } from './_auth.js';
 
 export async function onRequestGet(context) {
@@ -29,7 +29,8 @@ export async function onRequestGet(context) {
       return new Response(
         JSON.stringify({
           success: true,
-          logs: []
+          logs: [],
+          basalReminder: null
         }),
         {
           status: 200,
@@ -48,6 +49,12 @@ export async function onRequestGet(context) {
       .bind(effectiveUserId)
       .all();
 
+    const { dateStr: todayDate } = getJerusalemDateAndTime(new Date());
+    const basalReminder = await db
+      .prepare("SELECT * FROM basal_reminders WHERE user_id = ? AND reminder_date = ? LIMIT 1")
+      .bind(effectiveUserId, todayDate)
+      .first();
+
     // Opportunistically check and dispatch notifications in background
     if (context.waitUntil) {
       context.waitUntil(dispatchDueNotifications(db));
@@ -56,7 +63,8 @@ export async function onRequestGet(context) {
     return new Response(
       JSON.stringify({
         success: true,
-        logs: results || []
+        logs: results || [],
+        basalReminder: basalReminder || null
       }),
       {
         status: 200,

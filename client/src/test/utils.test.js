@@ -16,6 +16,7 @@ import {
   maskBotToken,
   isCustomConfigName,
   getReminderStatus,
+  getBasalReminderStatus,
   getFriendlyReminderError
 } from '../utils';
 
@@ -536,6 +537,53 @@ describe('Utility Functions & Helpers', () => {
       const res = getFriendlyReminderError('Notification expired without delivery.');
       expect(res.category).toBe('Reminder Expired');
       expect(res.message).toContain('24 hours');
+    });
+  });
+
+  describe('getBasalReminderStatus', () => {
+    it('returns sent status when status_sent is 1', () => {
+      const res = getBasalReminderStatus({
+        status_sent: 1,
+        sent_at: '2026-10-13T20:00:00Z',
+        scheduled_time: '20:00'
+      }, '20:00', true, 'en');
+
+      expect(res.status).toBe('sent');
+      expect(res.pillClass).toBe('sent');
+      expect(res.icon).toBe('✅');
+      expect(res.label).toBe('Sent');
+    });
+
+    it('returns localized sent status in Hebrew and Russian', () => {
+      const resHe = getBasalReminderStatus({ status_sent: 1 }, '20:00', true, 'he');
+      expect(resHe.label).toBe('נשלח');
+
+      const resRu = getBasalReminderStatus({ status_sent: 1 }, '20:00', true, 'ru');
+      expect(resRu.label).toBe('Отправлено');
+    });
+
+    it('returns failed status when delivery error is recorded', () => {
+      const res = getBasalReminderStatus({
+        status_sent: 0,
+        error: 'Bad Request: chat not found',
+        scheduled_time: '20:00'
+      }, '20:00', true, 'en');
+
+      expect(res.status).toBe('failed');
+      expect(res.pillClass).toBe('failed');
+      expect(res.icon).toBe('⚠️');
+      expect(res.label).toBe('Not Sent');
+      expect(res.friendlyError.category).toBe('Telegram Configuration Issue');
+    });
+
+    it('returns upcoming status for future scheduled time', () => {
+      // Future time 23:59
+      const res = getBasalReminderStatus(null, '23:59', true, 'en');
+      expect(res.status).toBe('upcoming');
+      expect(res.pillClass).toBe('pending');
+      expect(res.icon).toBe('⏳');
+      expect(res.label).toBe('Upcoming');
+      expect(res.pillLabel).toBe('Pending');
     });
   });
 });

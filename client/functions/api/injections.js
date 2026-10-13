@@ -1,4 +1,4 @@
-import { ensureTablesExist, dispatchDueNotifications } from './_telegram.js';
+import { ensureTablesExist, dispatchDueNotifications, getJerusalemDateAndTime } from './_telegram.js';
 import { getAuthUser, getEffectiveUserId } from './_auth.js';
 
 export async function onRequestPost(context) {
@@ -85,6 +85,20 @@ export async function onRequestPost(context) {
     // Opportunistically check and dispatch notifications in background (bolus only)
     if (!isBasal && context.waitUntil) {
       context.waitUntil(dispatchDueNotifications(db));
+    } else if (isBasal) {
+      const { dateStr: todayDate } = getJerusalemDateAndTime(now);
+      const userRow = await db.prepare("SELECT basal_time FROM users WHERE id = ?").bind(userId).first();
+      const basalTime = (userRow && userRow.basal_time) ? userRow.basal_time : '20:00';
+      await db
+        .prepare(
+          `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+           VALUES (?, ?, ?, 0, NULL, 'Already injected')
+           ON CONFLICT(user_id, reminder_date) DO UPDATE SET
+             status_sent = CASE WHEN basal_reminders.status_sent = 1 THEN 1 ELSE 0 END,
+             error = CASE WHEN basal_reminders.status_sent = 1 THEN NULL ELSE 'Already injected' END`
+        )
+        .bind(userId, todayDate, basalTime)
+        .run();
     }
 
     return new Response(

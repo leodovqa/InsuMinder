@@ -371,6 +371,57 @@ describe('Telegram Notification Integration Tests', () => {
       const ruMsg3h = scheduler.buildMessage3h(testIso, false, 'ru');
       assert.match(ruMsg3h, /🎯 От InsuMinder:/);
       assert.match(ruMsg3h, /Безопасное окно для инъекции/);
+
+      // Basal reminder messages
+      const basalEn = scheduler.buildMessageBasal(true, 'en');
+      assert.match(basalEn, /🌙 From InsuMinder \(Local\):/);
+      assert.match(basalEn, /⏰ Basal Injection Reminder/);
+
+      const basalHe = scheduler.buildMessageBasal(false, 'he');
+      assert.match(basalHe, /🌙 מאת InsuMinder:/);
+      assert.match(basalHe, /תזכורת להזרקת אינסולין בזאלי/);
+
+      const basalRu = scheduler.buildMessageBasal(false, 'ru');
+      assert.match(basalRu, /🌙 От InsuMinder:/);
+      assert.match(basalRu, /Напоминание о базальном инсулине/);
+    });
+
+    it('records and queries basal reminders with idempotency', async () => {
+      const testUserId = 7777;
+      const testDate = '2026-10-13';
+
+      // 1. Record pending / failed
+      await new Promise((resolve, reject) => {
+        db.recordBasalReminder(testUserId, testDate, '20:00', 0, 'Telegram is not configured.', (err) => (err ? reject(err) : resolve()));
+      });
+
+      const reminder1 = await new Promise((resolve, reject) => {
+        db.getTodayBasalReminder(testUserId, testDate, (err, row) => (err ? reject(err) : resolve(row)));
+      });
+      assert.ok(reminder1);
+      assert.strictEqual(reminder1.status_sent, 0);
+      assert.strictEqual(reminder1.error, 'Telegram is not configured.');
+
+      // 2. Record success (updates status_sent=1)
+      await new Promise((resolve, reject) => {
+        db.recordBasalReminder(testUserId, testDate, '20:00', 1, null, (err) => (err ? reject(err) : resolve()));
+      });
+
+      const reminder2 = await new Promise((resolve, reject) => {
+        db.getTodayBasalReminder(testUserId, testDate, (err, row) => (err ? reject(err) : resolve(row)));
+      });
+      assert.strictEqual(reminder2.status_sent, 1);
+      assert.strictEqual(reminder2.error, null);
+
+      // 3. Trying to overwrite already sent reminder with 'Already injected' preserves status_sent=1
+      await new Promise((resolve, reject) => {
+        db.recordBasalReminder(testUserId, testDate, '20:00', 0, 'Already injected', (err) => (err ? reject(err) : resolve()));
+      });
+
+      const reminder3 = await new Promise((resolve, reject) => {
+        db.getTodayBasalReminder(testUserId, testDate, (err, row) => (err ? reject(err) : resolve(row)));
+      });
+      assert.strictEqual(reminder3.status_sent, 1);
     });
 
     it('expires stale notifications overdue by more than the threshold to prevent flooding', async () => {

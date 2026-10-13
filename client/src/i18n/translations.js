@@ -158,7 +158,11 @@ export const translations = {
       basalThisWeek: 'Basal this week:',
       typeBolus: 'Bolus',
       typeBasal: 'Basal',
-      basalNoReminders: 'Background dose (no reminders)'
+      basalNoReminders: 'Background dose (no reminders)',
+      basalReminderLabel: 'Basal Reminder:',
+      notInjectedYet: 'Not injected yet',
+      basalReminderTitle: 'Basal Injection Reminder',
+      basalReminderDesc: 'Daily reminder sent if basal insulin is not injected by your scheduled time.'
     },
     settings: {
       language: 'Language',
@@ -247,7 +251,8 @@ export const translations = {
       targetTimeLabel: 'Attempt / Target Time:',
       sentSuccessText: 'Sent successfully to your configured Telegram destination.',
       scheduledForText: 'This reminder is scheduled for {time}.',
-      reminderDetailsLabel: 'Details:'
+      reminderDetailsLabel: 'Details:',
+      basalReminderTitle: 'Basal Injection Reminder'
     },
     auth: {
       completeProfileTitle: 'Complete Your Profile',
@@ -514,7 +519,11 @@ export const translations = {
       basalThisWeek: 'בזאלי השבוע:',
       typeBolus: 'בולוס',
       typeBasal: 'בזאלי',
-      basalNoReminders: 'מינון רקע (ללא תזכורות)'
+      basalNoReminders: 'מינון רקע (ללא תזכורות)',
+      basalReminderLabel: 'תזכורת בזאלית:',
+      notInjectedYet: 'טרם הוזרק',
+      basalReminderTitle: 'תזכורת להזרקת אינסולין בזאלי',
+      basalReminderDesc: 'תזכורת יומית הנשלחת במידה ואינסולין בזאלי לא הוזרק עד השעה שנקבעה.'
     },
     settings: {
       language: 'שפה',
@@ -603,7 +612,8 @@ export const translations = {
       targetTimeLabel: 'זמן יעד מתוכנן:',
       sentSuccessText: 'ההתראה נשלחה בהצלחה ליעד הטלגרם המוגדר.',
       scheduledForText: 'תזכורת זו מתוזמנת לשעה {time}.',
-      reminderDetailsLabel: 'פרטים נוספים:'
+      reminderDetailsLabel: 'פרטים נוספים:',
+      basalReminderTitle: 'תזכורת להזרקת אינסולין בזאלי'
     },
     auth: {
       completeProfileTitle: 'השלמת פרטי הפרופיל',
@@ -870,7 +880,11 @@ export const translations = {
       basalThisWeek: 'Базал за неделю:',
       typeBolus: 'Болюс',
       typeBasal: 'Базал',
-      basalNoReminders: 'Продлённая доза (без напоминаний)'
+      basalNoReminders: 'Продлённая доза (без напоминаний)',
+      basalReminderLabel: 'Напоминание о базале:',
+      notInjectedYet: 'Ещё не введено',
+      basalReminderTitle: 'Напоминание о базальном инсулине',
+      basalReminderDesc: 'Ежедневное напоминание, отправляемое, если базальный инсулин не был введён к заданному времени.'
     },
     settings: {
       language: 'Язык',
@@ -959,7 +973,8 @@ export const translations = {
       targetTimeLabel: 'Контрольное время / попытка:',
       sentSuccessText: 'Успешно отправлено в настроенный чат Telegram.',
       scheduledForText: 'Это напоминание запланировано на {time}.',
-      reminderDetailsLabel: 'Подробности:'
+      reminderDetailsLabel: 'Подробности:',
+      basalReminderTitle: 'Напоминание о базальном инсулине'
     },
     auth: {
       completeProfileTitle: 'Заполните ваш профиль',

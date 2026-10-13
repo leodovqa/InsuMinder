@@ -119,6 +119,20 @@ db.serialize(() => {
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
     + "FOREIGN KEY(owner_id) REFERENCES users(id)"
     + ")");
+
+  // Basal reminders table
+  db.run("CREATE TABLE IF NOT EXISTS basal_reminders ("
+    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    + "user_id INTEGER NOT NULL,"
+    + "reminder_date TEXT NOT NULL,"
+    + "scheduled_time TEXT NOT NULL,"
+    + "status_sent BOOLEAN DEFAULT 0,"
+    + "sent_at TIMESTAMP,"
+    + "error TEXT,"
+    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+    + "UNIQUE(user_id, reminder_date),"
+    + "FOREIGN KEY(user_id) REFERENCES users(id)"
+    + ")");
 });
 
 /* =========================================================================
@@ -753,6 +767,89 @@ function createShareInvite(ownerId, inviteEmail, callback) {
   });
 }
 
+function getTodayBasalReminder(userId, dateStr, callback) {
+  if (!userId) return callback(null, null);
+  db.get(
+    "SELECT * FROM basal_reminders WHERE user_id = ? AND reminder_date = ? LIMIT 1",
+    [userId, dateStr],
+    callback
+  );
+}
+
+function recordBasalReminder(userId, dateStr, scheduledTime, statusSent, errorMsg, callback) {
+  if (!userId) return callback ? callback(null) : undefined;
+  const sentAt = statusSent ? new Date().toISOString() : null;
+  const cleanError = errorMsg ? String(errorMsg).trim() : null;
+
+  db.run(
+    "INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error) "
+    + "VALUES (?, ?, ?, ?, ?, ?) "
+    + "ON CONFLICT(user_id, reminder_date) DO UPDATE SET "
+    + "status_sent = CASE WHEN basal_reminders.status_sent = 1 THEN 1 ELSE excluded.status_sent END, "
+    + "sent_at = COALESCE(basal_reminders.sent_at, excluded.sent_at), "
+    + "error = CASE WHEN basal_reminders.status_sent = 1 THEN NULL ELSE excluded.error END",
+    [userId, dateStr, scheduledTime || '20:00', statusSent ? 1 : 0, sentAt, cleanError],
+    callback
+  );
+}
+
+function getUsersPendingBasalReminder(currentTimeStr, dateStr, callback) {
+  db.all(
+    "SELECT u.id, u.email, u.language, COALESCE(u.basal_time, '20:00') as basal_time "
+    + "FROM users u "
+    + "WHERE COALESCE(u.basal_time, '20:00') <= ? "
+    + "AND NOT EXISTS ("
+    + "  SELECT 1 FROM basal_reminders r "
+    + "  WHERE r.user_id = u.id "
+    + "    AND r.reminder_date = ?"
+    + ")",
+    [currentTimeStr, dateStr],
+    (err, users) => {
+      if (err) return callback(err);
+      if (!users || users.length === 0) return callback(null, []);
+
+      const pending = [];
+      let pendingCount = users.length;
+
+      users.forEach(user => {
+        db.all(
+          "SELECT id, injected_at FROM injection_logs WHERE user_id = ? AND type = 'basal' ORDER BY injected_at DESC LIMIT 10",
+          [user.id],
+          (logErr, logs) => {
+            if (!logErr && logs) {
+              const alreadyLoggedToday = logs.some(l => {
+                try {
+                  const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'Asia/Jerusalem',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                  }).formatToParts(new Date(l.injected_at));
+                  const m = Object.fromEntries(parts.map(p => [p.type, p.value]));
+                  return `${m.year}-${m.month}-${m.day}` === dateStr;
+                } catch {
+                  return false;
+                }
+              });
+              if (alreadyLoggedToday) {
+                recordBasalReminder(user.id, dateStr, user.basal_time, 0, 'Already injected', () => {});
+              } else {
+                pending.push(user);
+              }
+            } else {
+              pending.push(user);
+            }
+            pendingCount--;
+            if (pendingCount === 0) {
+              callback(null, pending);
+            }
+          }
+        );
+      });
+    }
+  );
+}
+
 module.exports = {
   db,
   createUser,
@@ -783,5 +880,8 @@ module.exports = {
   removeSharedMember,
   leaveSharedGroup,
   isSharedMember,
-  createShareInvite
+  createShareInvite,
+  getTodayBasalReminder,
+  recordBasalReminder,
+  getUsersPendingBasalReminder
 };

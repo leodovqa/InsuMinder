@@ -592,6 +592,10 @@ app.post('/api/injections', requireAuth, resolveContext, (req, res) => {
     } else {
       if (cleanType !== 'basal') {
         scheduler.checkAndDispatchNotifications();
+      } else {
+        // If basal injection logged, ensure basal reminder is marked as 'Already injected' if not already sent
+        const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
+        db.recordBasalReminder(targetUserId, todayDate, req.user?.basal_time || '20:00', 0, 'Already injected', () => {});
       }
       res.json({ success: true, id: this.lastID, type: cleanType });
     }
@@ -602,7 +606,7 @@ app.post('/api/injections', requireAuth, resolveContext, (req, res) => {
 app.get('/api/logs', optionalAuth, resolveContext, (req, res) => {
   if (!req.user || !req.user.id) {
     // When logged out: return empty list so unauthenticated visitors see clean empty state
-    return res.json({ success: true, logs: [] });
+    return res.json({ success: true, logs: [], basalReminder: null });
   }
 
   const targetUserId = req.effectiveUserId || req.user.id;
@@ -610,7 +614,14 @@ app.get('/api/logs', optionalAuth, resolveContext, (req, res) => {
     if (err) {
       res.status(500).json({ success: false, error: err.message });
     } else {
-      res.json({ success: true, logs: rows || [] });
+      const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
+      db.getTodayBasalReminder(targetUserId, todayDate, (bErr, basalReminder) => {
+        res.json({
+          success: true,
+          logs: rows || [],
+          basalReminder: basalReminder || null
+        });
+      });
     }
   });
 });

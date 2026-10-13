@@ -15,7 +15,8 @@ import {
   getRapidInjections,
   maskBotToken,
   isCustomConfigName,
-  getReminderStatus
+  getReminderStatus,
+  getBasalReminderStatus
 } from './utils';
 import AuthModal from './AuthModal';
 import Profile from './Profile';
@@ -157,6 +158,7 @@ function InjectionEligibility({ latestLog }) {
 function AppContent() {
   const { t, language, setLanguage, isRTL } = useTranslation();
   const [logs, setLogs] = useState([]);
+  const [basalReminder, setBasalReminder] = useState(null);
   const [activeTab, setActiveTab] = useState(() => getTabFromUrl()); // 'home' | 'logs' | 'settings'
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -308,6 +310,16 @@ function AppContent() {
 
   const handleOpenReminderModal = (log, type) => {
     if (!log) return;
+    if (type === 'basal') {
+      const hasLoggedBasalToday = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at) === todayDateKey);
+      const statusInfo = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, hasLoggedBasalToday);
+      setReminderModalData({
+        ...statusInfo,
+        title: t('modals.basalReminderTitle'),
+        formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime) : (basalTime || '20:00')
+      });
+      return;
+    }
     const statusInfo = getReminderStatus(log, type, isTelegramConfigured, language);
     const title = type === '10m'
       ? t('home.rem10mTitle')
@@ -363,8 +375,11 @@ function AppContent() {
     })
       .then(response => response.json())
       .then(data => {
-        if (data.success && Array.isArray(data.logs)) {
-          setLogs(data.logs);
+        if (data.success) {
+          if (Array.isArray(data.logs)) {
+            setLogs(data.logs);
+          }
+          setBasalReminder(data.basalReminder || null);
         }
       })
       .catch(error => console.error('Error fetching logs:', error));
@@ -494,6 +509,7 @@ function AppContent() {
     setActiveOwnerId(null);
     setShareStatus({ shareCode: '', members: [], sharedGroups: [] });
     setLogs([]);
+    setBasalReminder(null);
     setTelegramConfigs([]);
     setIsNavOpen(false);
     setNotification({
@@ -1985,7 +2001,7 @@ function AppContent() {
                     </span>
                   </div>
 
-                  {todayLogs.length === 0 ? (
+                  {todayLogs.length === 0 && hasLoggedBasalToday ? (
                     <div className="daily-empty-card">
                       <span className="daily-empty-text">{t('logs.noInjectionsToday')}</span>
                     </div>
@@ -2011,10 +2027,26 @@ function AppContent() {
                               </div>
                             </div>
                             {log.type === 'basal' ? (
-                              <div className="log-basal-desc">
-                                <span className="log-basal-icon">🌙</span>
-                                <span>{t('logs.basalNoReminders')}</span>
-                              </div>
+                              (() => {
+                                const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, true);
+                                return (
+                                  <div className="log-field">
+                                    <span className="log-label">{t('logs.basalReminderLabel')}</span>
+                                    <div className="log-value-row">
+                                      <span className="log-value" dir="ltr">{basalTime || '20:00'}</span>
+                                      <button
+                                        type="button"
+                                        className={`log-status-pill log-status-pill-btn ${basalStatus.pillClass}`}
+                                        onClick={() => handleOpenReminderModal(basalReminder || {}, 'basal')}
+                                        title={basalStatus.title}
+                                        aria-label={`${t('modals.basalReminderTitle')}: ${basalStatus.label}.`}
+                                      >
+                                        {basalStatus.icon} {basalStatus.label}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })()
                             ) : (
                               (() => {
                                 const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured, language);
@@ -2074,6 +2106,39 @@ function AppContent() {
                           </li>
                         );
                       })}
+                      {!hasLoggedBasalToday && (
+                        <li className="log-item basal-log-item pending-basal-log-item">
+                          <div className="log-field">
+                            <span className="log-label">{t('logs.injectedLabel')}</span>
+                            <div className="log-value-group">
+                              <span className="log-value log-value-muted">{t('logs.notInjectedYet')}</span>
+                              <span className="log-type-badge badge-basal">
+                                {t('logs.typeBasal')}
+                              </span>
+                            </div>
+                          </div>
+                          {(() => {
+                            const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, false);
+                            return (
+                              <div className="log-field">
+                                <span className="log-label">{t('logs.basalReminderLabel')}</span>
+                                <div className="log-value-row">
+                                  <span className="log-value" dir="ltr">{basalTime || '20:00'}</span>
+                                  <button
+                                    type="button"
+                                    className={`log-status-pill log-status-pill-btn ${basalStatus.pillClass}`}
+                                    onClick={() => handleOpenReminderModal(basalReminder || {}, 'basal')}
+                                    title={basalStatus.title}
+                                    aria-label={`${t('modals.basalReminderTitle')}: ${basalStatus.label}.`}
+                                  >
+                                    {basalStatus.icon} {basalStatus.label}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </li>
+                      )}
                     </ul>
                   )}
                 </div>

@@ -69,7 +69,8 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Slide-Out Drawer:** Clean left-sided drawer housing the complete logs view.
 - **Stacked Israeli Calendar Weekly Chart (Sunday–Saturday):** Visual stacked bar chart grouped by week with previous/next week navigation. Bolus doses form the foundation (blue for historical days, purple for today), and Basal doses are stacked on top in vibrant orange (`#ea580c`).
 - **Weekly Modality Metric Chips:** Quick-glance chips above the chart display weekly counts: `Bolus this week` and `Basal this week`.
-- **Dose Type Badges & Reminders Notice:** Each log entry displays a `Bolus` or `Basal` badge. Basal entries feature a calm note confirming that background insulin requires no follow-up reminder alerts.
+- **Dose Type Badges & Reminders Notice:** Each log entry displays a `Bolus` or `Basal` badge.
+- **Basal Scheduled Reminder Status (In Logs Only):** If basal insulin has not yet been injected today, a dedicated basal status row appears under today's logs showing `Not injected yet` alongside its scheduled reminder time and live status pill (`⏳ Pending`, `✓ Sent`, or `✕ Not Sent`). Once injected, it displays the logged dose time and the reminder dispatch status. Clicking the status pill opens the reminder details modal with comprehensive delivery diagnostics.
 - **Per-Dose Delivery Pills:** Each bolus log entry displays pills for 10m, 2h, and 3h reminder statuses (`Sent`, `Pending`, or `Not Sent` with delivery error diagnostics tooltip).
 - **Direct URL Deep Linking:** Direct navigation via query parameters (e.g. `/?page=logs`, `/?page=settings`, `/?page=profile`).
 

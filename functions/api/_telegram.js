@@ -185,6 +185,21 @@ export async function ensureTablesExist(db) {
     )`
   ).run();
 
+  // Basal reminders table
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS basal_reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      reminder_date TEXT NOT NULL,
+      scheduled_time TEXT NOT NULL,
+      status_sent BOOLEAN DEFAULT 0,
+      sent_at TIMESTAMP,
+      error TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, reminder_date)
+    )`
+  ).run();
+
   try {
     await db.prepare(`ALTER TABLE users ADD COLUMN first_name TEXT`).run();
   } catch (err) {
@@ -312,6 +327,36 @@ export function buildMessage3h(injectedAt, isLocal = false, lang = 'en') {
   return `${prefix}\n⏰ 3-Hour Injection Eligibility${doseLine}\n\n3 hours have passed since your injection. Safe window reached for your next dose if needed.`;
 }
 
+export function getJerusalemDateAndTime(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const m = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return {
+    dateStr: `${m.year}-${m.month}-${m.day}`,
+    timeStr: `${m.hour}:${m.minute}`
+  };
+}
+
+export function buildMessageBasal(isLocal = false, lang = 'en') {
+  if (lang === 'he') {
+    const prefix = isLocal ? "🌙 מאת InsuMinder (Local):" : "🌙 מאת InsuMinder:";
+    return `${prefix}\n⏰ תזכורת להזרקת אינסולין בזאלי\n\nנא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.`;
+  }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "🌙 От InsuMinder (Local):" : "🌙 От InsuMinder:";
+    return `${prefix}\n⏰ Напоминание о базальном инсулине\n\nПожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.`;
+  }
+  const prefix = isLocal ? "🌙 From InsuMinder (Local):" : "🌙 From InsuMinder:";
+  return `${prefix}\n⏰ Basal Injection Reminder\n\nPlease remember to take and log your daily basal insulin dose.`;
+}
+
 export async function dispatchDueNotifications(db) {
   if (!db) return { dispatched: 0 };
   try {
@@ -348,10 +393,6 @@ export async function dispatchDueNotifications(db) {
       `SELECT * FROM injection_logs WHERE (type IS NULL OR type = 'bolus') AND status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ? ORDER BY notify_3h_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
 
-    const allDue = [...(due10m || []), ...(due2h || []), ...(due3h || [])];
-    if (allDue.length === 0) {
-      return { dispatched: 0 };
-    }
 
     // Helper to find default config for a specific log's user
     const getConfigForLog = async (log) => {
@@ -476,6 +517,78 @@ export async function dispatchDueNotifications(db) {
           await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind(sendRes.error || 'Failed to send Telegram reminder.', log.id).run();
         }
       }
+    }
+
+    // Process pending due basal reminders (1 reminder per day if not injected yet)
+    try {
+      const { dateStr: jerusalemDate, timeStr: jerusalemTime } = getJerusalemDateAndTime(now);
+      const { results: pendingBasalUsers } = await db.prepare(
+        `SELECT u.id, u.email, u.language, COALESCE(u.basal_time, '20:00') as basal_time
+         FROM users u
+         WHERE COALESCE(u.basal_time, '20:00') <= ?
+         AND NOT EXISTS (
+           SELECT 1 FROM basal_reminders r
+           WHERE r.user_id = u.id AND r.reminder_date = ?
+         )`
+      ).bind(jerusalemTime, jerusalemDate).all();
+
+      if (pendingBasalUsers && pendingBasalUsers.length > 0) {
+        for (const pendingUser of pendingBasalUsers) {
+          // Check if user already logged basal injection today
+          const { results: recentBasalLogs } = await db.prepare(
+            `SELECT id, injected_at FROM injection_logs WHERE user_id = ? AND type = 'basal' ORDER BY injected_at DESC LIMIT 10`
+          ).bind(pendingUser.id).all();
+
+          const alreadyInjectedToday = (recentBasalLogs || []).some(l => {
+            try {
+              const { dateStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+              return dateStr === jerusalemDate;
+            } catch {
+              return false;
+            }
+          });
+
+          if (alreadyInjectedToday) {
+            await db.prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 0, NULL, 'Already injected')
+               ON CONFLICT(user_id, reminder_date) DO NOTHING`
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time).run();
+            continue;
+          }
+
+          const cfg = await getConfigForLog({ user_id: pendingUser.id });
+          if (!cfg || !cfg.bot_token || !cfg.chat_id) {
+            await db.prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 0, NULL, ?)
+               ON CONFLICT(user_id, reminder_date) DO UPDATE SET error = excluded.error`
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, 'Telegram is not configured. Go to Settings to set up your destination.').run();
+            continue;
+          }
+
+          const lang = pendingUser.language || 'en';
+          const msg = buildMessageBasal(false, lang);
+          const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
+
+          if (sendRes.ok) {
+            await db.prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 1, ?, NULL)
+               ON CONFLICT(user_id, reminder_date) DO UPDATE SET status_sent = 1, sent_at = excluded.sent_at, error = NULL`
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, nowIso).run();
+            count++;
+          } else {
+            await db.prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 0, NULL, ?)
+               ON CONFLICT(user_id, reminder_date) DO UPDATE SET error = excluded.error`
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, sendRes.error || 'Failed to send Telegram reminder.').run();
+          }
+        }
+      }
+    } catch (basalErr) {
+      console.error('Error dispatching basal reminders:', basalErr);
     }
 
     return { dispatched: count };

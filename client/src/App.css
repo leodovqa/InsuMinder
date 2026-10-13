@@ -2110,6 +2110,18 @@
   font-size: 14px;
 }
 
+.pending-basal-log-item {
+  border-left: 3px dashed #fb923c;
+  border-inline-start: 3px dashed #fb923c;
+  background: rgba(251, 146, 60, 0.03);
+}
+
+.log-value-muted {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-weight: 500;
+}
+
 .log-field {
   display: flex;
   justify-content: space-between;
