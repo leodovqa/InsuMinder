@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar TEXT,
     is_verified BOOLEAN DEFAULT 0,
     share_code TEXT UNIQUE,
+    basal_time TEXT DEFAULT '20:00',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS injection_logs (
     error_10m TEXT,
     error_2h TEXT,
     error_3h TEXT,
+    type TEXT DEFAULT 'bolus',
     FOREIGN KEY(user_id) REFERENCES users(id)
 );
 

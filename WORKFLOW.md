@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS users (
     share_code TEXT UNIQUE,
     failed_login_attempts INTEGER DEFAULT 0,
     locked_until TIMESTAMP,
+    basal_time TEXT DEFAULT '20:00',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS verification_codes (
 CREATE TABLE IF NOT EXISTS injection_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
+    type TEXT DEFAULT 'bolus',
     injected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     notify_10m_at TIMESTAMP NOT NULL,
     notify_2h_at TIMESTAMP NOT NULL,
@@ -112,14 +114,14 @@ CREATE TABLE IF NOT EXISTS group_members (
 
 Core API Endpoints
 - **Injections & Logs**:
-  - `POST /api/injections`: Records injection, sets 10m, 2h, and 3h reminder targets.
+  - `POST /api/injections`: Records injection (`type`: `'bolus'` | `'basal'`), sets 10m, 2h, and 3h reminder targets (marked as sent for `'basal'`).
   - `GET /api/logs`: Retrieves user-scoped logs (or viewed group member logs).
 - **Authentication**:
   - `POST /api/auth/send-code`: Generates 6-digit code for email.
   - `POST /api/auth/verify-code`: Verifies code, logs in, returns session user.
 - **User Profile**:
   - `GET /api/user/profile`: Fetches user profile.
-  - `PUT /api/user/profile`: Updates first name, last name, phone.
+  - `PUT /api/user/profile`: Updates first name, last name, phone, basal time (`HH:MM`).
 - **Caregiver / Family Sharing**:
   - `GET /api/share/groups`: Retrieves user groups and members.
   - `POST /api/share/groups`: Creates a new group with share code `INSU-XXXXXX`.

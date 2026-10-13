@@ -205,7 +205,10 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
     const isToday = dateStr === todayStr;
     const isOtherMonth = d.getMonth() !== anchorMonth;
 
-    const count = logsList.filter(log => formatDateOnly(log.injected_at) === dateStr).length;
+    const dayLogs = logsList.filter(log => formatDateOnly(log.injected_at) === dateStr);
+    const bolusCount = dayLogs.filter(log => !log.type || log.type === 'bolus').length;
+    const basalCount = dayLogs.filter(log => log.type === 'basal').length;
+    const count = bolusCount + basalCount;
 
     days.push({
       date: d,
@@ -214,12 +217,16 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
       fullDayName,
       shortDate: `${dayNum}/${monthNum}`,
       count,
+      bolusCount,
+      basalCount,
       isToday,
       isOtherMonth
     });
   }
 
-  const totalWeekInjections = days.reduce((sum, d) => sum + d.count, 0);
+  const totalBolusInjections = days.reduce((sum, d) => sum + d.bolusCount, 0);
+  const totalBasalInjections = days.reduce((sum, d) => sum + d.basalCount, 0);
+  const totalWeekInjections = totalBolusInjections + totalBasalInjections;
   const maxCount = Math.max(3, ...days.map(d => d.count));
   const activeDaysCount = days.filter(d => d.count > 0).length;
   const dailyAvg = (totalWeekInjections / 7).toFixed(1);
@@ -239,6 +246,8 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
   return {
     days,
     totalWeekInjections,
+    totalBolusInjections,
+    totalBasalInjections,
     maxCount,
     activeDaysCount,
     dailyAvg,
@@ -250,10 +259,11 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
 export const getRapidInjections = (logsList, targetDateKey = null) => {
   const rapidList = [];
   const rapidIds = new Set();
+  const bolusLogs = (logsList || []).filter(log => !log.type || log.type === 'bolus');
 
-  for (let i = 0; i < logsList.length - 1; i++) {
-    const current = logsList[i];
-    const previous = logsList[i + 1];
+  for (let i = 0; i < bolusLogs.length - 1; i++) {
+    const current = bolusLogs[i];
+    const previous = bolusLogs[i + 1];
     const currentMs = new Date(current.injected_at).getTime();
     const prevMs = new Date(previous.injected_at).getTime();
     const diffMs = currentMs - prevMs;

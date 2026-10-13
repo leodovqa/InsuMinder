@@ -138,6 +138,11 @@ export async function ensureTablesExist(db) {
   } catch (err) {
     void err;
   }
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN type TEXT DEFAULT 'bolus'`).run();
+  } catch (err) {
+    void err;
+  }
 
   // Telegram configs table
   await db.prepare(
@@ -217,6 +222,11 @@ export async function ensureTablesExist(db) {
   }
   try {
     await db.prepare(`ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN basal_time TEXT DEFAULT '20:00'`).run();
   } catch (err) {
     void err;
   }
@@ -327,15 +337,15 @@ export async function dispatchDueNotifications(db) {
     }
 
     const { results: due10m } = await db.prepare(
-      `SELECT * FROM injection_logs WHERE status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ? ORDER BY notify_10m_at ASC LIMIT 5`
+      `SELECT * FROM injection_logs WHERE (type IS NULL OR type = 'bolus') AND status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ? ORDER BY notify_10m_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
 
     const { results: due2h } = await db.prepare(
-      `SELECT * FROM injection_logs WHERE status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ? ORDER BY notify_2h_at ASC LIMIT 5`
+      `SELECT * FROM injection_logs WHERE (type IS NULL OR type = 'bolus') AND status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ? ORDER BY notify_2h_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
 
     const { results: due3h } = await db.prepare(
-      `SELECT * FROM injection_logs WHERE status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ? ORDER BY notify_3h_at ASC LIMIT 5`
+      `SELECT * FROM injection_logs WHERE (type IS NULL OR type = 'bolus') AND status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ? ORDER BY notify_3h_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
 
     const allDue = [...(due10m || []), ...(due2h || []), ...(due3h || [])];

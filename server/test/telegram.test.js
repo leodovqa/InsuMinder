@@ -126,6 +126,35 @@ describe('Telegram Notification Integration Tests', () => {
       assert.ok(target.notify_10m_at);
       assert.ok(target.notify_2h_at);
       assert.ok(target.notify_3h_at);
+      assert.strictEqual(target.type, 'bolus');
+    });
+
+    it('inserts basal injection log without scheduling pending notifications', async () => {
+      const basalLogId = await new Promise((resolve, reject) => {
+        db.insertInjectionLog(8888, 'basal', function(err) {
+          if (err) return reject(err);
+          resolve(this.lastID);
+        });
+      });
+
+      assert.ok(basalLogId > 0);
+
+      const logs = await new Promise((resolve, reject) => {
+        db.getLogsFromLast24Hours(8888, (err, rows) => (err ? reject(err) : resolve(rows)));
+      });
+
+      const basalEntry = logs.find(l => l.id === basalLogId);
+      assert.ok(basalEntry);
+      assert.strictEqual(basalEntry.type, 'basal');
+      assert.strictEqual(basalEntry.status_10m_sent, 1);
+      assert.strictEqual(basalEntry.status_2h_sent, 1);
+      assert.strictEqual(basalEntry.status_3h_sent, 1);
+
+      // Verify that getDueNotifications does not pick up basal entries
+      const due = await new Promise((resolve, reject) => {
+        db.getDueNotifications((err, rows) => (err ? reject(err) : resolve(rows)));
+      });
+      assert.ok(!due.some(l => l.id === basalLogId));
     });
 
     it('records notification errors and clears error upon successful delivery', async () => {

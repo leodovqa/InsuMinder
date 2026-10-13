@@ -646,7 +646,8 @@ describe('Authentication & User Experience Tests', () => {
 
       // Button is enabled and warning banner is absent
       await waitFor(() => {
-        const logBtn = screen.getByRole('button', { name: /Log Injection/i });
+        const logBtn = document.querySelector('.log-injection-btn');
+        expect(logBtn).toBeInTheDocument();
         expect(logBtn).toBeEnabled();
         expect(screen.queryByText(/manage your reminders/i)).not.toBeInTheDocument();
       });

@@ -66,25 +66,32 @@ export async function onRequestPost(context) {
       );
     }
 
+    const body = await request.json().catch(() => ({}));
+    const { type = 'bolus' } = body || {};
+    const cleanType = type === 'basal' ? 'basal' : 'bolus';
+    const isBasal = cleanType === 'basal';
+
     const injected_at = now.toISOString();
     const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
     const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
     const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
+    const status_sent = isBasal ? 1 : 0;
 
     const info = await db
-      .prepare("INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at)
+      .prepare("INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, cleanType)
       .run();
 
-    // Opportunistically check and dispatch notifications in background
-    if (context.waitUntil) {
+    // Opportunistically check and dispatch notifications in background (bolus only)
+    if (!isBasal && context.waitUntil) {
       context.waitUntil(dispatchDueNotifications(db));
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        id: info.meta.last_row_id
+        id: info.meta.last_row_id,
+        type: cleanType
       }),
       {
         status: 200,

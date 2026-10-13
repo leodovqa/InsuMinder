@@ -33,6 +33,7 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0", () => {});
       db.run("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP", () => {});
       db.run("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'", () => {});
+      db.run("ALTER TABLE users ADD COLUMN basal_time TEXT DEFAULT '20:00'", () => {});
     });
 
   // Verification codes table
@@ -69,6 +70,7 @@ db.serialize(() => {
       db.run("ALTER TABLE injection_logs ADD COLUMN error_10m TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_2h TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_3h TEXT", () => {});
+      db.run("ALTER TABLE injection_logs ADD COLUMN type TEXT DEFAULT 'bolus'", () => {});
     });
 
   // Settings table (legacy backward compatibility)
@@ -169,7 +171,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -233,6 +235,10 @@ function updateUser(id, updates, callback) {
     fields.push("share_code = ?");
     values.push(updates.share_code);
   }
+  if (updates.basal_time !== undefined) {
+    fields.push("basal_time = ?");
+    values.push(updates.basal_time);
+  }
 
   if (fields.length === 0) return callback(null);
 
@@ -269,9 +275,14 @@ function consumeVerificationCode(id, callback) {
    INJECTION LOGS METHODS
    ========================================================================= */
 
-function insertInjectionLog(userIdOrCallback, maybeCallback) {
-  const userId = typeof userIdOrCallback === 'number' ? userIdOrCallback : null;
-  const callback = typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback;
+function insertInjectionLog(userIdOrCallback, typeOrCallback, maybeCallback) {
+  const userId = typeof userIdOrCallback === 'number'
+    ? userIdOrCallback
+    : (typeof userIdOrCallback === 'string' && !isNaN(parseInt(userIdOrCallback, 10)) ? parseInt(userIdOrCallback, 10) : null);
+  const type = typeof typeOrCallback === 'string' ? (typeOrCallback === 'basal' ? 'basal' : 'bolus') : 'bolus';
+  const callback = typeof typeOrCallback === 'function'
+    ? typeOrCallback
+    : (typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback);
 
   const now = new Date();
   const currentMinute = now.toISOString().slice(0, 16);
@@ -292,14 +303,16 @@ function insertInjectionLog(userIdOrCallback, maybeCallback) {
     }
 
     const injected_at = now.toISOString();
+    const isBasal = type === 'basal';
     const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
     const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
     const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
+    const status_sent = isBasal ? 1 : 0;
 
     const stmt = db.prepare(
-      "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
-    stmt.run(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, callback);
+    stmt.run(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, type, callback);
     stmt.finalize();
   });
 }
@@ -577,7 +590,7 @@ function getDueNotifications(callback) {
   const nowIso = now.toISOString();
   const cutoff24hAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   db.all(
-    "SELECT * FROM injection_logs WHERE ((status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ?) OR (status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ?)) ORDER BY injected_at ASC",
+    "SELECT * FROM injection_logs WHERE (type IS NULL OR type = 'bolus') AND ((status_10m_sent = 0 AND notify_10m_at <= ? AND notify_10m_at >= ?) OR (status_2h_sent = 0 AND notify_2h_at <= ? AND notify_2h_at >= ?) OR (status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ?)) ORDER BY injected_at ASC",
     [nowIso, cutoff24hAgo, nowIso, cutoff24hAgo, nowIso, cutoff24hAgo],
     callback
   );
