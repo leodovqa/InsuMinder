@@ -2,5 +2,5 @@ npm run check:i18n
 npm run lint
 git diff --no-index --exit-code functions/ client/functions/
 npm test
-echo "✓ Pre-commit verified: Hebrew translation parity verified, Lint clean, 100% cloud/client functions parity, and test suite passing."
+echo "✓ Pre-commit verified: 3-way translation parity verified (EN, HE, RU), Lint clean, 100% cloud/client functions parity, and test suite passing."
 echo "ℹ Notice: Please ensure README.md / WORKFLOW.md are updated if new features or logic were added."

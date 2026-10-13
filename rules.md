@@ -24,8 +24,8 @@ These rules outline the guidelines for developing the web-based application.
    - Before committing or pushing changes (at the pre-commit stage), always check if there is an update, change, or new feature.
    - If a new feature, capability, or logic change is introduced, verify and update the human-readable markdown documentation (`README.md` / `WORKFLOW.md`) so that human readers and developers always have an accurate, up-to-date guide.
    - If changes are purely minor refactors or bugfixes that do not alter capabilities, updating may be skipped when not needed.
-7. **Hebrew Localization & UI Parity Rule**:
-   - Every user-facing UI feature, dialog, card, notification, label, or text element in the application must have a corresponding, natural, and logical Hebrew translation in `client/src/i18n/translations.js`.
-   - Any time new features or UI texts are created or updated, the Hebrew translations must be created or updated simultaneously with 100% key parity.
-   - Parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm --prefix client run check:i18n`. Commits or PRs with missing Hebrew keys, placeholder mismatches, or empty translations will fail.
+7. **Multilingual (Hebrew & Russian) Localization & UI Parity Rule**:
+   - Every user-facing UI feature, dialog, card, notification, label, or text element in the application must have a corresponding, natural, and logical translation in `client/src/i18n/translations.js` for both Hebrew (`he`) and Russian (`ru`).
+   - Any time new features or UI texts are created or updated, translations must be created or updated simultaneously with 100% key parity across all supported languages.
+   - Parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm --prefix client run check:i18n`. Commits or PRs with missing keys, placeholder mismatches, or empty translations will fail.
 

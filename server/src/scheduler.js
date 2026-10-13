@@ -25,6 +25,10 @@ function buildTestMessage(lang = 'en', isLocal = true) {
     const prefix = isLocal ? "מאת InsuMinder (Local):" : "מאת InsuMinder:";
     return `${prefix}\nחיבור הטלגרם הצליח! תזכורות ההזרקה שלך פעילות.`;
   }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "От InsuMinder (Local):" : "От InsuMinder:";
+    return `${prefix}\nПодключение к Telegram успешно! Напоминания об инъекциях активны.`;
+  }
   const prefix = isLocal ? "From InsuMinder (Local):" : "From InsuMinder:";
   return `${prefix}\nTelegram connection successful! Your injection reminders are active.`;
 }
@@ -35,6 +39,11 @@ function buildMessage10m(injectedAt, isLocal = true, lang = 'en') {
     const prefix = isLocal ? "🍽️ מאת InsuMinder (Local):" : "🍽️ מאת InsuMinder:";
     const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
     return `${prefix}\n⏰ תזכורת זמן ארוחה${doseLine}\n\nחלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!`;
+  }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "🍽️ От InsuMinder (Local):" : "🍽️ От InsuMinder:";
+    const doseLine = doseTime ? `\n💉 Инъекция зафиксирована в: ${doseTime}` : "";
+    return `${prefix}\n⏰ Напоминание о приёме пищи${doseLine}\n\nПрошло 10 минут с момента инъекции. Теперь можно приступить к еде!`;
   }
   const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
@@ -48,6 +57,11 @@ function buildMessage2h(injectedAt, isLocal = true, lang = 'en') {
     const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
     return `${prefix}\n⏰ בדיקת סוכר לאחר שעתיים${doseLine}\n\nנא לבדוק את רמת סוכר לאחר שעתיים מההזרקה.`;
   }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "🩸 От InsuMinder (Local):" : "🩸 От InsuMinder:";
+    const doseLine = doseTime ? `\n💉 Инъекция зафиксирована в: ${doseTime}` : "";
+    return `${prefix}\n⏰ Проверка уровня сахара через 2 часа${doseLine}\n\nПожалуйста, измерьте уровень сахара в крови через 2 часа после инъекции.`;
+  }
   const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease go and check your Glucose level after 2 Hours.`;
@@ -59,6 +73,11 @@ function buildMessage3h(injectedAt, isLocal = true, lang = 'en') {
     const prefix = isLocal ? "🎯 מאת InsuMinder (Local):" : "🎯 מאת InsuMinder:";
     const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
     return `${prefix}\n⏰ חלון הזרקה בטוח (3 שעות)${doseLine}\n\nחלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.`;
+  }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "🎯 От InsuMinder (Local):" : "🎯 От InsuMinder:";
+    const doseLine = doseTime ? `\n💉 Инъекция зафиксирована в: ${doseTime}` : "";
+    return `${prefix}\n⏰ Безопасное окно для инъекции (3 часа)${doseLine}\n\nПрошло 3 часа с момента инъекции. Наступило безопасное окно для следующей дозы при необходимости.`;
   }
   const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
@@ -135,6 +154,17 @@ async function checkAndDispatchNotifications() {
       const botToken = activeConfig.bot_token.trim();
       const chatId = activeConfig.chat_id.trim();
 
+      const userLang = await new Promise((resolve) => {
+        if (log.user_id) {
+          db.getUserById(log.user_id, (err, user) => {
+            if (!err && user && user.language) return resolve(user.language);
+            resolve('en');
+          });
+        } else {
+          resolve('en');
+        }
+      });
+
       // 10-minute meal notification
       if (!log.status_10m_sent && log.notify_10m_at <= nowIso) {
         const notifyTime = new Date(log.notify_10m_at).getTime();
@@ -146,7 +176,7 @@ async function checkAndDispatchNotifications() {
           await new Promise((resolve) => db.recordNotificationError(log.id, '10m', 'Notification expired without delivery (overdue).', resolve));
         } else {
           console.log(`[Scheduler] Dispatching 10m meal reminder for injection #${log.id}...`);
-          const msg = buildMessage10m(log.injected_at, true);
+          const msg = buildMessage10m(log.injected_at, true, userLang);
           const result = await sendTelegramMessage(botToken, chatId, msg);
           if (result.ok) {
             console.log(`[Scheduler] 10m meal reminder sent successfully for #${log.id}`);
@@ -169,7 +199,7 @@ async function checkAndDispatchNotifications() {
           await new Promise((resolve) => db.recordNotificationError(log.id, '2h', 'Notification expired without delivery (overdue).', resolve));
         } else {
           console.log(`[Scheduler] Dispatching 2h reminder for injection #${log.id}...`);
-          const msg = buildMessage2h(log.injected_at, true);
+          const msg = buildMessage2h(log.injected_at, true, userLang);
           const result = await sendTelegramMessage(botToken, chatId, msg);
           if (result.ok) {
             console.log(`[Scheduler] 2h reminder sent successfully for #${log.id}`);
@@ -192,7 +222,7 @@ async function checkAndDispatchNotifications() {
           await new Promise((resolve) => db.recordNotificationError(log.id, '3h', 'Notification expired without delivery (overdue).', resolve));
         } else {
           console.log(`[Scheduler] Dispatching 3h reminder for injection #${log.id}...`);
-          const msg = buildMessage3h(log.injected_at, true);
+          const msg = buildMessage3h(log.injected_at, true, userLang);
           const result = await sendTelegramMessage(botToken, chatId, msg);
           if (result.ok) {
             console.log(`[Scheduler] 3h reminder sent successfully for #${log.id}`);

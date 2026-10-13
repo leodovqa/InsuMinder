@@ -483,7 +483,7 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 const handleProfileUpdate = async (req, res) => {
   try {
     const { firstName, lastName, phone, language } = req.body || {};
-    const cleanLang = (language && ['en', 'he'].includes(language)) ? language : null;
+    const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
 
     if (cleanLang && firstName === undefined && lastName === undefined) {
       await new Promise((resolve, reject) => {
@@ -898,7 +898,9 @@ app.post('/api/telegram/test', optionalAuth, async (req, res) => {
         success: false,
         error: userLang === 'he'
           ? 'נדרשים גם טוקן בוט וגם מזהה שיחה לשליחת הודעת בדיקה.'
-          : 'Both Bot Token and Chat ID are required to send a test message.'
+          : (userLang === 'ru'
+            ? 'Для отправки тестового сообщения требуются токен бота и ID чата.'
+            : 'Both Bot Token and Chat ID are required to send a test message.')
       });
     }
 
@@ -908,7 +910,11 @@ app.post('/api/telegram/test', optionalAuth, async (req, res) => {
     if (result.ok) {
       res.json({
         success: true,
-        message: userLang === 'he' ? 'הודעת בדיקה נשלחה בהצלחה!' : 'Test message sent successfully!'
+        message: userLang === 'he'
+          ? 'הודעת בדיקה נשלחה בהצלחה!'
+          : (userLang === 'ru'
+            ? 'Тестовое сообщение успешно отправлено!'
+            : 'Test message sent successfully!')
       });
     } else {
       res.status(400).json({ success: false, error: result.error });

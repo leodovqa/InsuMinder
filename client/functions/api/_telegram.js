@@ -243,6 +243,10 @@ export function buildTestMessage(lang = 'en', isLocal = false) {
     const prefix = isLocal ? "מאת InsuMinder (Local):" : "מאת InsuMinder:";
     return `${prefix}\nחיבור הטלגרם הצליח! תזכורות ההזרקה שלך פעילות.`;
   }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "От InsuMinder (Local):" : "От InsuMinder:";
+    return `${prefix}\nПодключение к Telegram успешно! Напоминания об инъекциях активны.`;
+  }
   const prefix = isLocal ? "From InsuMinder (Local):" : "From InsuMinder:";
   return `${prefix}\nTelegram connection successful! Your injection reminders are active.`;
 }
@@ -253,6 +257,11 @@ export function buildMessage10m(injectedAt, isLocal = false, lang = 'en') {
     const prefix = isLocal ? "🍽️ מאת InsuMinder (Local):" : "🍽️ מאת InsuMinder:";
     const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
     return `${prefix}\n⏰ תזכורת זמן ארוחה${doseLine}\n\nחלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!`;
+  }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "🍽️ От InsuMinder (Local):" : "🍽️ От InsuMinder:";
+    const doseLine = doseTime ? `\n💉 Инъекция зафиксирована в: ${doseTime}` : "";
+    return `${prefix}\n⏰ Напоминание о приёме пищи${doseLine}\n\nПрошло 10 минут с момента инъекции. Теперь можно приступить к еде!`;
   }
   const prefix = isLocal ? "🍽️ From InsuMinder (Local):" : "🍽️ From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
@@ -266,6 +275,11 @@ export function buildMessage2h(injectedAt, isLocal = false, lang = 'en') {
     const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
     return `${prefix}\n⏰ בדיקת סוכר לאחר שעתיים${doseLine}\n\nנא לבדוק את רמת הסוכר לאחר שעתיים מההזרקה.`;
   }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "🩸 От InsuMinder (Local):" : "🩸 От InsuMinder:";
+    const doseLine = doseTime ? `\n💉 Инъекция зафиксирована в: ${doseTime}` : "";
+    return `${prefix}\n⏰ Проверка уровня сахара через 2 часа${doseLine}\n\nПожалуйста, измерьте уровень сахара в крови через 2 часа после инъекции.`;
+  }
   const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
   return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease go and check your Glucose level after 2 Hours.`;
@@ -277,6 +291,11 @@ export function buildMessage3h(injectedAt, isLocal = false, lang = 'en') {
     const prefix = isLocal ? "🎯 מאת InsuMinder (Local):" : "🎯 מאת InsuMinder:";
     const doseLine = doseTime ? `\n💉 הזרקה נרשמה בשעה: ${doseTime}` : "";
     return `${prefix}\n⏰ חלון הזרקה בטוח (3 שעות)${doseLine}\n\nחלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.`;
+  }
+  if (lang === 'ru') {
+    const prefix = isLocal ? "🎯 От InsuMinder (Local):" : "🎯 От InsuMinder:";
+    const doseLine = doseTime ? `\n💉 Инъекция зафиксирована в: ${doseTime}` : "";
+    return `${prefix}\n⏰ Безопасное окно для инъекции (3 часа)${doseLine}\n\nПрошло 3 часа с момента инъекции. Наступило безопасное окно для следующей дозы при необходимости.`;
   }
   const prefix = isLocal ? "🎯 From InsuMinder (Local):" : "🎯 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";

@@ -48,7 +48,7 @@ export const authService = {
     }
     if (user) {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-      if (user.language && ['en', 'he'].includes(user.language)) {
+      if (user.language && ['en', 'he', 'ru'].includes(user.language)) {
         localStorage.setItem('insuminder_language', user.language);
         if (user.id) {
           localStorage.setItem('insuminder_language_' + user.id, user.language);
@@ -58,7 +58,7 @@ export const authService = {
   },
 
   async updateLanguage(language) {
-    if (!['en', 'he'].includes(language)) return null;
+    if (!['en', 'he', 'ru'].includes(language)) return null;
     if (typeof window !== 'undefined') {
       localStorage.setItem('insuminder_language', language);
       const user = this.getCurrentUser();

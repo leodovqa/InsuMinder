@@ -179,6 +179,9 @@ describe('Utility Functions & Helpers', () => {
 
       const infoHe = getWeekDisplayInfo(weekStart, 'he');
       expect(infoHe.monthName).toContain('אוקטובר 2026');
+
+      const infoRu = getWeekDisplayInfo(weekStart, 'ru');
+      expect(infoRu.monthName).toContain('Октябрь 2026');
     });
 
     it('calculates weekly trend data for 7 calendar days with localization', () => {
@@ -211,6 +214,20 @@ describe('Utility Functions & Helpers', () => {
       expect(trendDataHe.days[5].dayName).toBe('ו');
       expect(trendDataHe.days[6].dayName).toBe('ש');
       expect(trendDataHe.days[6].fullDayName).toBe('יום שבת');
+
+      // Russian
+      const trendDataRu = getWeeklyTrendData(mockLogs, weekStart, 'ru');
+      expect(trendDataRu.days).toHaveLength(7);
+      expect(trendDataRu.days[0].dayName).toBe('Вс');
+      expect(trendDataRu.days[0].fullDayName).toBe('Воскресенье');
+      expect(trendDataRu.days[1].dayName).toBe('Пн');
+      expect(trendDataRu.days[1].fullDayName).toBe('Понедельник');
+      expect(trendDataRu.days[2].dayName).toBe('Вт');
+      expect(trendDataRu.days[3].dayName).toBe('Ср');
+      expect(trendDataRu.days[4].dayName).toBe('Чт');
+      expect(trendDataRu.days[5].dayName).toBe('Пт');
+      expect(trendDataRu.days[6].dayName).toBe('Сб');
+      expect(trendDataRu.days[6].fullDayName).toBe('Суббота');
     });
   });
 

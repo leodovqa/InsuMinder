@@ -78,6 +78,13 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Dedicated Cloud Cron Trigger:** Scheduled via high-precision external cloud cron (e.g. cron-job.org) pinging the `/api/cron` endpoint every 5 minutes 24/7 with zero queue delay.
 - **Opportunistic Edge Dispatch:** Reminders are also verified and dispatched opportunistically on the edge on every injection log via `context.waitUntil()`.
 
+### 7. Multilingual Internationalization & Parity (EN, HE, RU)
+- **Three Supported Languages:** Complete native dictionaries for English (`en`), Hebrew (`he` - RTL), and Russian (`ru` - LTR).
+- **100% Three-Way Parity:** Strict enforcement via pre-commit and CI (`npm run check:i18n`) verifying all 310 leaf keys, non-empty values, and identical token interpolation.
+- **Natural Clinical Terminology:** Medically accurate phrasing tailored for diabetes management, insulin logs, and timed reminders.
+- **Localized Telegram Dispatch:** Reminders and test alerts are automatically sent in the patient's chosen language.
+- **Persistent Preferences:** User language choice persists seamlessly across client localStorage and backend profile database records.
+
 ---
 
 ## 🛠️ Architecture & Tech Stack

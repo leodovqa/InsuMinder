@@ -357,7 +357,7 @@ function AppContent() {
         if (currUser) {
           setUser(currUser);
           setIsLoggedIn(true);
-          if (currUser.language && (currUser.language === 'en' || currUser.language === 'he')) {
+          if (currUser.language && ['en', 'he', 'ru'].includes(currUser.language)) {
             setLanguage(currUser.language);
           }
           fetchShareStatus();
@@ -383,7 +383,7 @@ function AppContent() {
     setIsAuthModalOpen(false);
     setUrlShareCode(null);
 
-    if (authUser && authUser.language && (authUser.language === 'en' || authUser.language === 'he')) {
+    if (authUser && authUser.language && ['en', 'he', 'ru'].includes(authUser.language)) {
       setLanguage(authUser.language);
     }
 
@@ -1970,6 +1970,21 @@ function AppContent() {
                 >
                   <span className="language-name">עברית</span>
                   {language === 'he' && (
+                    <span className="check-icon">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  className={`language-btn ${language === 'ru' ? 'active' : ''}`}
+                  onClick={() => handleSelectLanguage('ru')}
+                >
+                  <span className="language-name">Русский</span>
+                  {language === 'ru' && (
                     <span className="check-icon">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />

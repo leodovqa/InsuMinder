@@ -4,7 +4,7 @@ import { translations } from './translations';
 export { translations };
 
 const DEFAULT_LANGUAGE = 'en';
-const SUPPORTED_LANGUAGES = ['en', 'he'];
+const SUPPORTED_LANGUAGES = ['en', 'he', 'ru'];
 
 export const LanguageContext = createContext({
   language: DEFAULT_LANGUAGE,

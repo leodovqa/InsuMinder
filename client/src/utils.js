@@ -156,11 +156,14 @@ export const getWeekDisplayInfo = (selectedWeekStart, lang = 'en') => {
     activeWeekIndex = 0;
   }
 
-  const locale = lang === 'he' ? 'he-IL' : 'en-US';
-  const monthName = wednesday.toLocaleDateString(locale, {
+  const locale = lang === 'he' ? 'he-IL' : (lang === 'ru' ? 'ru-RU' : 'en-US');
+  let monthName = wednesday.toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric'
   });
+  if (lang === 'ru' && monthName) {
+    monthName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  }
 
   return {
     anchorYear,
