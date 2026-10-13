@@ -32,7 +32,7 @@ export async function onRequest(context) {
 
     const body = await request.json().catch(() => ({}));
     const { firstName, lastName, phone, language } = body;
-    const cleanLang = (language && ['en', 'he'].includes(language)) ? language : null;
+    const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
 
     if (cleanLang && firstName === undefined && lastName === undefined) {
       await db

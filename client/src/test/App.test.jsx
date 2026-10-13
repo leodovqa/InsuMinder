@@ -613,6 +613,9 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(screen.getByLabelText(/Chat ID/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Save/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Send Test Notification/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /English/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /עברית/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Русский/i })).toBeInTheDocument();
       });
     });
 

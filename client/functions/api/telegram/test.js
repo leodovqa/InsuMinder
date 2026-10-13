@@ -52,7 +52,9 @@ export async function onRequestPost(context) {
           success: false,
           error: userLang === 'he'
             ? 'נדרשים גם טוקן בוט וגם מזהה שיחה לשליחת הודעת בדיקה.'
-            : 'Both Bot Token and Chat ID are required to send a test message.'
+            : (userLang === 'ru'
+              ? 'Для отправки тестового сообщения требуются токен бота и ID чата.'
+              : 'Both Bot Token and Chat ID are required to send a test message.')
         }),
         { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );
@@ -67,7 +69,11 @@ export async function onRequestPost(context) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: userLang === 'he' ? 'הודעת בדיקה נשלחה בהצלחה!' : 'Test message sent successfully!'
+          message: userLang === 'he'
+            ? 'הודעת בדיקה נשלחה בהצלחה!'
+            : (userLang === 'ru'
+              ? 'Тестовое сообщение успешно отправлено!'
+              : 'Test message sent successfully!')
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       );

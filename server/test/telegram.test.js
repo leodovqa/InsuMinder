@@ -316,6 +316,32 @@ describe('Telegram Notification Integration Tests', () => {
       const hebMsg3h = scheduler.buildMessage3h(testIso, false, 'he');
       assert.match(hebMsg3h, /🎯 מאת InsuMinder:/);
       assert.match(hebMsg3h, /חלון הזרקה בטוח/);
+
+      // Russian localized message builders (Local vs Prod)
+      const testMsgRuLocal = scheduler.buildTestMessage('ru', true);
+      assert.match(testMsgRuLocal, /От InsuMinder \(Local\):/);
+      assert.match(testMsgRuLocal, /Подключение к Telegram успешно!/);
+
+      const testMsgRuProd = scheduler.buildTestMessage('ru', false);
+      assert.match(testMsgRuProd, /От InsuMinder:/);
+      assert.doesNotMatch(testMsgRuProd, /\(Local\)/);
+
+      const ruMsg10mLocal = scheduler.buildMessage10m(testIso, true, 'ru');
+      assert.match(ruMsg10mLocal, /🍽️ От InsuMinder \(Local\):/);
+
+      const ruMsg10mProd = scheduler.buildMessage10m(testIso, false, 'ru');
+      assert.match(ruMsg10mProd, /🍽️ От InsuMinder:/);
+      assert.doesNotMatch(ruMsg10mProd, /\(Local\)/);
+      assert.match(ruMsg10mProd, /Напоминание о приёме пищи/);
+      assert.match(ruMsg10mProd, new RegExp(`💉 Инъекция зафиксирована в: ${expectedTime}`));
+
+      const ruMsg2h = scheduler.buildMessage2h(testIso, false, 'ru');
+      assert.match(ruMsg2h, /🩸 От InsuMinder:/);
+      assert.match(ruMsg2h, /Проверка уровня сахара через 2 часа/);
+
+      const ruMsg3h = scheduler.buildMessage3h(testIso, false, 'ru');
+      assert.match(ruMsg3h, /🎯 От InsuMinder:/);
+      assert.match(ruMsg3h, /Безопасное окно для инъекции/);
     });
 
     it('expires stale notifications overdue by more than the threshold to prevent flooding', async () => {

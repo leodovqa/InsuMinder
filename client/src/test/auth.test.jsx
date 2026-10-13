@@ -96,6 +96,20 @@ describe('Authentication & User Experience Tests', () => {
       expect(localStorage.getItem('insuminder_language')).toBe('he');
       expect(localStorage.getItem('insuminder_language_7')).toBe('he');
       expect(authService.getCurrentUser()?.language).toBe('he');
+
+      // Update to Russian
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          success: true,
+          user: { id: 7, email: 'hebrew.user@med.com', language: 'ru' }
+        })
+      });
+
+      const updatedRu = await authService.updateLanguage('ru');
+      expect(updatedRu?.language).toBe('ru');
+      expect(localStorage.getItem('insuminder_language')).toBe('ru');
+      expect(localStorage.getItem('insuminder_language_7')).toBe('ru');
+      expect(authService.getCurrentUser()?.language).toBe('ru');
     });
 
     it('restores user language on login via setSession and preserves language on logout', () => {

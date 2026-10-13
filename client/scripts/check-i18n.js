@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * CI & Pre-Commit Hebrew Translation Parity Checker
+ * CI & Pre-Commit Translation Parity Checker
  *
  * Verifies that:
- * 1. 100% of keys in English (en) exist in Hebrew (he).
- * 2. 100% of keys in Hebrew (he) exist in English (en).
+ * 1. 100% of keys in English (en) exist in Hebrew (he) and Russian (ru).
+ * 2. 100% of keys in Hebrew (he) and Russian (ru) exist in English (en).
  * 3. No translation value is empty, null, or undefined.
- * 4. Interpolation placeholders ({param}) match between en and he.
+ * 4. Interpolation placeholders ({param}) match between en and each target language.
  */
 
 import process from 'node:process';
@@ -33,59 +33,18 @@ function extractPlaceholders(str) {
 }
 
 function runParityCheck() {
-  console.log('🌐 Checking Internationalization (i18n) Parity between English (en) and Hebrew (he)...');
+  console.log('🌐 Checking Internationalization (i18n) Parity across English (en), Hebrew (he), and Russian (ru)...');
 
   if (!translations.en || typeof translations.en !== 'object') {
     console.error('❌ Error: English translations (en) missing or invalid.');
     process.exit(1);
   }
 
-  if (!translations.he || typeof translations.he !== 'object') {
-    console.error('❌ Error: Hebrew translations (he) missing or invalid.');
-    process.exit(1);
-  }
-
   const enLeafs = collectLeafKeys(translations.en);
-  const heLeafs = collectLeafKeys(translations.he);
-
   const enKeys = Object.keys(enLeafs);
-  const heKeys = Object.keys(heLeafs);
-
-  const missingInHe = enKeys.filter(k => !(k in heLeafs));
-  const missingInEn = heKeys.filter(k => !(k in enLeafs));
 
   const emptyInEn = enKeys.filter(k => typeof enLeafs[k] !== 'string' || !enLeafs[k].trim());
-  const emptyInHe = heKeys.filter(k => typeof heLeafs[k] !== 'string' || !heLeafs[k].trim());
-
-  // Check placeholder matching
-  const placeholderMismatches = [];
-  for (const k of enKeys) {
-    if (k in heLeafs) {
-      const enTokens = extractPlaceholders(enLeafs[k]);
-      const heTokens = extractPlaceholders(heLeafs[k]);
-      if (enTokens.join(',') !== heTokens.join(',')) {
-        placeholderMismatches.push({
-          key: k,
-          en: enTokens,
-          he: heTokens
-        });
-      }
-    }
-  }
-
   let hasError = false;
-
-  if (missingInHe.length > 0) {
-    hasError = true;
-    console.error(`❌ [Missing in Hebrew]: ${missingInHe.length} key(s) are missing from Hebrew:`);
-    missingInHe.forEach(k => console.error(`    - ${k}`));
-  }
-
-  if (missingInEn.length > 0) {
-    hasError = true;
-    console.error(`❌ [Missing in English]: ${missingInEn.length} key(s) exist in Hebrew but not in English:`);
-    missingInEn.forEach(k => console.error(`    - ${k}`));
-  }
 
   if (emptyInEn.length > 0) {
     hasError = true;
@@ -93,28 +52,77 @@ function runParityCheck() {
     emptyInEn.forEach(k => console.error(`    - ${k}`));
   }
 
-  if (emptyInHe.length > 0) {
-    hasError = true;
-    console.error(`❌ [Empty in Hebrew]: ${emptyInHe.length} key(s) are empty:`);
-    emptyInHe.forEach(k => console.error(`    - ${k}`));
-  }
+  const targetLanguages = [
+    { code: 'he', name: 'Hebrew' },
+    { code: 'ru', name: 'Russian' }
+  ];
 
-  if (placeholderMismatches.length > 0) {
-    hasError = true;
-    console.error(`❌ [Placeholder Mismatch]: ${placeholderMismatches.length} key(s) have mismatched tokens:`);
-    placeholderMismatches.forEach(m => {
-      console.error(`    - ${m.key}: EN has {${m.en.join(', ')}}, HE has {${m.he.join(', ')}}`);
-    });
+  for (const { code, name } of targetLanguages) {
+    if (!translations[code] || typeof translations[code] !== 'object') {
+      console.error(`❌ Error: ${name} translations (${code}) missing or invalid.`);
+      process.exit(1);
+    }
+
+    const targetLeafs = collectLeafKeys(translations[code]);
+    const targetKeys = Object.keys(targetLeafs);
+
+    const missingInTarget = enKeys.filter(k => !(k in targetLeafs));
+    const missingInEn = targetKeys.filter(k => !(k in enLeafs));
+    const emptyInTarget = targetKeys.filter(k => typeof targetLeafs[k] !== 'string' || !targetLeafs[k].trim());
+
+    const placeholderMismatches = [];
+    for (const k of enKeys) {
+      if (k in targetLeafs) {
+        const enTokens = extractPlaceholders(enLeafs[k]);
+        const targetTokens = extractPlaceholders(targetLeafs[k]);
+        if (enTokens.join(',') !== targetTokens.join(',')) {
+          placeholderMismatches.push({
+            key: k,
+            en: enTokens,
+            target: targetTokens
+          });
+        }
+      }
+    }
+
+    if (missingInTarget.length > 0) {
+      hasError = true;
+      console.error(`❌ [Missing in ${name} (${code})]: ${missingInTarget.length} key(s) are missing:`);
+      missingInTarget.forEach(k => console.error(`    - ${k}`));
+    }
+
+    if (missingInEn.length > 0) {
+      hasError = true;
+      console.error(`❌ [Missing in English (extra in ${code})]: ${missingInEn.length} key(s) exist in ${code} but not in EN:`);
+      missingInEn.forEach(k => console.error(`    - ${k}`));
+    }
+
+    if (emptyInTarget.length > 0) {
+      hasError = true;
+      console.error(`❌ [Empty in ${name} (${code})]: ${emptyInTarget.length} key(s) are empty:`);
+      emptyInTarget.forEach(k => console.error(`    - ${k}`));
+    }
+
+    if (placeholderMismatches.length > 0) {
+      hasError = true;
+      console.error(`❌ [Placeholder Mismatch in ${name} (${code})]: ${placeholderMismatches.length} key(s) have mismatched tokens:`);
+      placeholderMismatches.forEach(m => {
+        console.error(`    - ${m.key}: EN has {${m.en.join(', ')}}, ${code.toUpperCase()} has {${m.target.join(', ')}}`);
+      });
+    }
+
+    if (!hasError) {
+      console.log(`✓ ${name} (${code}) translation parity verified: ${enKeys.length} keys in 100% full parity with EN.`);
+    }
   }
 
   if (hasError) {
-    console.error('\n💥 i18n parity check FAILED! Please update Hebrew and English translations to ensure 100% parity.\n');
+    console.error('\n💥 i18n parity check FAILED! Please update translations to ensure 100% parity.\n');
     process.exit(1);
   }
 
-  console.log(`✓ Hebrew translation parity verified: ${enKeys.length} keys in 100% full parity between EN and HE.`);
+  console.log(`\n✓ Full 3-way translation parity verified across EN, HE, and RU (${enKeys.length} keys).`);
   console.log('✓ All translations non-empty, and all interpolation tokens matched.\n');
 }
 
 runParityCheck();
-

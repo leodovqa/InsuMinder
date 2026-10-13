@@ -159,14 +159,19 @@ Explain changes in 1–2 sentences before writing code.
 
 ---
 
-## Internationalization & Hebrew Localization
+## Internationalization (i18n) & Multilingual Localization
 
-- **Source of Truth**: `client/src/i18n/translations.js` maintains dictionaries for `en` (English) and `he` (Hebrew).
-- **Hebrew Standards**: Terminology must use natural, logical, and medically accurate Israeli diabetes terms (e.g., הזרקת אינסולין, חלון ארוחה, בדיקת סוכר, חלון בטוח, יומן הזרקות, הצטברות אינסולין).
+- **Source of Truth**: `client/src/i18n/translations.js` maintains dictionaries for:
+  - `en`: English (Source of Truth)
+  - `he`: Hebrew (Natural, medically accurate Israeli terminology; RTL layout)
+  - `ru`: Russian (Natural, medically accurate Russian terminology; LTR layout)
+- **Terminology Standards**:
+  - Hebrew: natural Israeli diabetes terms (e.g., הזרקת אינסולין, חלון ארוחה, בדיקת סוכר, חלון בטוח).
+  - Russian: natural clinical and diabetes terms (e.g., фиксация инъекции, напоминание о приёме пищи, проверка уровня сахара, безопасное окно для инъекции).
 - **Parity Requirement**:
-  - Every UI string, feature, dialog, notification, and card must exist in both `en` and `he` with 100% key parity.
+  - Every UI string, feature, dialog, notification, and card must exist across `en`, `he`, and `ru` with 100% 3-way key parity.
   - No empty or missing translations are permitted.
-  - Parameter tokens (e.g. `{name}`, `{time}`, `{count}`) must match across languages.
+  - Parameter tokens (e.g. `{name}`, `{time}`, `{count}`) must match across all languages.
 - **Enforcement**:
   - Pre-commit hook runs `npm run check:i18n`.
   - CI workflow runs `npm --prefix client run check:i18n` under the `lint` job.
