@@ -252,7 +252,10 @@ export const translations = {
       sentSuccessText: 'Sent successfully to your configured Telegram destination.',
       scheduledForText: 'This reminder is scheduled for {time}.',
       reminderDetailsLabel: 'Details:',
-      basalReminderTitle: 'Basal Injection Reminder'
+      basalReminderTitle: 'Basal Injection Reminder',
+      earlyInjectionTitle: 'Early Injection Confirmation',
+      earlyInjectionConfirmText: 'Less than 3 hours have passed since your previous injection. Are you sure you want to log another dose now?',
+      earlyInjectionWarning: 'Injecting too soon may cause insulin stacking and hypoglycemia.'
     },
     auth: {
       completeProfileTitle: 'Complete Your Profile',
@@ -613,7 +616,10 @@ export const translations = {
       sentSuccessText: 'ההתראה נשלחה בהצלחה ליעד הטלגרם המוגדר.',
       scheduledForText: 'תזכורת זו מתוזמנת לשעה {time}.',
       reminderDetailsLabel: 'פרטים נוספים:',
-      basalReminderTitle: 'תזכורת להזרקת אינסולין בזאלי'
+      basalReminderTitle: 'תזכורת להזרקת אינסולין בזאלי',
+      earlyInjectionTitle: 'אישור הזרקה מוקדמת',
+      earlyInjectionConfirmText: 'טרם חלפו 3 שעות ממועד ההזרקה הקודם. האם אתה בטוח שברצונך לתעד הזרקה נוספת כעת?',
+      earlyInjectionWarning: 'הזרקה מוקדמת מדי עלולה לגרום להצטברות אינסולין ולירידת סוכר (היפוגליקמיה).'
     },
     auth: {
       completeProfileTitle: 'השלמת פרטי הפרופיל',
@@ -974,7 +980,10 @@ export const translations = {
       sentSuccessText: 'Успешно отправлено в настроенный чат Telegram.',
       scheduledForText: 'Это напоминание запланировано на {time}.',
       reminderDetailsLabel: 'Подробности:',
-      basalReminderTitle: 'Напоминание о базальном инсулине'
+      basalReminderTitle: 'Напоминание о базальном инсулине',
+      earlyInjectionTitle: 'Подтверждение ранней инъекции',
+      earlyInjectionConfirmText: 'С момента предыдущей инъекции прошло менее 3 часов. Вы уверены, что хотите зафиксировать ещё одну дозу сейчас?',
+      earlyInjectionWarning: 'Слишком ранняя инъекция может привести к накоплению инсулина и гипогликемии.'
     },
     auth: {
       completeProfileTitle: 'Заполните ваш профиль',

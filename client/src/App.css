@@ -936,6 +936,16 @@
   }
 }
 
+.log-injection-btn.btn-gray {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  box-shadow: 0 4px 20px rgba(71, 85, 105, 0.35);
+
+  &:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 6px 24px rgba(71, 85, 105, 0.45);
+  }
+}
+
 /* Notifications Scheduled Section */
 .notifications-section {
   display: flex;
@@ -3136,6 +3146,65 @@
   }
 }
 
+.confirm-early-btn {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+
+  &:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  }
+}
+
+.early-modal-card {
+  max-width: 440px;
+}
+
+.early-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.early-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.early-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.early-modal-text {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text-h);
+}
+
+.early-modal-warning {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.1);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
 /* Reminder badge / pill buttons - preserve identical size and shape */
 .reminder-badge-btn,
 .latest-reminder-pill-btn,
@@ -4871,6 +4940,8 @@
 [dir="rtl"] .modal-body,
 [dir="rtl"] .delete-modal-text,
 [dir="rtl"] .delete-modal-warning,
+[dir="rtl"] .early-modal-text,
+[dir="rtl"] .early-modal-warning,
 [dir="rtl"] .modal-explanation-intro,
 [dir="rtl"] .modal-explanation-box,
 [dir="rtl"] .modal-explanation-item,

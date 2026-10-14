@@ -1044,4 +1044,164 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
   });
+
+  describe('Early Bolus Injection Guard & Gray Button', () => {
+    it('applies btn-gray class to Bolus button when less than 3 hours passed since last bolus injection', async () => {
+      window.history.pushState({}, '', '/');
+      const recentLogs = [
+        {
+          id: 101,
+          injected_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 mins ago
+          type: 'bolus',
+          notify_3h_at: new Date(Date.now() + 2.5 * 60 * 60 * 1000).toISOString()
+        }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: recentLogs }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        const btn = document.querySelector('.log-injection-btn');
+        expect(btn).toBeInTheDocument();
+        expect(btn.classList.contains('btn-gray')).toBe(true);
+      });
+    });
+
+    it('opens early injection confirmation modal when clicking gray Bolus button, and dismisses on No', async () => {
+      window.history.pushState({}, '', '/');
+      const recentLogs = [
+        {
+          id: 102,
+          injected_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          type: 'bolus',
+          notify_3h_at: new Date(Date.now() + 2.5 * 60 * 60 * 1000).toISOString()
+        }
+      ];
+
+      let injectionCalled = false;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: recentLogs }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        if (url === '/api/injections' && opts?.method === 'POST') {
+          injectionCalled = true;
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, id: 103 }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      const bolusBtn = await screen.findByRole('button', { name: /Log Injection/i });
+      expect(bolusBtn.classList.contains('btn-gray')).toBe(true);
+
+      fireEvent.click(bolusBtn);
+
+      // Confirmation modal should be visible
+      expect(await screen.findByText('Early Injection Confirmation')).toBeInTheDocument();
+      expect(screen.getByText(/Less than 3 hours have passed since your previous injection/i)).toBeInTheDocument();
+
+      // Click "No" button
+      const noBtn = screen.getByRole('button', { name: /^No$/i });
+      fireEvent.click(noBtn);
+
+      // Modal closes and no injection was posted
+      await waitFor(() => {
+        expect(screen.queryByText('Early Injection Confirmation')).not.toBeInTheDocument();
+      });
+      expect(injectionCalled).toBe(false);
+    });
+
+    it('logs injection and closes modal when confirming Yes in early injection modal', async () => {
+      window.history.pushState({}, '', '/');
+      const recentLogs = [
+        {
+          id: 104,
+          injected_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+          type: 'bolus',
+          notify_3h_at: new Date(Date.now() + 2.25 * 60 * 60 * 1000).toISOString()
+        }
+      ];
+
+      let injectionCalled = false;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: recentLogs }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        if (url === '/api/injections' && opts?.method === 'POST') {
+          injectionCalled = true;
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, id: 105 }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      const bolusBtn = await screen.findByRole('button', { name: /Log Injection/i });
+      fireEvent.click(bolusBtn);
+
+      expect(await screen.findByText('Early Injection Confirmation')).toBeInTheDocument();
+
+      // Click "Yes" button
+      const yesBtn = screen.getByRole('button', { name: /^Yes$/i });
+      fireEvent.click(yesBtn);
+
+      await waitFor(() => {
+        expect(injectionCalled).toBe(true);
+        expect(screen.queryByText('Early Injection Confirmation')).not.toBeInTheDocument();
+      });
+    });
+
+    it('does not apply btn-gray to Basal button in split mode and Basal injects directly', async () => {
+      const nightUser = { id: 1, email: 'patient@health.org', name: 'Test Patient', basalTime: '00:00' };
+      authService.setSession('test-token', nightUser);
+      window.history.pushState({}, '', '/');
+
+      // Recent bolus injection logged 10m ago
+      const recentBolus = [
+        {
+          id: 201,
+          injected_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+          type: 'bolus',
+          notify_3h_at: new Date(Date.now() + 2.8 * 60 * 60 * 1000).toISOString()
+        }
+      ];
+
+      let injectionPayload = null;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: nightUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: recentBolus }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        if (url === '/api/injections' && opts?.method === 'POST') {
+          injectionPayload = JSON.parse(opts.body);
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, id: 202 }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      // Wait for split buttons
+      const basalBtn = await screen.findByRole('button', { name: /Basal Insulin/i });
+      const bolusSplitBtn = screen.getByRole('button', { name: /Bolus Insulin/i });
+
+      // Bolus is gray, Basal is NOT gray
+      expect(bolusSplitBtn.classList.contains('btn-gray')).toBe(true);
+      expect(basalBtn.classList.contains('btn-gray')).toBe(false);
+
+      // Clicking Basal logs directly without opening early modal
+      fireEvent.click(basalBtn);
+
+      await waitFor(() => {
+        expect(injectionPayload).toEqual({ type: 'basal' });
+        expect(screen.queryByText('Early Injection Confirmation')).not.toBeInTheDocument();
+      });
+    });
+  });
 });
