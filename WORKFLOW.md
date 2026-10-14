@@ -209,4 +209,16 @@ Explain changes in 1–2 sentences before writing code.
 - **Enforcement**:
   - Pre-commit hook runs `npm run check:theme`.
   - CI workflow runs `npm --prefix client run check:theme` under the `lint` job.
-  - Automated tests run `client/src/test/theme.test.jsx`.
+  - Automated tests run `client/src/test/theme.test.jsx`.
+
+---
+
+## Branch Protection & Automated CI Gating
+
+- **Branch Protection on `main`**:
+  - The `main` branch is protected with required status checks:
+    - `Automated Tests`
+    - `JS Compilation & Build` (includes Vite build + Cloudflare Pages functions build)
+    - `Lint & Parity Check` (includes ESLint, i18n translation parity, theme parity, and functions directory parity)
+  - GitHub strictly locks and disables the **Merge pull request** button until all status checks pass 100% green.
+  - No broken, unverified, or failing code can be merged into `main` or deployed live to production.
