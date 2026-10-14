@@ -1204,4 +1204,33 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
   });
+
+  describe('Local Dev Notification Queue Clearing Button', () => {
+    it('renders dev-clear-queue-btn on home tab in local dev environment and clears queue', async () => {
+      let clearCalled = false;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
+        if (url === '/api/telegram-configs') return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        if (url === '/api/dev/clear-notifications' && opts?.method === 'POST') {
+          clearCalled = true;
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, message: 'Queue cleared' }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      const devClearBtn = await screen.findByRole('button', { name: /Clear pending notification queue/i });
+      expect(devClearBtn).toBeInTheDocument();
+      expect(devClearBtn.classList.contains('dev-clear-queue-btn')).toBe(true);
+
+      fireEvent.click(devClearBtn);
+
+      await waitFor(() => {
+        expect(clearCalled).toBe(true);
+        expect(screen.getByText(/Notification queue cleared/i)).toBeInTheDocument();
+      });
+    });
+  });
 });

@@ -89,6 +89,38 @@ export const authService = {
     }
   },
 
+  async updateTheme(theme) {
+    if (!['dark', 'light'].includes(theme)) return null;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('insuminder_theme', theme);
+      const user = this.getCurrentUser();
+      if (user && user.id) {
+        localStorage.setItem('insuminder_theme_' + user.id, theme);
+        user.theme = theme;
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      }
+    }
+
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ theme })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        this.setSession(token, data.user);
+        return data.user;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
   clearSession() {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(TOKEN_STORAGE_KEY);

@@ -28,7 +28,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/i18n/**/*.{js,jsx}'],
+    files: ['src/i18n/**/*.{js,jsx}', 'src/theme/**/*.{js,jsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },

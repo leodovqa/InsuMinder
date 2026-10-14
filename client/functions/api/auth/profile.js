@@ -31,30 +31,35 @@ export async function onRequest(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { firstName, lastName, phone, language, basalTime } = body;
+    const { firstName, lastName, phone, language, basalTime, theme } = body;
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
     const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
+    const cleanTheme = (theme && ['dark', 'light'].includes(theme)) ? theme : null;
 
-    if ((cleanLang || cleanBasalTime) && firstName === undefined && lastName === undefined) {
-      if (cleanLang && cleanBasalTime) {
-        await db
-          .prepare('UPDATE users SET language = ?, basal_time = ? WHERE id = ?')
-          .bind(cleanLang, cleanBasalTime, authUser.userId)
-          .run();
-      } else if (cleanLang) {
-        await db
-          .prepare('UPDATE users SET language = ? WHERE id = ?')
-          .bind(cleanLang, authUser.userId)
-          .run();
-      } else if (cleanBasalTime) {
-        await db
-          .prepare('UPDATE users SET basal_time = ? WHERE id = ?')
-          .bind(cleanBasalTime, authUser.userId)
-          .run();
+    if ((cleanLang || cleanBasalTime || cleanTheme) && firstName === undefined && lastName === undefined) {
+      const updates = [];
+      const params = [];
+      if (cleanLang) {
+        updates.push('language = ?');
+        params.push(cleanLang);
       }
+      if (cleanBasalTime) {
+        updates.push('basal_time = ?');
+        params.push(cleanBasalTime);
+      }
+      if (cleanTheme) {
+        updates.push('theme = ?');
+        params.push(cleanTheme);
+      }
+      params.push(authUser.userId);
+
+      await db
+        .prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`)
+        .bind(...params)
+        .run();
 
       const updatedUser = await db
-        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time FROM users WHERE id = ?')
+        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme FROM users WHERE id = ?')
         .bind(authUser.userId)
         .first();
 
@@ -70,7 +75,8 @@ export async function onRequest(context) {
           avatar: updatedUser.avatar || '',
           shareCode: updatedUser.share_code || '',
           language: updatedUser.language || cleanLang || 'en',
-          basalTime: updatedUser.basal_time || '20:00'
+          basalTime: updatedUser.basal_time || '20:00',
+          theme: updatedUser.theme || cleanTheme || 'dark'
         }
       }), {
         status: 200,
@@ -93,31 +99,30 @@ export async function onRequest(context) {
     }
 
     const fullName = `${cleanFirstName} ${cleanLastName}`.trim();
+    const fullUpdates = ['name = ?', 'first_name = ?', 'last_name = ?', 'phone = ?'];
+    const fullParams = [fullName, cleanFirstName, cleanLastName, cleanPhone || null];
 
-    if (cleanLang && cleanBasalTime) {
-      await db
-        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ?, language = ?, basal_time = ? WHERE id = ?')
-        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, cleanLang, cleanBasalTime, authUser.userId)
-        .run();
-    } else if (cleanLang) {
-      await db
-        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ?, language = ? WHERE id = ?')
-        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, cleanLang, authUser.userId)
-        .run();
-    } else if (cleanBasalTime) {
-      await db
-        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ?, basal_time = ? WHERE id = ?')
-        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, cleanBasalTime, authUser.userId)
-        .run();
-    } else {
-      await db
-        .prepare('UPDATE users SET name = ?, first_name = ?, last_name = ?, phone = ? WHERE id = ?')
-        .bind(fullName, cleanFirstName, cleanLastName, cleanPhone || null, authUser.userId)
-        .run();
+    if (cleanLang) {
+      fullUpdates.push('language = ?');
+      fullParams.push(cleanLang);
     }
+    if (cleanBasalTime) {
+      fullUpdates.push('basal_time = ?');
+      fullParams.push(cleanBasalTime);
+    }
+    if (cleanTheme) {
+      fullUpdates.push('theme = ?');
+      fullParams.push(cleanTheme);
+    }
+    fullParams.push(authUser.userId);
+
+    await db
+      .prepare(`UPDATE users SET ${fullUpdates.join(', ')} WHERE id = ?`)
+      .bind(...fullParams)
+      .run();
 
     const updatedUser = await db
-      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time FROM users WHERE id = ?')
+      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme FROM users WHERE id = ?')
       .bind(authUser.userId)
       .first();
 
@@ -133,7 +138,8 @@ export async function onRequest(context) {
         avatar: updatedUser.avatar || '',
         shareCode: updatedUser.share_code || '',
         language: updatedUser.language || 'en',
-        basalTime: updatedUser.basal_time || '20:00'
+        basalTime: updatedUser.basal_time || '20:00',
+        theme: updatedUser.theme || 'dark'
       }
     }), {
       status: 200,

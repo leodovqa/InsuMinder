@@ -57,7 +57,9 @@ CREATE TABLE IF NOT EXISTS users (
     share_code TEXT UNIQUE,
     failed_login_attempts INTEGER DEFAULT 0,
     locked_until TIMESTAMP,
+    language TEXT DEFAULT 'en',
     basal_time TEXT DEFAULT '20:00',
+    theme TEXT DEFAULT 'dark',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -145,6 +147,7 @@ Core API Endpoints
   - `POST /api/telegram-configs/default`: Switches active default.
   - `DELETE /api/telegram-configs/:id`: Deletes config.
   - `POST /api/telegram/test`: Tests bot connectivity.
+  - `POST /api/dev/clear-notifications`: Clears and resets pending notification queues in injection_logs and basal_reminders (dev & testing).
   - `GET /api/cron`: Dispatches due reminders (automated background runner).
 
 Agent Coding Constraints
@@ -189,4 +192,21 @@ Explain changes in 1–2 sentences before writing code.
 - **Enforcement**:
   - Pre-commit hook runs `npm run check:i18n`.
   - CI workflow runs `npm --prefix client run check:i18n` under the `lint` job.
-  - Automated tests run `client/src/test/i18n.test.js`.
+  - Automated tests run `client/src/test/i18n.test.js`.
+
+---
+
+## Dual Theme (Dark & Light) Consistency & Style System Parity
+
+- **Source of Truth**: `client/src/index.css` (tokens & CSS variables) and `client/src/App.css` (component styles & light mode polish overrides).
+- **Style System Standards**:
+  - Default: Modern sleek Dark mode (`:root, [data-theme="dark"]`).
+  - Light mode: Modern clean Light mode (`[data-theme="light"]`) with high contrast, sharp borders, and accessible text colors.
+  - No element should exhibit dark container bleed or low-contrast text (e.g. white text on light backgrounds or dark text on dark boxes).
+- **Parity Requirement**:
+  - All required design system CSS variables (`--bg`, `--text`, `--text-h`, `--border`, `--code-bg`, `--accent`, etc.) must be defined for both dark and light themes.
+  - Critical UI components (context switchers, form inputs, clock steppers, modal dialogues, share codes) must have dedicated light theme overrides.
+- **Enforcement**:
+  - Pre-commit hook runs `npm run check:theme`.
+  - CI workflow runs `npm --prefix client run check:theme` under the `lint` job.
+  - Automated tests run `client/src/test/theme.test.jsx`.

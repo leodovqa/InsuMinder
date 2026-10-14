@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "check:i18n": "node scripts/check-i18n.js",
+    "check:theme": "node scripts/check-theme.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"

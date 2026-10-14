@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_verified BOOLEAN DEFAULT 0,
     share_code TEXT UNIQUE,
     basal_time TEXT DEFAULT '20:00',
+    theme TEXT DEFAULT 'dark',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

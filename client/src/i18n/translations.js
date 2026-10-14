@@ -26,7 +26,12 @@ export const translations = {
       openMenu: 'Open navigation menu',
       closeMenu: 'Close navigation menu',
       backToHome: 'Back to Home',
-      viewProfile: 'View Profile'
+      viewProfile: 'View Profile',
+      theme: 'Theme',
+      darkTheme: 'Dark',
+      lightTheme: 'Light',
+      themeToggleLabel: 'Theme selector',
+      clearQueue: 'Clear pending notification queue (Dev)'
     },
     daysShort: {
       sun: 'Sun',
@@ -166,6 +171,8 @@ export const translations = {
     },
     settings: {
       language: 'Language',
+      theme: 'Theme',
+      themeDesc: 'Choose between dark and light appearance',
       telegramTitle: 'Telegram Notifications',
       telegramSubtitle: 'Configure your Telegram bot to receive injection reminders',
       telegramAuthNotice: 'Please sign in or create an account to configure Telegram notification destinations and manage your reminder bots.',
@@ -375,7 +382,8 @@ export const translations = {
       enterBothBeforeTest: 'Please enter both Bot Token and Chat ID before sending a test notification.',
       testSentCheckTelegram: 'Test notification sent! Check your Telegram chat.',
       telegramTestFailed: 'Telegram test failed: {error}',
-      failedToReachServerTest: 'Failed to reach server to test Telegram notification.'
+      failedToReachServerTest: 'Failed to reach server to test Telegram notification.',
+      queueCleared: 'Notification queue cleared! No pending reminders will be sent.'
     }
   },
   he: {
@@ -390,7 +398,12 @@ export const translations = {
       openMenu: 'פתיחת תפריט ניווט',
       closeMenu: 'סגירת תפריט ניווט',
       backToHome: 'חזרה לדף הבית',
-      viewProfile: 'צפייה בפרופיל'
+      viewProfile: 'צפייה בפרופיל',
+      theme: 'ערכת נושא',
+      darkTheme: 'כהה',
+      lightTheme: 'בהירה',
+      themeToggleLabel: 'בחירת ערכת נושא',
+      clearQueue: 'נקה תור התראות ממתינות (פיתוח)'
     },
     daysShort: {
       sun: 'א',
@@ -530,6 +543,8 @@ export const translations = {
     },
     settings: {
       language: 'שפה',
+      theme: 'ערכת נושא',
+      themeDesc: 'בחרו בין מראה כהה למראה בהיר',
       telegramTitle: 'התראות טלגרם',
       telegramSubtitle: 'הגדירו בוט טלגרם לקבלת תזכורות בזמן אמת',
       telegramAuthNotice: 'אנא התחברו או צרו חשבון כדי להגדיר יעדי התראות בטלגרם ולנהל את הבוטים שלכם.',
@@ -739,7 +754,8 @@ export const translations = {
       enterBothBeforeTest: 'נא להזין טוקן בוט ומזהה שיחה לפני שליחת הודעת בדיקה.',
       testSentCheckTelegram: 'הודעת בדיקה נשלחה! בדקו את שיחת הטלגרם שלכם.',
       telegramTestFailed: 'בדיקת טלגרם נכשלה: {error}',
-      failedToReachServerTest: 'שגיאת תקשורת עם השרת בעת בדיקת טלגרם.'
+      failedToReachServerTest: 'שגיאת תקשורת עם השרת בעת בדיקת טלגרם.',
+      queueCleared: 'תור ההתראות נוקה בהצלחה! לא יישלחו תזכורות ממתינות.'
     }
   },
   ru: {
@@ -754,7 +770,12 @@ export const translations = {
       openMenu: 'Открыть меню навигации',
       closeMenu: 'Закрыть меню навигации',
       backToHome: 'Вернуться на главную',
-      viewProfile: 'Просмотреть профиль'
+      viewProfile: 'Просмотреть профиль',
+      theme: 'Тема',
+      darkTheme: 'Тёмная',
+      lightTheme: 'Светлая',
+      themeToggleLabel: 'Выбор темы',
+      clearQueue: 'Очистить очередь уведомлений (Разработка)'
     },
     daysShort: {
       sun: 'Вс',
@@ -894,6 +915,8 @@ export const translations = {
     },
     settings: {
       language: 'Язык',
+      theme: 'Тема оформления',
+      themeDesc: 'Выберите тёмное или светлое оформление',
       telegramTitle: 'Уведомления в Telegram',
       telegramSubtitle: 'Настройте Telegram-бота для получения напоминаний об инъекциях',
       telegramAuthNotice: 'Пожалуйста, войдите или зарегистрируйтесь для настройки Telegram-уведомлений и управления ботами.',
@@ -1103,7 +1126,8 @@ export const translations = {
       enterBothBeforeTest: 'Пожалуйста, укажите токен бота и ID чата перед отправкой тестового уведомления.',
       testSentCheckTelegram: 'Тестовое уведомление отправлено! Проверьте ваш чат в Telegram.',
       telegramTestFailed: 'Ошибка тестирования Telegram: {error}',
-      failedToReachServerTest: 'Не удалось связаться с сервером для тестирования Telegram-уведомления.'
+      failedToReachServerTest: 'Не удалось связаться с сервером для тестирования Telegram-уведомления.',
+      queueCleared: 'Очередь уведомлений очищена! Ожидающие напоминания отправлены не будут.'
     }
   }
 };

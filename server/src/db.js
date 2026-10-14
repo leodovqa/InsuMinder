@@ -34,6 +34,7 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP", () => {});
       db.run("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'", () => {});
       db.run("ALTER TABLE users ADD COLUMN basal_time TEXT DEFAULT '20:00'", () => {});
+      db.run("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'", () => {});
     });
 
   // Verification codes table
@@ -185,7 +186,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, theme, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -252,6 +253,10 @@ function updateUser(id, updates, callback) {
   if (updates.basal_time !== undefined) {
     fields.push("basal_time = ?");
     values.push(updates.basal_time);
+  }
+  if (updates.theme !== undefined) {
+    fields.push("theme = ?");
+    values.push(updates.theme);
   }
 
   if (fields.length === 0) return callback(null);
@@ -850,6 +855,32 @@ function getUsersPendingBasalReminder(currentTimeStr, dateStr, callback) {
   );
 }
 
+function clearNotificationQueue(userId, callback) {
+  const cb = typeof userId === 'function' ? userId : callback;
+  const targetId = typeof userId === 'number' ? userId : null;
+
+  const logQuery = targetId
+    ? "UPDATE injection_logs SET status_10m_sent = 1, status_2h_sent = 1, status_3h_sent = 1, error_10m = 'Queue cleared (Local Dev)', error_2h = 'Queue cleared (Local Dev)', error_3h = 'Queue cleared (Local Dev)' WHERE user_id = ? AND (status_10m_sent = 0 OR status_2h_sent = 0 OR status_3h_sent = 0)"
+    : "UPDATE injection_logs SET status_10m_sent = 1, status_2h_sent = 1, status_3h_sent = 1, error_10m = 'Queue cleared (Local Dev)', error_2h = 'Queue cleared (Local Dev)', error_3h = 'Queue cleared (Local Dev)' WHERE (status_10m_sent = 0 OR status_2h_sent = 0 OR status_3h_sent = 0)";
+  const logParams = targetId ? [targetId] : [];
+
+  db.run(logQuery, logParams, function(err) {
+    if (err) return cb(err);
+    const logsCleared = this.changes;
+
+    const basalQuery = targetId
+      ? "UPDATE basal_reminders SET status_sent = 1, error = 'Queue cleared (Local Dev)' WHERE user_id = ? AND status_sent = 0"
+      : "UPDATE basal_reminders SET status_sent = 1, error = 'Queue cleared (Local Dev)' WHERE status_sent = 0";
+    const basalParams = targetId ? [targetId] : [];
+
+    db.run(basalQuery, basalParams, function(bErr) {
+      if (bErr) return cb(bErr);
+      const basalCleared = this.changes;
+      cb(null, { logsCleared, basalCleared });
+    });
+  });
+}
+
 module.exports = {
   db,
   createUser,
@@ -883,5 +914,6 @@ module.exports = {
   createShareInvite,
   getTodayBasalReminder,
   recordBasalReminder,
-  getUsersPendingBasalReminder
+  getUsersPendingBasalReminder,
+  clearNotificationQueue
 };

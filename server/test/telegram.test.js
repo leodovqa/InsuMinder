@@ -453,6 +453,75 @@ describe('Telegram Notification Integration Tests', () => {
       assert.strictEqual(staleLog.status_10m_sent, 0);
       assert.match(staleLog.error_10m, /expired.*overdue/i);
     });
+
+    it('clearNotificationQueue clears all pending unsent notifications from injection_logs and basal_reminders', async () => {
+      // 1. Insert un-sent injection log
+      const now = new Date();
+      await new Promise((resolve, reject) => {
+        db.db.run(
+          "INSERT INTO injection_logs (injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent) VALUES (?, ?, ?, ?, 0, 0, 0)",
+          [now.toISOString(), now.toISOString(), now.toISOString(), now.toISOString()],
+          (err) => (err ? reject(err) : resolve())
+        );
+      });
+
+      // 2. Insert pending basal reminder
+      await new Promise((resolve, reject) => {
+        db.recordBasalReminder(999, '2026-10-14', '20:00', 0, null, (err) => (err ? reject(err) : resolve()));
+      });
+
+      // 3. Clear queue
+      const res = await new Promise((resolve, reject) => {
+        db.clearNotificationQueue((err, result) => (err ? reject(err) : resolve(result)));
+      });
+
+      assert.ok(res.logsCleared >= 1);
+      assert.ok(res.basalCleared >= 1);
+
+      // Verify no unsent logs remain
+      const pendingLogs = await new Promise((resolve, reject) => {
+        db.db.all(
+          "SELECT * FROM injection_logs WHERE status_10m_sent = 0 OR status_2h_sent = 0 OR status_3h_sent = 0",
+          (err, rows) => (err ? reject(err) : resolve(rows))
+        );
+      });
+      assert.strictEqual(pendingLogs.length, 0);
+
+      const pendingBasal = await new Promise((resolve, reject) => {
+        db.db.all(
+          "SELECT * FROM basal_reminders WHERE status_sent = 0",
+          (err, rows) => (err ? reject(err) : resolve(rows))
+        );
+      });
+      assert.strictEqual(pendingBasal.length, 0);
+    });
+
+    it('scheduler does not send notifications when a user has no telegram configs configured (strictly scoped)', async () => {
+      // Create user 555 with NO configs
+      const userWithoutConfig = 555;
+      const recentTime = new Date().toISOString();
+
+      const logId = await new Promise((resolve, reject) => {
+        db.db.run(
+          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent) VALUES (?, ?, ?, ?, ?, 0, 0, 0)",
+          [userWithoutConfig, recentTime, recentTime, recentTime, recentTime],
+          function(err) {
+            if (err) return reject(err);
+            resolve(this.lastID);
+          }
+        );
+      });
+
+      // Even if another user or global has a config, user 555 must not send anything
+      await scheduler.checkAndDispatchNotifications();
+
+      const log = await new Promise((resolve, reject) => {
+        db.db.get("SELECT * FROM injection_logs WHERE id = ?", [logId], (err, row) => (err ? reject(err) : resolve(row)));
+      });
+
+      assert.strictEqual(log.status_10m_sent, 0);
+      assert.match(log.error_10m, /Telegram is not configured/i);
+    });
   });
 });
 

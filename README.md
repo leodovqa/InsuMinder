@@ -82,6 +82,8 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Test Notification Tool:** Built-in test dispatcher with live error reporting.
 - **Rich Message Templates:** Messages feature emoji icons (`🍽️`, `🩸`, `🎯`), explicit injection timestamps (`💉 Dose logged at: 14:31`), and environment tagging (`From InsuMinder (Local):` vs production `From InsuMinder:`).
 - **Stale Reminder Expiration Guards:** Automatically discards overdue reminders (>45m for meal, >2h for 2h check, >3h for 3h window) to eliminate notification spam when servers wake up or restart.
+- **Strict User Account Scoping:** Reminders are strictly dispatched only if the user has an active, valid Telegram configuration assigned to their account. If a user deletes their configuration or has none configured, no reminders are sent (never falling back to other users or legacy test data).
+- **Local Dev Queue Reset Control:** In local development, a dedicated button (`.dev-clear-queue-btn`) in the top-right header on the home dashboard allows clearing and cancelling all pending due notifications and scheduled basal reminders instantly.
 
 ### 6. Automated Background Delivery & Cloud Cron
 - **Production Serverless Architecture:** Hosted on Cloudflare Pages Functions with zero cold-start costs.
@@ -90,10 +92,18 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 
 ### 7. Multilingual Internationalization & Parity (EN, HE, RU)
 - **Three Supported Languages:** Complete native dictionaries for English (`en`), Hebrew (`he` - RTL), and Russian (`ru` - LTR).
-- **100% Three-Way Parity:** Strict enforcement via pre-commit and CI (`npm run check:i18n`) verifying all 310 leaf keys, non-empty values, and identical token interpolation.
+- **100% Three-Way Parity:** Strict enforcement via pre-commit and CI (`npm run check:i18n`) verifying all 338 leaf keys, non-empty values, and identical token interpolation.
 - **Natural Clinical Terminology:** Medically accurate phrasing tailored for diabetes management, insulin logs, and timed reminders.
 - **Localized Telegram Dispatch:** Reminders and test alerts are automatically sent in the patient's chosen language.
 - **Persistent Preferences:** User language choice persists seamlessly across client localStorage and backend profile database records.
+
+### 8. Dark & Light Theme Appearance
+- **Dual Visual Themes:** Complete styling system with dedicated color palettes for both Dark mode and Light mode.
+- **Dark Mode Primary Default:** Dark mode is always the robust default, with automatic detection of system preference (`prefers-color-scheme: light`) when no preference is saved.
+- **Sidebar Drawer Theme Pill:** Single, dedicated quick-toggle pill (🌙 Dark / ☀️ Light) located directly above the user name & email badge in the sidebar navigation drawer.
+- **High Contrast & Accessible Light Theme:** Refined color palettes for light mode ensuring crisp, readable text and UI components across context switchers, profile forms, 24h clock picker, and shared group controls without altering dark mode.
+- **Full Cloud & Account Sync:** User theme selection is stored locally across sessions and synchronized with the user's account profile via `PUT /api/auth/profile` and `GET /api/auth/me`.
+- **Automated Theme Parity Enforcement:** Pre-commit hooks (`.husky/pre-commit`) and CI (`.github/workflows/ci.yml`) enforce theme variable completeness, critical component overrides, and contrast safety via `npm run check:theme`.
 
 ---
 
