@@ -60,6 +60,9 @@ jobs:
       - name: Build Client (Vite)
         run: npm --prefix client run build
 
+      - name: Build Cloudflare Pages Functions
+        run: npx wrangler pages functions build functions
+
   test:
     name: Automated Tests
     runs-on: ubuntu-latest

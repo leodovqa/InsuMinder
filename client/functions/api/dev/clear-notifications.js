@@ -1,7 +1,18 @@
-import { getAuthUser } from '../_telegram.js';
+import { getAuthUser } from '../_auth.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+
+  // Guard: Strictly for local development and preview environments
+  const url = new URL(request.url);
+  const isLocalHost = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.endsWith('.local');
+  if (env.ENVIRONMENT === 'production' && !isLocalHost) {
+    return new Response(JSON.stringify({ success: false, error: 'Endpoint only available in local development.' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   const db = env.DB;
   if (!db) {
     return new Response(JSON.stringify({ success: false, error: 'Database binding missing' }), {
@@ -46,4 +57,3 @@ export async function onRequestPost(context) {
     headers: { 'Content-Type': 'application/json' }
   });
 }
-
