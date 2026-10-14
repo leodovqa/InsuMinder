@@ -202,6 +202,7 @@ function AppContent() {
   const [removeMemberModalData, setRemoveMemberModalData] = useState(null);
   const [leaveGroupModalData, setLeaveGroupModalData] = useState(null);
   const [viewingExplanationModal, setViewingExplanationModal] = useState(null);
+  const [isEarlyBolusModalOpen, setIsEarlyBolusModalOpen] = useState(false);
 
   // Synchronize URL search params with activeTab
   useEffect(() => {
@@ -214,6 +215,9 @@ function AppContent() {
       setActiveTab(getTabFromUrl());
       if (isAuthModalOpen) {
         setIsAuthModalOpen(false);
+      }
+      if (isEarlyBolusModalOpen) {
+        setIsEarlyBolusModalOpen(false);
       }
       if (removeMemberModalData) {
         setRemoveMemberModalData(null);
@@ -228,7 +232,7 @@ function AppContent() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+  }, [isAuthModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
 
   // Telegram Configuration State
   const [telegramConfigs, setTelegramConfigs] = useState(() => {
@@ -247,7 +251,7 @@ function AppContent() {
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 5000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -297,6 +301,29 @@ function AppContent() {
 
   const latestLog = logs.length > 0 ? logs[0] : null;
   const latestBolusLog = logs.find(log => !log.type || log.type === 'bolus') || null;
+  const isBolusEligible = !latestBolusLog || (new Date(latestBolusLog.notify_3h_at).getTime() <= currentTime.getTime());
+
+  const handleBolusClick = () => {
+    if (!isLoggedIn) {
+      setAuthModalMode('login');
+      setIsAuthModalOpen(true);
+      return;
+    }
+    if (!isBolusEligible) {
+      setIsEarlyBolusModalOpen(true);
+      return;
+    }
+    handleLogInjection('bolus');
+  };
+
+  const handleConfirmEarlyInjection = () => {
+    setIsEarlyBolusModalOpen(false);
+    handleLogInjection('bolus');
+  };
+
+  const handleCloseEarlyModal = () => {
+    setIsEarlyBolusModalOpen(false);
+  };
   const isTelegramConfigured = telegramConfigs.length > 0
     ? telegramConfigs.some(c => c.isDefault)
     : Boolean(
@@ -668,6 +695,8 @@ function AppContent() {
       if (e.key === 'Escape') {
         if (isAuthModalOpen) {
           setIsAuthModalOpen(false);
+        } else if (isEarlyBolusModalOpen) {
+          setIsEarlyBolusModalOpen(false);
         } else if (reminderModalData) {
           setReminderModalData(null);
         } else if (deleteModalConfig) {
@@ -686,7 +715,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
 
   // Auto-dismiss notification after 4.5 seconds
   useEffect(() => {
@@ -1391,9 +1420,9 @@ function AppContent() {
               <div className="log-injection-split-group">
                 <button
                   type="button"
-                  className="log-injection-btn split-btn btn-bolus"
+                  className={`log-injection-btn split-btn btn-bolus ${isLoggedIn && !isBolusEligible ? 'btn-gray' : ''}`}
                   disabled={!isLoggedIn}
-                  onClick={() => handleLogInjection('bolus')}
+                  onClick={handleBolusClick}
                   title={t('home.logBolusSubtitle')}
                 >
                   <span className="log-injection-plus">+</span>
@@ -1415,9 +1444,9 @@ function AppContent() {
             ) : (
               <button
                 type="button"
-                className="log-injection-btn"
+                className={`log-injection-btn ${isLoggedIn && !isBolusEligible ? 'btn-gray' : ''}`}
                 disabled={!isLoggedIn}
-                onClick={() => handleLogInjection('bolus')}
+                onClick={handleBolusClick}
                 title={!isLoggedIn ? t('home.logInjectionSubtitleLoggedOut') : t('home.logInjectionSubtitleLoggedIn')}
               >
                 <span className="log-injection-plus">+</span>
@@ -3005,6 +3034,67 @@ function AppContent() {
                 onClick={handleCloseReminderModal}
               >
                 {t('common.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Early Injection Confirmation Modal */}
+      {isEarlyBolusModalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={handleCloseEarlyModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="early-injection-modal-title"
+        >
+          <div className="modal-card early-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header early-modal-header">
+              <div className="early-modal-header-left">
+                <div className="modal-icon-wrapper early-icon-wrapper">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <h3 id="early-injection-modal-title" className="modal-title">
+                  {t('modals.earlyInjectionTitle')}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-x-btn"
+                onClick={handleCloseEarlyModal}
+                aria-label={t('common.closeModal')}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body early-modal-body">
+              <p className="early-modal-text">
+                {t('modals.earlyInjectionConfirmText')}
+              </p>
+              <p className="early-modal-warning">
+                {t('modals.earlyInjectionWarning')}
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={handleCloseEarlyModal}
+              >
+                {t('common.no')}
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-early-btn"
+                onClick={handleConfirmEarlyInjection}
+              >
+                {t('common.yes')}
               </button>
             </div>
           </div>

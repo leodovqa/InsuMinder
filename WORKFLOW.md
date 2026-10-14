@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS basal_reminders (
 
 Core API Endpoints
 - **Injections & Logs**:
-  - `POST /api/injections`: Records injection (`type`: `'bolus'` | `'basal'`), sets 10m, 2h, and 3h reminder targets for bolus. When basal, marks `basal_reminders` as already injected if not already sent.
+  - `POST /api/injections`: Records injection (`type`: `'bolus'` | `'basal'`), sets 10m, 2h, and 3h reminder targets for bolus. When basal, marks `basal_reminders` as already injected if not already sent. Frontend guards early Bolus injections (<3h from prior Bolus) via gray button state and an Early Injection Confirmation Modal with Yes/No actions.
   - `GET /api/logs`: Retrieves user-scoped logs (or viewed group member logs) and today's `basalReminder` status.
 - **Authentication**:
   - `POST /api/auth/send-code`: Generates 6-digit code for email.
