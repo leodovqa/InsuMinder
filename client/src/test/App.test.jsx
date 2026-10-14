@@ -1098,9 +1098,12 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       render(<App />);
 
-      const bolusBtn = await screen.findByRole('button', { name: /Log Injection/i });
-      expect(bolusBtn.classList.contains('btn-gray')).toBe(true);
+      await waitFor(() => {
+        const btn = screen.getByRole('button', { name: /Log Injection/i });
+        expect(btn.classList.contains('btn-gray')).toBe(true);
+      });
 
+      const bolusBtn = screen.getByRole('button', { name: /Log Injection/i });
       fireEvent.click(bolusBtn);
 
       // Confirmation modal should be visible
@@ -1143,7 +1146,12 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       render(<App />);
 
-      const bolusBtn = await screen.findByRole('button', { name: /Log Injection/i });
+      await waitFor(() => {
+        const btn = screen.getByRole('button', { name: /Log Injection/i });
+        expect(btn.classList.contains('btn-gray')).toBe(true);
+      });
+
+      const bolusBtn = screen.getByRole('button', { name: /Log Injection/i });
       fireEvent.click(bolusBtn);
 
       expect(await screen.findByText('Early Injection Confirmation')).toBeInTheDocument();
