@@ -23,6 +23,15 @@ import Profile from './Profile';
 import TimePicker24h from './TimePicker24h';
 import { authService } from './authService';
 import { LanguageProvider, useTranslation } from './i18n';
+import { ThemeProvider, useTheme } from './theme/ThemeContext';
+
+const isLocalEnv = Boolean(
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' ||
+   window.location.hostname === '127.0.0.1' ||
+   window.location.hostname.endsWith('.local') ||
+   import.meta.env.DEV)
+);
 
 function LiveClock() {
   const { t } = useTranslation();
@@ -157,6 +166,7 @@ function InjectionEligibility({ latestLog }) {
 
 function AppContent() {
   const { t, language, setLanguage, isRTL } = useTranslation();
+  const { theme, setTheme } = useTheme();
   const [logs, setLogs] = useState([]);
   const [basalReminder, setBasalReminder] = useState(null);
   const [activeTab, setActiveTab] = useState(() => getTabFromUrl()); // 'home' | 'logs' | 'settings'
@@ -203,6 +213,7 @@ function AppContent() {
   const [leaveGroupModalData, setLeaveGroupModalData] = useState(null);
   const [viewingExplanationModal, setViewingExplanationModal] = useState(null);
   const [isEarlyBolusModalOpen, setIsEarlyBolusModalOpen] = useState(false);
+  const [isClearingQueue, setIsClearingQueue] = useState(false);
 
   // Synchronize URL search params with activeTab
   useEffect(() => {
@@ -463,6 +474,9 @@ function AppContent() {
           if (currUser.language && ['en', 'he', 'ru'].includes(currUser.language)) {
             setLanguage(currUser.language);
           }
+          if (currUser.theme && ['dark', 'light'].includes(currUser.theme)) {
+            setTheme(currUser.theme);
+          }
           fetchShareStatus();
         } else {
           setUser(null);
@@ -472,7 +486,7 @@ function AppContent() {
         }
       });
     }
-  }, [setLanguage]);
+  }, [setLanguage, setTheme]);
 
   // Fetch configs and logs on mount
   useEffect(() => {
@@ -498,6 +512,10 @@ function AppContent() {
 
     if (authUser && authUser.language && ['en', 'he', 'ru'].includes(authUser.language)) {
       setLanguage(authUser.language);
+    }
+
+    if (authUser && authUser.theme && ['dark', 'light'].includes(authUser.theme)) {
+      setTheme(authUser.theme);
     }
 
     // Security: Clear referral / share code from URL so it cannot be reused
@@ -795,6 +813,40 @@ function AppContent() {
         message: t('notifications.failedToLogInjection')
       });
     });
+  };
+
+  const handleClearNotificationQueue = async () => {
+    if (isClearingQueue) return;
+    setIsClearingQueue(true);
+    try {
+      const res = await fetch('/api/dev/clear-notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authService.getAuthHeaders()
+        }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setNotification({
+          type: 'success',
+          message: t('notifications.queueCleared')
+        });
+        fetchLogs();
+      } else {
+        setNotification({
+          type: 'error',
+          message: data.error || 'Failed to clear notification queue.'
+        });
+      }
+    } catch {
+      setNotification({
+        type: 'error',
+        message: 'Network error while attempting to clear notification queue.'
+      });
+    } finally {
+      setIsClearingQueue(false);
+    }
   };
 
   const handleSelectLanguage = (langCode) => {
@@ -1115,6 +1167,30 @@ function AppContent() {
                 <polyline points="12 19 5 12 12 5" />
               </svg>
             </button>
+          ) : isLocalEnv ? (
+            <button
+              type="button"
+              className="dev-clear-queue-btn"
+              onClick={handleClearNotificationQueue}
+              disabled={isClearingQueue}
+              title={t('nav.clearQueue')}
+              aria-label={t('nav.clearQueue')}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                <line x1="2" y1="2" x2="22" y2="22" />
+              </svg>
+            </button>
           ) : (
             <div className="header-spacer" />
           )}
@@ -1203,6 +1279,34 @@ function AppContent() {
 
         {/* Bottom of sidebar: Log In / Sign Out button */}
         <div className="nav-footer">
+          {/* Theme Selector: Dark / Light Mode */}
+          <div className="nav-theme-toggle-row">
+            <div className="nav-theme-toggle-pill" role="radiogroup" aria-label={t('nav.themeToggleLabel')}>
+              <button
+                type="button"
+                className={`nav-theme-btn ${theme === 'dark' ? 'active' : ''}`}
+                onClick={() => setTheme('dark')}
+                role="radio"
+                aria-checked={theme === 'dark'}
+                title={t('nav.darkTheme')}
+              >
+                <span className="nav-theme-icon" aria-hidden="true">🌙</span>
+                <span className="nav-theme-text">{t('nav.darkTheme')}</span>
+              </button>
+              <button
+                type="button"
+                className={`nav-theme-btn ${theme === 'light' ? 'active' : ''}`}
+                onClick={() => setTheme('light')}
+                role="radio"
+                aria-checked={theme === 'light'}
+                title={t('nav.lightTheme')}
+              >
+                <span className="nav-theme-icon" aria-hidden="true">☀️</span>
+                <span className="nav-theme-text">{t('nav.lightTheme')}</span>
+              </button>
+            </div>
+          </div>
+
           {isLoggedIn && user ? (
             <div
               className="nav-user-badge"
@@ -3122,9 +3226,11 @@ function AppContent() {
 
 function App() {
   return (
-    <LanguageProvider>
-      <AppContent />
-    </LanguageProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }
 

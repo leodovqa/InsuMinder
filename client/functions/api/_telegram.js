@@ -245,6 +245,11 @@ export async function ensureTablesExist(db) {
   } catch (err) {
     void err;
   }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'`).run();
+  } catch (err) {
+    void err;
+  }
 }
 
 export function formatDoseTime(isoString) {
@@ -405,8 +410,9 @@ export async function dispatchDueNotifications(db) {
           `SELECT * FROM telegram_configs WHERE user_id = ? ORDER BY id DESC LIMIT 1`
         ).bind(log.user_id).first();
         if (fallback) return fallback;
+        return null;
       }
-      return await db.prepare(`SELECT * FROM telegram_configs WHERE is_default = 1 LIMIT 1`).first();
+      return null;
     };
 
     const getLanguageForLog = async (log) => {

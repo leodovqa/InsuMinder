@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
   }
 
   let user = await db
-    .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, created_at FROM users WHERE id = ?')
     .bind(authUser.userId)
     .first();
 
@@ -48,7 +48,9 @@ export async function onRequestGet(context) {
       phone: user.phone || '',
       avatar: user.avatar || '',
       shareCode: user.share_code,
-      language: user.language || 'en'
+      language: user.language || 'en',
+      basalTime: user.basal_time || '20:00',
+      theme: user.theme || 'dark'
     }
   }), {
     status: 200,

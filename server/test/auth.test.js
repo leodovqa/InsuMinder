@@ -241,6 +241,34 @@ describe('Authentication & User Scoping Integration Tests', () => {
       assert.equal(updated.phone, '+1-555-9876');
     });
 
+    it('persists and updates user theme preference ("dark" | "light")', async () => {
+      const user = await new Promise((resolve, reject) => {
+        db.createUser({
+          email: 'theme.user@example.com',
+          name: 'Theme User',
+          is_verified: 1
+        }, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      // Default theme is 'dark'
+      const initial = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(initial.theme, 'dark');
+
+      // Update to 'light'
+      await new Promise((resolve, reject) => {
+        db.updateUser(user.id, {
+          theme: 'light'
+        }, (err) => (err ? reject(err) : resolve()));
+      });
+
+      const updated = await new Promise((resolve, reject) => {
+        db.getUserById(user.id, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.equal(updated.theme, 'light');
+    });
+
     it('records auth_provider as "google" for Google signups and "email" for password signups', async () => {
       const emailUser = await new Promise((resolve, reject) => {
         db.createUser({

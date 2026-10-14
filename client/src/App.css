@@ -341,6 +341,45 @@
   }
 }
 
+/* Local Dev Clear Queue Button (Top-Right Homepage) */
+.dev-clear-queue-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  background-color: var(--code-bg);
+  border: 1px dashed rgba(245, 158, 11, 0.45);
+  border-radius: 10px;
+  color: #f59e0b;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, transform 0.15s, color 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  &:hover {
+    background-color: rgba(245, 158, 11, 0.14);
+    border-color: #f59e0b;
+    color: #fbbf24;
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 1024px) {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 .back-arrow-svg {
   display: block;
   flex-shrink: 0;
@@ -509,6 +548,51 @@
     color: var(--text-h);
     border-color: rgba(255, 255, 255, 0.2);
   }
+}
+
+/* Sidebar Theme Toggle */
+.nav-theme-toggle-row {
+  margin-bottom: 12px;
+}
+
+.nav-theme-toggle-pill {
+  display: flex;
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.nav-theme-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    color: var(--text-h);
+  }
+
+  &.active {
+    background-color: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+  }
+}
+
+.nav-theme-icon {
+  font-size: 14px;
 }
 
 /* Tab Views Container */
@@ -2259,6 +2343,11 @@
 .moon-icon-wrapper {
   background-color: rgba(251, 146, 60, 0.15);
   color: #fb923c;
+}
+
+.theme-icon-wrapper {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
 }
 
 .basal-time-setting-row {
@@ -4972,4 +5061,429 @@
   padding-left: 14px;
   padding-right: 28px;
 }
+
+/* =========================================================================
+   LIGHT THEME POLISH OVERRIDES (Explicit readability & visual parity)
+   ========================================================================= */
+[data-theme="light"] .nav-drawer {
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"][dir="rtl"] .nav-drawer {
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .nav-user-badge {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .live-clock {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .chart-nav-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .week-pill-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .bar-fill.empty-data {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .bar-col:hover .bar-container {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 1. Context Switcher Pill (My Data / Shared Data) */
+[data-theme="light"] .context-switcher-pill {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .context-switch-btn {
+  color: #475569;
+}
+
+[data-theme="light"] .context-switch-btn:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .context-switch-btn.active {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+[data-theme="light"] .shared-context-notice {
+  background: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.25);
+  color: #0369a1;
+}
+
+[data-theme="light"] .shared-context-dot {
+  background: #0284c7;
+  box-shadow: 0 0 6px #0284c7;
+}
+
+/* 2. User Profile Card & Form Controls */
+[data-theme="light"] .profile-account-info {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .profile-info-label {
+  color: #64748b;
+}
+
+[data-theme="light"] .profile-info-value {
+  color: #0f172a;
+}
+
+[data-theme="light"] .profile-code-pill {
+  color: #0284c7;
+}
+
+[data-theme="light"] .form-input {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .form-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+}
+
+[data-theme="light"] .form-input::placeholder {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .input-prefix {
+  color: #64748b;
+}
+
+[data-theme="light"] .profile-input:disabled,
+[data-theme="light"] .form-input:disabled {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+  -webkit-text-fill-color: #334155 !important;
+  opacity: 1;
+}
+
+[data-theme="light"] .phone-prefix-addon {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .phone-container-disabled .phone-prefix-addon {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+[data-theme="light"] .phone-plus-sign {
+  color: #0f172a;
+}
+
+[data-theme="light"] .phone-container-disabled .phone-plus-sign {
+  color: #64748b;
+}
+
+[data-theme="light"] .profile-cancel-btn {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .profile-cancel-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* 3. Shared Access Card (Share Code Box, Admin Badge, Copy Buttons) */
+[data-theme="light"] .share-code-box {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .share-code-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .share-role-badge {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0369a1;
+  border-color: rgba(2, 132, 199, 0.3);
+}
+
+[data-theme="light"] .share-code-value {
+  background: #ffffff;
+  color: #0284c7;
+  border: 1px dashed rgba(2, 132, 199, 0.45);
+}
+
+[data-theme="light"] .copy-code-btn,
+[data-theme="light"] .copy-link-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+[data-theme="light"] .copy-code-btn:hover,
+[data-theme="light"] .copy-link-btn:hover {
+  background: #f1f5f9;
+  border-color: #0284c7;
+  color: #0284c7;
+}
+
+[data-theme="light"] .share-code-hint {
+  color: #64748b;
+  opacity: 1;
+}
+
+[data-theme="light"] .share-sub-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .share-future-note {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .future-note-text {
+  color: #475569;
+}
+
+[data-theme="light"] .shared-member-item {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .shared-member-item:hover {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .member-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .member-email {
+  color: #64748b;
+}
+
+[data-theme="light"] .member-remove-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .member-remove-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* 4. Viewing Button & Shared Group Controls */
+[data-theme="light"] .group-view-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+[data-theme="light"] .group-view-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+[data-theme="light"] .group-view-btn.active {
+  background: #0284c7 !important;
+  border-color: #0284c7 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+[data-theme="light"] .group-leave-btn {
+  background: #ffffff;
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #dc2626;
+}
+
+[data-theme="light"] .group-leave-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+}
+
+/* 5. TimePicker24h Modal & Popover */
+[data-theme="light"] .clock-picker-popover {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12), 0 0 12px rgba(2, 132, 199, 0.1);
+}
+
+[data-theme="light"] .clock-steppers-row {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .clock-display-digit {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .clock-colon {
+  color: #0284c7;
+}
+
+[data-theme="light"] .clock-stepper-btn {
+  color: #0284c7;
+}
+
+[data-theme="light"] .clock-stepper-btn:hover {
+  background-color: rgba(2, 132, 199, 0.12);
+}
+
+[data-theme="light"] .clock-picker-trigger {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .clock-picker-trigger:hover,
+[data-theme="light"] .clock-picker-trigger.is-open {
+  border-color: #0284c7;
+  background-color: rgba(2, 132, 199, 0.08);
+  box-shadow: 0 0 8px rgba(2, 132, 199, 0.15);
+}
+
+[data-theme="light"] .clock-column-box {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .clock-column-header {
+  color: #64748b;
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .clock-col-item {
+  color: #334155;
+}
+
+[data-theme="light"] .clock-col-item:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme="light"] .clock-preset-btn {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+[data-theme="light"] .clock-preset-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+/* 6. Settings, Telegram & Auth Elements */
+[data-theme="light"] .language-btn {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .language-btn:hover {
+  background-color: rgba(2, 132, 199, 0.08);
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .language-btn.active {
+  background-color: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+[data-theme="light"] .config-item {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .config-item.is-default {
+  border-color: #0284c7;
+  background-color: rgba(2, 132, 199, 0.06);
+}
+
+[data-theme="light"] .config-chat-id {
+  color: #64748b;
+}
+
+[data-theme="light"] .config-added-date {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .cancel-btn:hover {
+  background-color: #e2e8f0;
+}
+
+[data-theme="light"] .auth-hero-banner,
+[data-theme="light"] .auth-required-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .auth-hero-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .auth-hero-subtitle {
+  color: #475569;
+}
+
+[data-theme="light"] .auth-hero-btn.signup-btn {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .auth-hero-btn.signup-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+[data-theme="light"] .auth-modal-container {
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .modal-explanation-box {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .modal-close-x-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .google-signin-btn {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .google-signin-btn:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+[data-theme="light"] .auth-error-banner {
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
 

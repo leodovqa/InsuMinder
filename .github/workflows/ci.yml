@@ -34,6 +34,9 @@ jobs:
       - name: Check Multilingual (HE & RU) Translation Parity
         run: npm --prefix client run check:i18n
 
+      - name: Check Theme (Dark & Light) Consistency & Parity
+        run: npm --prefix client run check:theme
+
       - name: Check Cloudflare Functions Parity
         run: git diff --no-index --exit-code functions/ client/functions/
 
@@ -56,6 +59,9 @@ jobs:
 
       - name: Build Client (Vite)
         run: npm --prefix client run build
+
+      - name: Build Cloudflare Pages Functions
+        run: npx wrangler pages functions build functions
 
   test:
     name: Automated Tests

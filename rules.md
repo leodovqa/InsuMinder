@@ -16,6 +16,7 @@ These rules outline the guidelines for developing the web-based application.
 4. Never skip, omit, or elide content from a file listing.
 5. **Branching and Collaboration**:
    - Start working with branches and stop working on main directly.
+   - Before doing ANYTHING at the start of a task, always check Git status and the current branch. If the current branch is already merged, ask to change with a branch name suggestion, move to main, ensure main is updated (`git pull origin main`), and only then create and move to the new agreed branch.
    - Before creating a branch, ask for a branch naming and get my agreement.
    - Only create a branch if I agree.
    - Before committing or pushing, ask me to commit or push.
@@ -28,4 +29,8 @@ These rules outline the guidelines for developing the web-based application.
    - Every user-facing UI feature, dialog, card, notification, label, or text element in the application must have a corresponding, natural, and logical translation in `client/src/i18n/translations.js` for both Hebrew (`he`) and Russian (`ru`).
    - Any time new features or UI texts are created or updated, translations must be created or updated simultaneously with 100% key parity across all supported languages.
    - Parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm --prefix client run check:i18n`. Commits or PRs with missing keys, placeholder mismatches, or empty translations will fail.
+8. **Dual Theme (Dark & Light) & Visual Styling Parity Rule**:
+   - Every user-facing UI feature, card, modal, dialog, form input, button, and navigation element must work and look polished across both visual themes: modern sleek Dark mode and modern clean Light mode.
+   - All elements must adhere to the application's color and design system (`client/src/index.css` and `client/src/App.css`), maintaining high contrast, clear readability, and proper type aesthetics. Dark-specific hardcoded backgrounds or white texts must never leak unreadable contrast into Light mode, and Dark mode must remain completely unbroken.
+   - Parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm --prefix client run check:theme`. Commits or PRs with missing theme variable definitions, broken contrast rules, or unstyled light-mode elements will fail.
 

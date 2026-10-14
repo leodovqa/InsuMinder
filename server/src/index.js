@@ -951,6 +951,21 @@ app.post('/api/telegram/test', optionalAuth, async (req, res) => {
   }
 });
 
+// Local dev endpoint to clear pending notification queue
+app.post('/api/dev/clear-notifications', optionalAuth, (req, res) => {
+  const userId = req.user ? req.user.id : null;
+  db.clearNotificationQueue(userId, (err, result) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.json({
+      success: true,
+      message: 'Notification queue cleared successfully.',
+      ...result
+    });
+  });
+});
+
 // Start scheduler worker
 scheduler.startScheduler(30000);
 

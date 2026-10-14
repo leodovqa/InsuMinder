@@ -140,18 +140,19 @@ async function checkAndDispatchNotifications() {
       db.getDueNotifications((err, rows) => (err ? reject(err) : resolve(rows || [])));
     });
 
+    const unconfiguredError = 'Telegram is not configured. Go to Settings to set up your destination.';
+
     // 1. Process pending due bolus injection notifications
     if (dueLogs && dueLogs.length > 0) {
       for (const log of dueLogs) {
-        // Find the user's specific Telegram config, or global fallback
+        // Find the user's specific Telegram config (never fall back to other users when user_id is set)
         const activeConfig = await new Promise((resolve) => {
           if (log.user_id) {
             db.getDefaultTelegramConfig(log.user_id, (err, cfg) => {
-              if (!err && cfg) return resolve(cfg);
-              db.getDefaultTelegramConfig((gErr, gCfg) => resolve(gCfg || null));
+              resolve((!err && cfg) ? cfg : null);
             });
           } else {
-            db.getDefaultTelegramConfig((err, cfg) => resolve(cfg || null));
+            db.getDefaultTelegramConfig((err, cfg) => resolve((!err && cfg) ? cfg : null));
           }
         });
 
@@ -274,8 +275,7 @@ async function checkAndDispatchNotifications() {
       for (const pendingUser of pendingBasalUsers) {
         const activeConfig = await new Promise((resolve) => {
           db.getDefaultTelegramConfig(pendingUser.id, (err, cfg) => {
-            if (!err && cfg) return resolve(cfg);
-            db.getDefaultTelegramConfig((gErr, gCfg) => resolve(gCfg || null));
+            resolve((!err && cfg) ? cfg : null);
           });
         });
 

@@ -11,3 +11,5 @@ dist/
 .env.*
 .aider*
 .vitest/
+_worker.bundle
+.wrangler/
