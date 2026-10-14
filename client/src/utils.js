@@ -345,7 +345,14 @@ export const getFriendlyReminderError = (rawError, isTelegramConfigured = true, 
     };
   }
 
-  if (/chat not found|unauthorized|invalid token|bot token|not configured|chat_id|401|404/i.test(err)) {
+  if (/not configured/i.test(err)) {
+    return {
+      category: translate('errors.telegramConfigIssue', {}, lang),
+      message: translate('errors.telegramNotConfiguredMsg', {}, lang)
+    };
+  }
+
+  if (/chat not found|unauthorized|invalid token|bot token|chat_id|401|404/i.test(err)) {
     return {
       category: translate('errors.telegramConfigIssue', {}, lang),
       message: translate('errors.telegramInvalidTokenMsg', {}, lang)

@@ -2553,18 +2553,18 @@ function AppContent() {
                                 <>
                                   <div className="config-title-row">
                                     <span className="config-name">{cfg.name}</span>
+                                    {cfg.isDefault && (
+                                      <span className="default-pill">{t('settings.defaultPill')}</span>
+                                    )}
                                   </div>
                                   <div className="config-details">
                                     <span className="config-detail-item">
                                       <span className="config-chat-group">
-                                        <strong>{t('settings.chatPrefix')}</strong> {cfg.chatId}
-                                        {cfg.isDefault && (
-                                          <span className="default-pill">{t('settings.defaultPill')}</span>
-                                        )}
+                                        <strong>{t('settings.chatPrefix')}</strong> <bdi dir="ltr">{cfg.chatId}</bdi>
                                       </span>
                                     </span>
                                     <span className="config-detail-item">
-                                      <strong>{t('settings.tokenPrefix')}</strong> {maskBotToken(cfg.botToken)}
+                                      <strong>{t('settings.tokenPrefix')}</strong> <bdi dir="ltr">{maskBotToken(cfg.botToken)}</bdi>
                                     </span>
                                   </div>
                                 </>
@@ -2573,15 +2573,15 @@ function AppContent() {
                                   <div className="config-title-row">
                                     <span className="config-chat-group config-chat-title">
                                       <strong className="config-chat-prefix">{t('settings.chatPrefix')}</strong>
-                                      <span className="config-chat-id-text">{cfg.chatId}</span>
-                                      {cfg.isDefault && (
-                                        <span className="default-pill">{t('settings.defaultPill')}</span>
-                                      )}
+                                      <span className="config-chat-id-text"><bdi dir="ltr">{cfg.chatId}</bdi></span>
                                     </span>
+                                    {cfg.isDefault && (
+                                      <span className="default-pill">{t('settings.defaultPill')}</span>
+                                    )}
                                   </div>
                                   <div className="config-details">
                                     <span className="config-detail-item">
-                                      <strong>{t('settings.tokenPrefix')}</strong> {maskBotToken(cfg.botToken)}
+                                      <strong>{t('settings.tokenPrefix')}</strong> <bdi dir="ltr">{maskBotToken(cfg.botToken)}</bdi>
                                     </span>
                                   </div>
                                 </>
@@ -2787,45 +2787,70 @@ function AppContent() {
                 <div className="shared-groups-section">
                   <h3 className="share-sub-title">{t('settings.accountsSharedWithYou')}</h3>
                   <ul className="shared-members-list">
-                    {shareStatus.sharedGroups.map((group) => (
-                      <li key={group.ownerId} className="shared-member-item">
-                        <div className="member-avatar group-avatar">
-                          {(group.ownerName || group.ownerEmail || 'O')[0].toUpperCase()}
-                        </div>
-                        <div className="member-info">
-                          <span className="member-name">{group.ownerName || group.ownerEmail.split('@')[0]}</span>
-                          <span className="member-email">{group.ownerEmail}</span>
-                        </div>
-                        <div className="group-actions">
-                          <button
-                            type="button"
-                            className={`group-view-btn ${activeContext === 'shared' && activeOwnerId === group.ownerId ? 'active' : ''}`}
-                            onClick={() => {
-                              if (activeContext === 'shared' && activeOwnerId === group.ownerId) {
-                                setViewingExplanationModal(group);
-                              } else {
-                                handleSwitchContext('shared', group.ownerId);
+                    {shareStatus.sharedGroups.map((group) => {
+                      const isCurrentlyActive = activeContext === 'shared' && activeOwnerId === group.ownerId;
+                      const displayName = group.ownerName || group.ownerEmail.split('@')[0];
+                      const displayEmail = group.ownerEmail;
+                      const onCardClick = () => {
+                        if (isCurrentlyActive) {
+                          setViewingExplanationModal(group);
+                        } else {
+                          handleSwitchContext('shared', group.ownerId);
+                        }
+                      };
+
+                      return (
+                        <li key={group.ownerId} className={`shared-member-item shared-group-card ${isCurrentlyActive ? 'is-active-group' : ''}`}>
+                          <div
+                            className="shared-group-header"
+                            onClick={onCardClick}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                onCardClick();
                               }
                             }}
                             title={
-                              activeContext === 'shared' && activeOwnerId === group.ownerId
-                                ? 'Currently active: click to learn what Viewing means'
-                                : `Switch to view ${group.ownerName || group.ownerEmail}'s records`
+                              isCurrentlyActive
+                                ? t('settings.viewingActive')
+                                : `${t('settings.switchToView')}: ${displayName} (${displayEmail})`
                             }
                           >
-                            {activeContext === 'shared' && activeOwnerId === group.ownerId ? t('settings.viewingActive') : t('settings.switchToView')}
-                          </button>
-                          <button
-                            type="button"
-                            className="group-leave-btn"
-                            onClick={() => handleOpenLeaveGroupModal(group)}
-                            title={t('settings.leaveGroup')}
-                          >
-                            {t('settings.leaveGroup')}
-                          </button>
-                        </div>
-                      </li>
-                    ))}
+                            <div className="member-avatar group-avatar">
+                              {(group.ownerName || group.ownerEmail || 'O')[0].toUpperCase()}
+                            </div>
+                            <div className="member-info">
+                              <span className="member-name" title={displayName}>{displayName}</span>
+                              <span className="member-email" title={displayEmail}>{displayEmail}</span>
+                            </div>
+                          </div>
+                          <div className="group-actions">
+                            <button
+                              type="button"
+                              className={`group-view-btn ${isCurrentlyActive ? 'active' : ''}`}
+                              onClick={onCardClick}
+                              title={
+                                isCurrentlyActive
+                                  ? 'Currently active: click to learn what Viewing means'
+                                  : `Switch to view ${group.ownerName || group.ownerEmail}'s records`
+                              }
+                            >
+                              {isCurrentlyActive ? t('settings.viewingActive') : t('settings.switchToView')}
+                            </button>
+                            <button
+                              type="button"
+                              className="group-leave-btn"
+                              onClick={() => handleOpenLeaveGroupModal(group)}
+                              title={t('settings.leaveGroup')}
+                            >
+                              {t('settings.leaveGroup')}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -3117,7 +3142,8 @@ function AppContent() {
                       {reminderModalData.friendlyError?.message || t('errors.deliveryFailedMsg')}
                     </p>
                     {reminderModalData.rawError &&
-                     reminderModalData.rawError !== reminderModalData.friendlyError?.message && (
+                     reminderModalData.rawError !== reminderModalData.friendlyError?.message &&
+                     !/not configured|already injected/i.test(reminderModalData.rawError) && (
                       <p className="reminder-modal-error-raw">
                         {t('modals.reminderDetailsLabel')} {reminderModalData.rawError}
                       </p>

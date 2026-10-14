@@ -21,6 +21,7 @@ These rules outline the guidelines for developing the web-based application.
    - Only create a branch if I agree.
    - Before committing or pushing, ask me to commit or push.
    - When asked to create a pull request (PR), you must output the full URL to the PR so the user can easily review and merge it.
+   - Branch protection is strictly enforced on `main`. All PRs must pass mandatory CI status checks (`Automated Tests`, `JS Compilation & Build`, `Lint & Parity Check`) before they can be merged. Never merge a PR before all CI status checks are 100% green.
 6. **Documentation Pre-Commit Rule**:
    - Before committing or pushing changes (at the pre-commit stage), always check if there is an update, change, or new feature.
    - If a new feature, capability, or logic change is introduced, verify and update the human-readable markdown documentation (`README.md` / `WORKFLOW.md`) so that human readers and developers always have an accurate, up-to-date guide.
