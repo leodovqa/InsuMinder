@@ -3,6 +3,7 @@ const cors = require('cors');
 const db = require('./db');
 const { sendTelegramMessage } = require('./telegram');
 const scheduler = require('./scheduler');
+const webpush = require('./webpush');
 const {
   isValidEmail,
   hashPassword,
@@ -611,6 +612,7 @@ app.get('/api/telegram-configs', optionalAuth, resolveContext, (req, res) => {
       botToken: r.bot_token,
       chatId: r.chat_id,
       isDefault: Boolean(r.is_default),
+      isActive: r.is_active === undefined || r.is_active === null ? true : Boolean(r.is_active),
       createdAt: r.created_at
     }));
     res.json({ success: true, configs });
@@ -648,7 +650,8 @@ app.post('/api/telegram-configs', requireAuth, resolveContext, (req, res) => {
         name: newConfig.name,
         botToken: newConfig.bot_token,
         chatId: newConfig.chat_id,
-        isDefault: Boolean(newConfig.is_default)
+        isDefault: Boolean(newConfig.is_default),
+        isActive: true
       }
     });
   });
@@ -675,7 +678,38 @@ app.put('/api/telegram-configs/:id/default', requireAuth, resolveContext, (req, 
         name: updated.name,
         botToken: updated.bot_token,
         chatId: updated.chat_id,
-        isDefault: Boolean(updated.is_default)
+        isDefault: Boolean(updated.is_default),
+        isActive: updated.is_active === undefined || updated.is_active === null ? true : Boolean(updated.is_active)
+      } : null
+    });
+  });
+});
+
+app.put('/api/telegram-configs/:id/toggle', requireAuth, resolveContext, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    return res.status(400).json({ success: false, error: 'Invalid configuration ID.' });
+  }
+
+  const targetUserId = req.effectiveUserId || req.user.id;
+  const isActive = req.body && req.body.isActive !== undefined ? Boolean(req.body.isActive) : true;
+
+  db.toggleTelegramConfigActive(targetUserId, id, isActive, (err, updated) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+
+    scheduler.checkAndDispatchNotifications();
+
+    res.json({
+      success: true,
+      config: updated ? {
+        id: updated.id,
+        name: updated.name,
+        botToken: updated.bot_token,
+        chatId: updated.chat_id,
+        isDefault: Boolean(updated.is_default),
+        isActive: updated.is_active === undefined || updated.is_active === null ? true : Boolean(updated.is_active)
       } : null
     });
   });
@@ -932,6 +966,122 @@ app.post('/api/dev/clear-notifications', optionalAuth, (req, res) => {
       ...result
     });
   });
+});
+
+/* =========================================================================
+   WEB PUSH & ANDROID NOTIFICATION ENDPOINTS
+   ========================================================================= */
+
+// 1. Get VAPID Public Key for Client PushManager Registration
+app.get('/api/push/vapid-public-key', (req, res) => {
+  res.json({ publicKey: webpush.VAPID_PUBLIC_KEY });
+});
+
+// 2. Save Client Push Subscription
+app.post('/api/push/subscribe', optionalAuth, (req, res) => {
+  const userId = req.user ? req.user.id : 1;
+  const { subscription, userAgent } = req.body || {};
+
+  if (!subscription || !subscription.endpoint || !subscription.keys) {
+    return res.status(400).json({ success: false, error: 'Valid push subscription is required.' });
+  }
+
+  const ua = userAgent || req.headers['user-agent'] || '';
+  db.savePushSubscription(userId, subscription, ua, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.json({ success: true, message: 'Push subscription saved successfully.' });
+  });
+});
+
+// 3. Remove Client Push Subscription
+app.post('/api/push/unsubscribe', optionalAuth, (req, res) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint) {
+    return res.status(400).json({ success: false, error: 'Endpoint is required to unsubscribe.' });
+  }
+
+  db.deletePushSubscription(endpoint, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+    res.json({ success: true, message: 'Unsubscribed from push notifications.' });
+  });
+});
+
+// 4. Send Test Web Push Notification
+app.post('/api/push/test', optionalAuth, async (req, res) => {
+  try {
+    const userId = req.user ? req.user.id : 1;
+    const { language } = req.body || {};
+    let userLang = language;
+
+    if (!userLang && req.user) {
+      const user = await new Promise((resolve) => db.getUserById(userId, (err, row) => resolve(row)));
+      if (user && user.language) {
+        userLang = user.language;
+      }
+    }
+    userLang = userLang || 'en';
+
+    const subscriptions = await new Promise((resolve, reject) => {
+      db.getPushSubscriptions(userId, (err, rows) => (err ? reject(err) : resolve(rows || [])));
+    });
+
+    if (subscriptions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: userLang === 'he'
+          ? 'לא נמצאו מכשירים רשומים להתראות פוש. אנא אשר התראות במכשיר זה תחילה.'
+          : (userLang === 'ru'
+            ? 'Нет зарегистрированных устройств для push-уведомлений. Пожалуйста, разрешите уведомления на этом устройстве.'
+            : 'No registered push devices found. Please enable push notifications on this device first.')
+      });
+    }
+
+    const title = userLang === 'he'
+      ? '🔔 בדיקת התראות InsuMinder'
+      : (userLang === 'ru'
+        ? '🔔 Проверка уведомлений InsuMinder'
+        : '🔔 InsuMinder Test Alert');
+
+    const body = userLang === 'he'
+      ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!'
+      : (userLang === 'ru'
+        ? 'Push-уведомления на устройстве активны и готовы к работе!'
+        : 'Device push reminders are active and ready!');
+
+    const payload = {
+      title,
+      body,
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/?page=notifications' }
+    };
+
+    let sentCount = 0;
+    for (const sub of subscriptions) {
+      const result = await webpush.sendWebPush(sub, payload);
+      if (result.ok) {
+        sentCount++;
+      } else if (result.expired) {
+        db.deletePushSubscription(sub.endpoint, () => {});
+      }
+    }
+
+    res.json({
+      success: true,
+      sentCount,
+      message: userLang === 'he'
+        ? 'התראת בדיקה נשלחה למכשיר שלך!'
+        : (userLang === 'ru'
+          ? 'Тестовое уведомление отправлено на ваше устройство!'
+          : 'Test notification sent to your device!')
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Start scheduler worker

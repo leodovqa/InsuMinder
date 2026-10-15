@@ -1,0 +1,64 @@
+{
+  "id": "/?source=pwa",
+  "name": "InsuMinder - Insulin Tracker",
+  "short_name": "InsuMinder",
+  "description": "A smart, safe, and automated insulin injection tracker & reminder platform for diabetes management.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0ea5e9",
+  "background_color": "#16171d",
+  "categories": [
+    "medical",
+    "health",
+    "lifestyle"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log Bolus Dose",
+      "short_name": "Log Bolus",
+      "description": "Log mealtime bolus insulin dose",
+      "url": "/?action=bolus",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Injection Logs",
+      "short_name": "Logs",
+      "description": "View injection history and timers",
+      "url": "/?page=logs",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
+

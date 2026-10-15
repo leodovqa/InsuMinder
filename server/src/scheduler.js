@@ -1,5 +1,6 @@
 const db = require('./db');
 const { sendTelegramMessage } = require('./telegram');
+const webpush = require('./webpush');
 
 let schedulerInterval = null;
 let isChecking = false;
@@ -114,12 +115,226 @@ function getJerusalemDateAndTime(date = new Date()) {
   };
 }
 
+function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
+  const doseTime = formatDoseTime(injectedAt);
+  if (type === '10m') {
+    if (lang === 'he') {
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      return {
+        title: '🍽️ תזכורת זמן ארוחה',
+        body: `${doseLine}חלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!`,
+        tag: 'insuminder-10m',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    if (lang === 'ru') {
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      return {
+        title: '🍽️ Напоминание о приёме пищи',
+        body: `${doseLine}Прошло 10 минут с момента инъекции. Теперь можно приступить к еде!`,
+        tag: 'insuminder-10m',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    return {
+      title: '🍽️ Meal Time Reminder',
+      body: `${doseLine}10 minutes have passed since your injection. You can now start your meal!`,
+      tag: 'insuminder-10m',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+
+  if (type === '2h') {
+    if (lang === 'he') {
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      return {
+        title: '🩸 בדיקת סוכר לאחר שעתיים',
+        body: `${doseLine}נא לבדוק את רמת הסוכר לאחר שעתיים מההזרקה.`,
+        tag: 'insuminder-2h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    if (lang === 'ru') {
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      return {
+        title: '🩸 Проверка уровня сахара',
+        body: `${doseLine}Пожалуйста, измерьте уровень сахара в крови через 2 часа после инъекции.`,
+        tag: 'insuminder-2h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    return {
+      title: '🩸 2-Hour Glucose Check',
+      body: `${doseLine}Please go and check your Glucose level after 2 Hours.`,
+      tag: 'insuminder-2h',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+
+  if (type === '3h') {
+    if (lang === 'he') {
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      return {
+        title: '🎯 חלון הזרקה בטוח (3 שעות)',
+        body: `${doseLine}חלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.`,
+        tag: 'insuminder-3h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    if (lang === 'ru') {
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      return {
+        title: '🎯 Безопасное окно для инъекции (3 часа)',
+        body: `${doseLine}Прошло 3 часа с момента инъекции. Наступило безопасное окно для следующей дозы при необходимости.`,
+        tag: 'insuminder-3h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    return {
+      title: '🎯 3-Hour Injection Eligibility',
+      body: `${doseLine}3 hours have passed since your injection. Safe window reached for your next dose if needed.`,
+      tag: 'insuminder-3h',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+
+  // Basal
+  if (lang === 'he') {
+    return {
+      title: '🌙 תזכורת להזרקת אינסולין בזאלי',
+      body: 'נא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.',
+      tag: 'insuminder-basal',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+  if (lang === 'ru') {
+    return {
+      title: '🌙 Напоминание о базальном инсулине',
+      body: 'Пожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.',
+      tag: 'insuminder-basal',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+  return {
+    title: '🌙 Basal Injection Reminder',
+    body: 'Please remember to take and log your daily basal insulin dose.',
+    tag: 'insuminder-basal',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/badge-72x72.png',
+    data: { url: '/' }
+  };
+}
+
+async function dispatchMultiChannelReminder({
+  type,
+  injectedAt,
+  lang = 'en',
+  telegramConfig,
+  pushSubs,
+  userPrefs,
+  isLocal = true
+}) {
+  const isBasal = type === 'basal';
+  const prefKey = isBasal ? 'basal' : (type === '10m' ? 'rem10m' : (type === '2h' ? 'rem2h' : 'rem3h'));
+
+  if (userPrefs?.personal?.[prefKey] === false) {
+    return { ok: false, disabled: true, error: 'Disabled in notification settings.' };
+  }
+
+  const isTelegramConfigured = Boolean(
+    telegramConfig &&
+    telegramConfig.is_active !== 0 &&
+    telegramConfig.is_active !== false &&
+    telegramConfig.bot_token &&
+    telegramConfig.chat_id &&
+    telegramConfig.bot_token.trim() &&
+    telegramConfig.chat_id.trim()
+  );
+  const isPushConfigured = Boolean(pushSubs && pushSubs.length > 0);
+
+  const telegramEnabled = userPrefs?.personal?.telegram !== false;
+  const pushEnabled = userPrefs?.personal?.webPush !== false;
+
+  const shouldSendTelegram = isTelegramConfigured && telegramEnabled;
+  const shouldSendPush = isPushConfigured && pushEnabled;
+
+  if (!shouldSendTelegram && !shouldSendPush) {
+    if (!isTelegramConfigured && !isPushConfigured) {
+      return { ok: false, unconfigured: true, error: 'Telegram is not configured. Go to Settings to set up your destination.' };
+    }
+    return { ok: false, disabled: true, error: 'Disabled in notification settings.' };
+  }
+
+  let successCount = 0;
+  const errors = [];
+
+  if (shouldSendTelegram) {
+    let msg = '';
+    if (type === '10m') msg = buildMessage10m(injectedAt, isLocal, lang);
+    else if (type === '2h') msg = buildMessage2h(injectedAt, isLocal, lang);
+    else if (type === '3h') msg = buildMessage3h(injectedAt, isLocal, lang);
+    else if (type === 'basal') msg = buildMessageBasal(isLocal, lang);
+
+    const tgRes = await sendTelegramMessage(telegramConfig.bot_token.trim(), telegramConfig.chat_id.trim(), msg);
+    if (tgRes.ok) {
+      successCount++;
+    } else {
+      errors.push(`Telegram: ${tgRes.error}`);
+    }
+  }
+
+  if (shouldSendPush) {
+    const payload = buildPushPayload(type, { injectedAt, lang });
+    for (const sub of pushSubs) {
+      const pRes = await webpush.sendWebPush(sub, payload);
+      if (pRes.ok) {
+        successCount++;
+      } else if (pRes.expired) {
+        console.log(`[Scheduler] Push subscription expired (${sub.endpoint.slice(0, 30)}...); pruning.`);
+        await new Promise((resolve) => db.deletePushSubscription(sub.endpoint, () => resolve()));
+      } else {
+        errors.push(`Push: ${pRes.error}`);
+      }
+    }
+  }
+
+  if (successCount > 0) {
+    return { ok: true };
+  }
+  return { ok: false, error: errors.join('; ') || 'Failed to dispatch notification.' };
+}
+
 const MESSAGE_10M = buildMessage10m(null, true);
 const MESSAGE_2H = buildMessage2h(null, true);
 const MESSAGE_3H = buildMessage3h(null, true);
 
 /**
- * Check for due notifications and dispatch them to Telegram
+ * Check for due notifications and dispatch them to Telegram and Web Push
  */
 async function checkAndDispatchNotifications() {
   if (isChecking) return;
@@ -156,29 +371,14 @@ async function checkAndDispatchNotifications() {
           }
         });
 
-        const isTelegramConfigured = Boolean(
-          activeConfig &&
-          activeConfig.bot_token &&
-          activeConfig.chat_id &&
-          activeConfig.bot_token.trim() &&
-          activeConfig.chat_id.trim()
-        );
-
-        if (!isTelegramConfigured) {
-          if (!log.status_10m_sent && log.notify_10m_at <= nowIso && (!log.error_10m || log.error_10m !== unconfiguredError)) {
-            await new Promise((resolve) => db.recordNotificationError(log.id, '10m', unconfiguredError, resolve));
+        // Fetch user's push subscriptions
+        const pushSubs = await new Promise((resolve) => {
+          if (log.user_id) {
+            db.getPushSubscriptions(log.user_id, (err, rows) => resolve(rows || []));
+          } else {
+            resolve([]);
           }
-          if (!log.status_2h_sent && log.notify_2h_at <= nowIso && (!log.error_2h || log.error_2h !== unconfiguredError)) {
-            await new Promise((resolve) => db.recordNotificationError(log.id, '2h', unconfiguredError, resolve));
-          }
-          if (!log.status_3h_sent && log.notify_3h_at <= nowIso && (!log.error_3h || log.error_3h !== unconfiguredError)) {
-            await new Promise((resolve) => db.recordNotificationError(log.id, '3h', unconfiguredError, resolve));
-          }
-          continue;
-        }
-
-        const botToken = activeConfig.bot_token.trim();
-        const chatId = activeConfig.chat_id.trim();
+        });
 
         const userInfo = await new Promise((resolve) => {
           if (log.user_id) {
@@ -204,87 +404,105 @@ async function checkAndDispatchNotifications() {
 
         // 10-minute meal notification
         if (!log.status_10m_sent && log.notify_10m_at <= nowIso) {
-          if (userPrefs?.personal?.rem10m === false) {
-            if (!log.error_10m || log.error_10m !== 'Disabled in notification settings.') {
-              await new Promise((resolve) => db.recordNotificationError(log.id, '10m', 'Disabled in notification settings.', resolve));
-            }
-          } else {
-            const notifyTime = new Date(log.notify_10m_at).getTime();
-            const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+          const notifyTime = new Date(log.notify_10m_at).getTime();
+          const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
 
-            // If 10m reminder is more than 45 minutes overdue, expire it to prevent backlog flooding
-            if (minutesOverdue > 45) {
-              console.log(`[Scheduler] 10m reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
-              await new Promise((resolve) => db.recordNotificationError(log.id, '10m', 'Notification expired without delivery (overdue).', resolve));
+          // If 10m reminder is more than 45 minutes overdue, expire it to prevent backlog flooding
+          if (minutesOverdue > 45) {
+            console.log(`[Scheduler] 10m reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
+            await new Promise((resolve) => db.recordNotificationError(log.id, '10m', 'Notification expired without delivery (overdue).', resolve));
+          } else {
+            console.log(`[Scheduler] Dispatching 10m meal reminder for injection #${log.id}...`);
+            const res10m = await dispatchMultiChannelReminder({
+              type: '10m',
+              injectedAt: log.injected_at,
+              lang: userLang,
+              telegramConfig: activeConfig,
+              pushSubs,
+              userPrefs,
+              isLocal: true
+            });
+
+            if (res10m.ok) {
+              console.log(`[Scheduler] 10m meal reminder sent successfully for #${log.id}`);
+              await new Promise((resolve) => db.markNotificationSent(log.id, '10m', resolve));
+            } else if (res10m.disabled) {
+              await new Promise((resolve) => db.recordNotificationError(log.id, '10m', 'Disabled in notification settings.', resolve));
+            } else if (res10m.unconfigured) {
+              await new Promise((resolve) => db.recordNotificationError(log.id, '10m', unconfiguredError, resolve));
             } else {
-              console.log(`[Scheduler] Dispatching 10m meal reminder for injection #${log.id}...`);
-              const msg = buildMessage10m(log.injected_at, true, userLang);
-              const result = await sendTelegramMessage(botToken, chatId, msg);
-              if (result.ok) {
-                console.log(`[Scheduler] 10m meal reminder sent successfully for #${log.id}`);
-                await new Promise((resolve) => db.markNotificationSent(log.id, '10m', resolve));
-              } else {
-                console.error(`[Scheduler] Failed to send 10m meal reminder for #${log.id}:`, result.error);
-                await new Promise((resolve) => db.recordNotificationError(log.id, '10m', result.error, resolve));
-              }
+              console.error(`[Scheduler] Failed to send 10m meal reminder for #${log.id}:`, res10m.error);
+              await new Promise((resolve) => db.recordNotificationError(log.id, '10m', res10m.error, resolve));
             }
           }
         }
 
         // 2-hour notification
         if (!log.status_2h_sent && log.notify_2h_at <= nowIso) {
-          if (userPrefs?.personal?.rem2h === false) {
-            if (!log.error_2h || log.error_2h !== 'Disabled in notification settings.') {
-              await new Promise((resolve) => db.recordNotificationError(log.id, '2h', 'Disabled in notification settings.', resolve));
-            }
-          } else {
-            const notifyTime = new Date(log.notify_2h_at).getTime();
-            const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+          const notifyTime = new Date(log.notify_2h_at).getTime();
+          const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
 
-            // If 2h reminder is more than 2 hours overdue (>4h after dose), expire it
-            if (minutesOverdue > 120) {
-              console.log(`[Scheduler] 2h reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
-              await new Promise((resolve) => db.recordNotificationError(log.id, '2h', 'Notification expired without delivery (overdue).', resolve));
+          // If 2h reminder is more than 2 hours overdue (>4h after dose), expire it
+          if (minutesOverdue > 120) {
+            console.log(`[Scheduler] 2h reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
+            await new Promise((resolve) => db.recordNotificationError(log.id, '2h', 'Notification expired without delivery (overdue).', resolve));
+          } else {
+            console.log(`[Scheduler] Dispatching 2h reminder for injection #${log.id}...`);
+            const res2h = await dispatchMultiChannelReminder({
+              type: '2h',
+              injectedAt: log.injected_at,
+              lang: userLang,
+              telegramConfig: activeConfig,
+              pushSubs,
+              userPrefs,
+              isLocal: true
+            });
+
+            if (res2h.ok) {
+              console.log(`[Scheduler] 2h reminder sent successfully for #${log.id}`);
+              await new Promise((resolve) => db.markNotificationSent(log.id, '2h', resolve));
+            } else if (res2h.disabled) {
+              await new Promise((resolve) => db.recordNotificationError(log.id, '2h', 'Disabled in notification settings.', resolve));
+            } else if (res2h.unconfigured) {
+              await new Promise((resolve) => db.recordNotificationError(log.id, '2h', unconfiguredError, resolve));
             } else {
-              console.log(`[Scheduler] Dispatching 2h reminder for injection #${log.id}...`);
-              const msg = buildMessage2h(log.injected_at, true, userLang);
-              const result = await sendTelegramMessage(botToken, chatId, msg);
-              if (result.ok) {
-                console.log(`[Scheduler] 2h reminder sent successfully for #${log.id}`);
-                await new Promise((resolve) => db.markNotificationSent(log.id, '2h', resolve));
-              } else {
-                console.error(`[Scheduler] Failed to send 2h reminder for #${log.id}:`, result.error);
-                await new Promise((resolve) => db.recordNotificationError(log.id, '2h', result.error, resolve));
-              }
+              console.error(`[Scheduler] Failed to send 2h reminder for #${log.id}:`, res2h.error);
+              await new Promise((resolve) => db.recordNotificationError(log.id, '2h', res2h.error, resolve));
             }
           }
         }
 
         // 3-hour notification
         if (!log.status_3h_sent && log.notify_3h_at <= nowIso) {
-          if (userPrefs?.personal?.rem3h === false) {
-            if (!log.error_3h || log.error_3h !== 'Disabled in notification settings.') {
-              await new Promise((resolve) => db.recordNotificationError(log.id, '3h', 'Disabled in notification settings.', resolve));
-            }
-          } else {
-            const notifyTime = new Date(log.notify_3h_at).getTime();
-            const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
+          const notifyTime = new Date(log.notify_3h_at).getTime();
+          const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
 
-            // If 3h reminder is more than 3 hours overdue (>6h after dose), expire it
-            if (minutesOverdue > 180) {
-              console.log(`[Scheduler] 3h reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
-              await new Promise((resolve) => db.recordNotificationError(log.id, '3h', 'Notification expired without delivery (overdue).', resolve));
+          // If 3h reminder is more than 3 hours overdue (>6h after dose), expire it
+          if (minutesOverdue > 180) {
+            console.log(`[Scheduler] 3h reminder for #${log.id} is ${Math.round(minutesOverdue)}m overdue. Expiring without sending.`);
+            await new Promise((resolve) => db.recordNotificationError(log.id, '3h', 'Notification expired without delivery (overdue).', resolve));
+          } else {
+            console.log(`[Scheduler] Dispatching 3h reminder for injection #${log.id}...`);
+            const res3h = await dispatchMultiChannelReminder({
+              type: '3h',
+              injectedAt: log.injected_at,
+              lang: userLang,
+              telegramConfig: activeConfig,
+              pushSubs,
+              userPrefs,
+              isLocal: true
+            });
+
+            if (res3h.ok) {
+              console.log(`[Scheduler] 3h reminder sent successfully for #${log.id}`);
+              await new Promise((resolve) => db.markNotificationSent(log.id, '3h', resolve));
+            } else if (res3h.disabled) {
+              await new Promise((resolve) => db.recordNotificationError(log.id, '3h', 'Disabled in notification settings.', resolve));
+            } else if (res3h.unconfigured) {
+              await new Promise((resolve) => db.recordNotificationError(log.id, '3h', unconfiguredError, resolve));
             } else {
-              console.log(`[Scheduler] Dispatching 3h reminder for injection #${log.id}...`);
-              const msg = buildMessage3h(log.injected_at, true, userLang);
-              const result = await sendTelegramMessage(botToken, chatId, msg);
-              if (result.ok) {
-                console.log(`[Scheduler] 3h reminder sent successfully for #${log.id}`);
-                await new Promise((resolve) => db.markNotificationSent(log.id, '3h', resolve));
-              } else {
-                console.error(`[Scheduler] Failed to send 3h reminder for #${log.id}:`, result.error);
-                await new Promise((resolve) => db.recordNotificationError(log.id, '3h', result.error, resolve));
-              }
+              console.error(`[Scheduler] Failed to send 3h reminder for #${log.id}:`, res3h.error);
+              await new Promise((resolve) => db.recordNotificationError(log.id, '3h', res3h.error, resolve));
             }
           }
         }
@@ -308,6 +526,10 @@ async function checkAndDispatchNotifications() {
           });
         });
 
+        const pushSubs = await new Promise((resolve) => {
+          db.getPushSubscriptions(pendingUser.id, (err, rows) => resolve(rows || []));
+        });
+
         let pendingUserPrefs = null;
         if (pendingUser && pendingUser.notification_preferences) {
           try {
@@ -318,61 +540,37 @@ async function checkAndDispatchNotifications() {
             pendingUserPrefs = null;
           }
         }
-        if (pendingUserPrefs?.personal?.basal === false) {
-          console.log(`[Scheduler] Basal reminder disabled in settings for user #${pendingUser.id}.`);
-          await new Promise((resolve) => {
-            db.recordBasalReminder(
-              pendingUser.id,
-              jerusalemDate,
-              pendingUser.basal_time,
-              0,
-              'Disabled in notification settings.',
-              () => resolve()
-            );
-          });
-          continue;
-        }
 
-        const isTelegramConfigured = Boolean(
-          activeConfig &&
-          activeConfig.bot_token &&
-          activeConfig.chat_id &&
-          activeConfig.bot_token.trim() &&
-          activeConfig.chat_id.trim()
-        );
-
-        if (!isTelegramConfigured) {
-          console.log(`[Scheduler] Telegram not configured for user #${pendingUser.id} basal reminder.`);
-          await new Promise((resolve) => {
-            db.recordBasalReminder(
-              pendingUser.id,
-              jerusalemDate,
-              pendingUser.basal_time,
-              0,
-              unconfiguredError,
-              () => resolve()
-            );
-          });
-          continue;
-        }
-
-        const botToken = activeConfig.bot_token.trim();
-        const chatId = activeConfig.chat_id.trim();
         const lang = pendingUser.language || 'en';
-
         console.log(`[Scheduler] Dispatching basal reminder for user #${pendingUser.id} (${pendingUser.email})...`);
-        const msg = buildMessageBasal(true, lang);
-        const result = await sendTelegramMessage(botToken, chatId, msg);
+        const resBasal = await dispatchMultiChannelReminder({
+          type: 'basal',
+          lang,
+          telegramConfig: activeConfig,
+          pushSubs,
+          userPrefs: pendingUserPrefs,
+          isLocal: true
+        });
 
-        if (result.ok) {
+        if (resBasal.ok) {
           console.log(`[Scheduler] Basal reminder sent successfully for user #${pendingUser.id}`);
           await new Promise((resolve) => {
             db.recordBasalReminder(pendingUser.id, jerusalemDate, pendingUser.basal_time, 1, null, () => resolve());
           });
-        } else {
-          console.error(`[Scheduler] Failed to send basal reminder for user #${pendingUser.id}:`, result.error);
+        } else if (resBasal.disabled) {
+          console.log(`[Scheduler] Basal reminder disabled in settings for user #${pendingUser.id}.`);
           await new Promise((resolve) => {
-            db.recordBasalReminder(pendingUser.id, jerusalemDate, pendingUser.basal_time, 0, result.error, () => resolve());
+            db.recordBasalReminder(pendingUser.id, jerusalemDate, pendingUser.basal_time, 0, 'Disabled in notification settings.', () => resolve());
+          });
+        } else if (resBasal.unconfigured) {
+          console.log(`[Scheduler] Notification channels not configured for user #${pendingUser.id} basal reminder.`);
+          await new Promise((resolve) => {
+            db.recordBasalReminder(pendingUser.id, jerusalemDate, pendingUser.basal_time, 0, unconfiguredError, () => resolve());
+          });
+        } else {
+          console.error(`[Scheduler] Failed to send basal reminder for user #${pendingUser.id}:`, resBasal.error);
+          await new Promise((resolve) => {
+            db.recordBasalReminder(pendingUser.id, jerusalemDate, pendingUser.basal_time, 0, resBasal.error, () => resolve());
           });
         }
       }
@@ -419,6 +617,8 @@ module.exports = {
   buildMessage2h,
   buildMessage3h,
   buildMessageBasal,
+  buildPushPayload,
+  dispatchMultiChannelReminder,
   checkAndDispatchNotifications,
   startScheduler,
   stopScheduler

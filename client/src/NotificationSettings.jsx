@@ -1,5 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from './i18n';
+import {
+  isPushSupported,
+  getNotificationPermission,
+  getExistingPushSubscription,
+  subscribeToPush,
+  unsubscribeFromPush,
+  sendTestPush,
+  subscribeToInstallPrompt,
+  promptPwaInstall,
+  isStandaloneApp,
+  checkIsAppInstalled
+} from './pwa';
+import { authService } from './authService';
 
 export default function NotificationSettings({
   preferences,
@@ -7,6 +20,109 @@ export default function NotificationSettings({
 }) {
   const { t } = useTranslation();
   const [activeScope, setActiveScope] = useState('personal'); // 'personal' | 'shared'
+
+  // Push notification state
+  const [pushSupported] = useState(() => isPushSupported());
+  const [permission, setPermission] = useState(() => getNotificationPermission());
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [testPushLoading, setTestPushLoading] = useState(false);
+  const [pushFeedback, setPushFeedback] = useState(null);
+
+  // PWA install state
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
+  const [installing, setInstalling] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkExistingSub() {
+      if (isPushSupported()) {
+        const sub = await getExistingPushSubscription();
+        if (isMounted) {
+          setIsSubscribed(Boolean(sub));
+          setPermission(getNotificationPermission());
+        }
+      }
+      const installed = await checkIsAppInstalled();
+      if (isMounted && installed) {
+        setIsStandalone(true);
+      }
+    }
+    checkExistingSub();
+
+    const unsubscribePrompt = subscribeToInstallPrompt((prompt) => {
+      if (isMounted) {
+        setInstallPrompt(prompt);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribePrompt();
+    };
+  }, []);
+
+  const handleTogglePush = async () => {
+    setPushLoading(true);
+    setPushFeedback(null);
+    try {
+      const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
+      if (isSubscribed) {
+        const res = await unsubscribeFromPush(authHeader);
+        if (res.ok) {
+          setIsSubscribed(false);
+          setPermission(getNotificationPermission());
+        } else {
+          setPushFeedback({ text: res.error || 'Failed to unsubscribe.', isError: true });
+        }
+      } else {
+        const res = await subscribeToPush(authHeader);
+        setPermission(getNotificationPermission());
+        if (res.ok) {
+          setIsSubscribed(true);
+          setPushFeedback({ text: t('notificationSettings.devicePushTestSuccess'), isError: false });
+        } else {
+          setPushFeedback({ text: res.error || 'Failed to enable push notifications.', isError: true });
+        }
+      }
+    } catch (err) {
+      setPushFeedback({ text: err.message || 'Push error occurred.', isError: true });
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    setTestPushLoading(true);
+    setPushFeedback(null);
+    try {
+      const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
+      const res = await sendTestPush(authHeader);
+      if (res.ok) {
+        setPushFeedback({ text: t('notificationSettings.devicePushTestSuccess'), isError: false });
+      } else {
+        setPushFeedback({ text: res.error || 'Failed to send test push.', isError: true });
+      }
+    } catch (err) {
+      setPushFeedback({ text: err.message || 'Error sending test push.', isError: true });
+    } finally {
+      setTestPushLoading(false);
+    }
+  };
+
+  const handleInstallPwa = async () => {
+    setInstalling(true);
+    try {
+      const res = await promptPwaInstall();
+      if (res.outcome === 'accepted') {
+        setIsStandalone(true);
+      }
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   const notificationItems = [
     {
@@ -36,7 +152,7 @@ export default function NotificationSettings({
   ];
 
   const handleToggle = (key) => {
-    const scopePrefs = preferences[activeScope] || {};
+    const scopePrefs = (preferences && preferences[activeScope]) || {};
     const currentVal = scopePrefs[key] !== false;
     const nextVal = !currentVal;
 
@@ -104,7 +220,7 @@ export default function NotificationSettings({
           aria-label={activeScope === 'personal' ? t('notificationSettings.scopePersonal') : t('notificationSettings.scopeShared')}
         >
           {notificationItems.map((item) => {
-            const isEnabled = (preferences[activeScope] || {})[item.key] !== false;
+            const isEnabled = ((preferences && preferences[activeScope]) || {})[item.key] !== false;
             return (
               <div
                 key={item.key}
@@ -162,6 +278,118 @@ export default function NotificationSettings({
             );
           })}
         </div>
+
+        {/* Device & Web Push Notifications Card */}
+        <div className="device-push-card">
+          <div className="device-push-header">
+            <div className="device-push-icon-wrapper">
+              <span className="device-push-icon" role="img" aria-hidden="true">🔔</span>
+            </div>
+            <div className="device-push-title-block">
+              <div className="device-push-title-row">
+                <h3 className="device-push-title">{t('notificationSettings.devicePushSectionTitle')}</h3>
+                <span
+                  className={`notification-status-badge ${
+                    permission === 'denied'
+                      ? 'badge-blocked'
+                      : isSubscribed
+                      ? 'badge-active'
+                      : 'badge-disabled'
+                  }`}
+                >
+                  {permission === 'denied'
+                    ? t('notificationSettings.devicePushBlockedBadge')
+                    : isSubscribed
+                    ? t('notificationSettings.devicePushEnabledBadge')
+                    : t('notificationSettings.devicePushDisabledBadge')}
+                </span>
+              </div>
+              <p className="device-push-subtitle">{t('notificationSettings.devicePushSectionSubtitle')}</p>
+            </div>
+          </div>
+
+          {!pushSupported ? (
+            <div className="device-push-unsupported">
+              <p>{t('notificationSettings.devicePushUnsupported')}</p>
+            </div>
+          ) : (
+            <div className="device-push-body">
+              {permission === 'denied' && (
+                <div className="device-push-blocked-alert">
+                  <span className="blocked-alert-icon" aria-hidden="true">⚠️</span>
+                  <p className="blocked-alert-text">{t('notificationSettings.devicePushBlockedHint')}</p>
+                </div>
+              )}
+
+              {pushFeedback && (
+                <div className={`push-feedback-banner ${pushFeedback.isError ? 'error' : 'success'}`}>
+                  <span>{pushFeedback.text}</span>
+                </div>
+              )}
+
+              <div className="device-push-actions">
+                <button
+                  type="button"
+                  className={`push-action-btn ${isSubscribed ? 'btn-danger-outline' : 'btn-primary'}`}
+                  onClick={handleTogglePush}
+                  disabled={pushLoading || permission === 'denied'}
+                >
+                  {pushLoading
+                    ? '...'
+                    : isSubscribed
+                    ? t('notificationSettings.devicePushDisableBtn')
+                    : t('notificationSettings.devicePushEnableBtn')}
+                </button>
+
+                {isSubscribed && (
+                  <button
+                    type="button"
+                    className="push-action-btn btn-secondary"
+                    onClick={handleTestPush}
+                    disabled={testPushLoading}
+                  >
+                    {testPushLoading
+                      ? t('notificationSettings.devicePushTesting')
+                      : t('notificationSettings.devicePushTestBtn')}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Android App & Offline Installation Card (Only shown on web when not installed) */}
+        {!isStandalone && (
+          <div className="pwa-install-card">
+            <div className="pwa-install-header">
+              <div className="pwa-install-icon-wrapper">
+                <span className="pwa-install-icon" role="img" aria-hidden="true">📱</span>
+              </div>
+              <div className="pwa-install-title-block">
+                <div className="pwa-install-title-row">
+                  <h3 className="pwa-install-title">{t('notificationSettings.pwaInstallSectionTitle')}</h3>
+                </div>
+                <p className="pwa-install-subtitle">{t('notificationSettings.pwaInstallSectionSubtitle')}</p>
+              </div>
+            </div>
+
+            <div className="pwa-install-actions">
+              {installPrompt ? (
+                <button
+                  type="button"
+                  className="push-action-btn btn-accent"
+                  onClick={handleInstallPwa}
+                  disabled={installing}
+                >
+                  <span className="install-btn-icon" aria-hidden="true">📲</span>
+                  {installing ? t('notificationSettings.pwaInstalling') : t('notificationSettings.pwaInstallBtn')}
+                </button>
+              ) : (
+                <p className="pwa-install-hint">{t('notificationSettings.pwaInstallUnavailable')}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

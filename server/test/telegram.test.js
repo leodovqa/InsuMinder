@@ -255,6 +255,34 @@ describe('Telegram Notification Integration Tests', () => {
       assert.strictEqual(active.id, cfg2.id);
     });
 
+    it('toggles telegram config is_active between 1 and 0 and preserves setting', async () => {
+      const userToggle = 888;
+      const cfg = await new Promise((resolve, reject) => {
+        db.addTelegramConfig(userToggle, { name: 'Toggle Bot', bot_token: 'tok_toggle', chat_id: 'chat_toggle' }, (err, res) => {
+          err ? reject(err) : resolve(res);
+        });
+      });
+      assert.strictEqual(cfg.is_active, 1);
+
+      // Toggle off (0)
+      const toggledOff = await new Promise((resolve, reject) => {
+        db.toggleTelegramConfigActive(userToggle, cfg.id, 0, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.strictEqual(toggledOff.is_active, 0);
+
+      // Check default retrieval reflects inactive
+      const active = await new Promise((resolve, reject) => {
+        db.getDefaultTelegramConfig(userToggle, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.strictEqual(active.is_active, 0);
+
+      // Toggle back on (1)
+      const toggledOn = await new Promise((resolve, reject) => {
+        db.toggleTelegramConfigActive(userToggle, cfg.id, 1, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+      assert.strictEqual(toggledOn.is_active, 1);
+    });
+
     it('automatically retries Web K format channel IDs (-4304245048 -> -1004304245048)', async () => {
       const originalFetch = globalThis.fetch;
       let attemptedChatId = null;
@@ -578,6 +606,42 @@ describe('Telegram Notification Integration Tests', () => {
       assert.ok(basal);
       assert.strictEqual(basal.status_sent, 0);
       assert.strictEqual(basal.error, 'Disabled in notification settings.');
+    });
+
+    it('scheduler skips sending telegram reminder when config is toggled inactive (is_active = 0)', async () => {
+      const inactiveUser = 999;
+      // Add inactive config for user 999
+      const cfg = await new Promise((resolve, reject) => {
+        db.addTelegramConfig(inactiveUser, { name: 'Inactive Bot', bot_token: '12345:INACTIVE', chat_id: '-100999999' }, (err, res) => {
+          err ? reject(err) : resolve(res);
+        });
+      });
+      await new Promise((resolve, reject) => {
+        db.toggleTelegramConfigActive(inactiveUser, cfg.id, 0, (err, res) => (err ? reject(err) : resolve(res)));
+      });
+
+      // Insert injection log for user 999 with due notification
+      const recentTime = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const logId = await new Promise((resolve, reject) => {
+        db.db.run(
+          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent) VALUES (?, ?, ?, ?, ?, 0, 0, 0)",
+          [inactiveUser, recentTime, recentTime, recentTime, recentTime],
+          function(err) {
+            if (err) return reject(err);
+            resolve(this.lastID);
+          }
+        );
+      });
+
+      // Run scheduler
+      await scheduler.checkAndDispatchNotifications();
+
+      // Notification should NOT be marked sent
+      const log = await new Promise((resolve, reject) => {
+        db.db.get("SELECT * FROM injection_logs WHERE id = ?", [logId], (err, row) => (err ? reject(err) : resolve(row)));
+      });
+      assert.strictEqual(log.status_10m_sent, 0);
+      assert.match(log.error_10m, /Telegram is not configured/i);
     });
   });
 });

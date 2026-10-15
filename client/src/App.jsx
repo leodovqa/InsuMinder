@@ -24,6 +24,13 @@ import Profile from './Profile';
 import NotificationSettings from './NotificationSettings';
 import TimePicker24h from './TimePicker24h';
 import { authService } from './authService';
+import {
+  promptPwaInstall,
+  isStandaloneApp,
+  checkIsAppInstalled,
+  markAppInstalled,
+  subscribeToInstallPrompt
+} from './pwa';
 import { LanguageProvider, useTranslation } from './i18n';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
 
@@ -277,6 +284,74 @@ function AppContent() {
     });
   };
 
+  // PWA & Android Installation State (Show ONLY on web, hide if already installed/standalone)
+  const [isAppInstalled, setIsAppInstalled] = useState(() => isStandaloneApp());
+  const [isHomeBannerDismissed, setIsHomeBannerDismissed] = useState(() => {
+    try {
+      return localStorage.getItem('insuminder_home_pwa_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    async function checkInstallStatus() {
+      if (isStandaloneApp()) {
+        if (isMounted) setIsAppInstalled(true);
+        return;
+      }
+      const installed = await checkIsAppInstalled();
+      if (isMounted && installed) {
+        setIsAppInstalled(true);
+      }
+    }
+    checkInstallStatus();
+
+    const unsubPrompt = subscribeToInstallPrompt(() => {});
+
+    const onAppInstalled = () => {
+      if (isMounted) {
+        setIsAppInstalled(true);
+        markAppInstalled(true);
+      }
+    };
+    window.addEventListener('appinstalled', onAppInstalled);
+
+    return () => {
+      isMounted = false;
+      unsubPrompt();
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
+  }, []);
+
+  const handleInstallPwa = async () => {
+    const res = await promptPwaInstall();
+    if (res.outcome === 'accepted') {
+      setIsAppInstalled(true);
+      markAppInstalled(true);
+      setNotification({
+        type: 'success',
+        message: t('notificationSettings.pwaInstalledBadge')
+      });
+      setIsNavOpen(false);
+    } else if (res.outcome === 'unavailable') {
+      setNotification({
+        type: 'info',
+        message: t('notificationSettings.pwaInstallUnavailable')
+      });
+    }
+  };
+
+  const handleDismissHomeBanner = () => {
+    setIsHomeBannerDismissed(true);
+    try {
+      localStorage.setItem('insuminder_home_pwa_dismissed', 'true');
+    } catch (e) {
+      void e;
+    }
+  };
+
   // Synchronize URL search params with activeTab
   useEffect(() => {
     updateUrlForTab(activeTab);
@@ -398,7 +473,7 @@ function AppContent() {
     setIsEarlyBolusModalOpen(false);
   };
   const isTelegramConfigured = telegramConfigs.length > 0
-    ? telegramConfigs.some(c => c.isDefault)
+    ? telegramConfigs.some(c => (c.isDefault || telegramConfigs.length === 1) && c.isActive !== false)
     : Boolean(
         localStorage.getItem('insuminder_telegram_configured') === 'true' ||
         (localStorage.getItem('insuminder_telegram_bot_token') && localStorage.getItem('insuminder_telegram_chat_id')) ||
@@ -1001,6 +1076,39 @@ function AppContent() {
     }
   };
 
+  const handleToggleConfigActive = async (configId, nextActive) => {
+    setTelegramConfigs((prev) =>
+      prev.map((c) => (c.id === configId ? { ...c, isActive: nextActive } : c))
+    );
+
+    try {
+      const response = await fetch(`/api/telegram-configs/${configId}/toggle`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authService.getAuthHeaders()
+        },
+        body: JSON.stringify({ isActive: nextActive })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data || !data.success) {
+        fetchTelegramConfigs();
+        setNotification({
+          type: 'warning',
+          message: (data && data.error) ? data.error : t('notifications.failedToUpdateConfig')
+        });
+      } else {
+        fetchTelegramConfigs();
+      }
+    } catch {
+      fetchTelegramConfigs();
+      setNotification({
+        type: 'warning',
+        message: t('notifications.failedToReachServerToggle')
+      });
+    }
+  };
+
   const handleOpenDeleteModal = (config) => {
     setDeleteModalConfig(config);
   };
@@ -1205,7 +1313,12 @@ function AppContent() {
         </div>
 
         <div className="header-center">
-          <h1 className="header-title">{getPageTitle()}</h1>
+          <div className="header-title-wrapper">
+            {activeTab === 'home' && (
+              <img src="/icons/icon-192x192.png" alt="" className="header-brand-logo" width="24" height="24" />
+            )}
+            <h1 className="header-title">{getPageTitle()}</h1>
+          </div>
         </div>
 
         <div className="header-right">
@@ -1279,7 +1392,10 @@ function AppContent() {
         aria-hidden={!isNavOpen}
       >
         <div className="nav-header">
-          <h2 className="nav-brand">{t('nav.brand')}</h2>
+          <div className="nav-brand-group">
+            <img src="/icons/icon-192x192.png" alt="" className="nav-brand-logo-img" width="30" height="30" />
+            <h2 className="nav-brand">{t('nav.brand')}</h2>
+          </div>
           <button
             type="button"
             className="close-btn"
@@ -1355,6 +1471,18 @@ function AppContent() {
 
         {/* Bottom of sidebar: Log In / Sign Out button */}
         <div className="nav-footer">
+          {/* Install Android App (Shown only on web when not installed) */}
+          {!isAppInstalled && (
+            <button
+              type="button"
+              className="nav-item nav-install-app-btn"
+              onClick={handleInstallPwa}
+            >
+              <span className="nav-icon" role="img" aria-label="android-install">📲</span>
+              <span className="nav-label">{t('settings.installAndroidApp')}</span>
+            </button>
+          )}
+
           {/* Theme Selector: Dark / Light Mode */}
           <div className="nav-theme-toggle-row">
             <div className="nav-theme-toggle-pill" role="radiogroup" aria-label={t('nav.themeToggleLabel')}>
@@ -1835,6 +1963,37 @@ function AppContent() {
             {/* Injection Eligibility Status (Below Notifications Scheduled) */}
             <InjectionEligibility latestLog={latestBolusLog} />
           </>
+        )}
+
+        {/* Android App Installation Banner (Bottom of Mainpage, only on web when not installed) */}
+        {!isAppInstalled && !isHomeBannerDismissed && (
+          <div className="home-pwa-banner">
+            <div className="home-pwa-banner-icon-col">
+              <img src="/icons/icon-192x192.png" alt="" className="home-pwa-banner-logo" width="42" height="42" />
+            </div>
+            <div className="home-pwa-banner-content">
+              <h4 className="home-pwa-banner-title">{t('home.installAppBannerTitle')}</h4>
+              <p className="home-pwa-banner-subtitle">{t('home.installAppBannerSubtitle')}</p>
+            </div>
+            <div className="home-pwa-banner-actions">
+              <button
+                type="button"
+                className="home-pwa-install-btn"
+                onClick={handleInstallPwa}
+              >
+                {t('home.installAppBannerBtn')}
+              </button>
+              <button
+                type="button"
+                className="home-pwa-dismiss-btn"
+                onClick={handleDismissHomeBanner}
+                aria-label={t('home.dismissBanner')}
+                title={t('home.dismissBanner')}
+              >
+                &times;
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </section>
@@ -2623,7 +2782,7 @@ function AppContent() {
                     {telegramConfigs.map((cfg) => {
                       const hasCustom = isCustomConfigName(cfg.name, cfg.chatId);
                       return (
-                        <li key={cfg.id} className={`config-item ${cfg.isDefault ? 'is-default' : ''}`}>
+                        <li key={cfg.id} className={`config-item ${cfg.isDefault ? 'is-default' : ''} ${cfg.isActive === false ? 'is-inactive' : ''}`}>
                           <label className="config-radio-label">
                             <input
                               type="radio"
@@ -2676,12 +2835,17 @@ function AppContent() {
                           <div className="config-item-actions">
                             <button
                               type="button"
-                              className="config-row-test-btn"
-                              title="Test this configuration"
-                              onClick={() => handleTestTelegramNotification(cfg.botToken, cfg.chatId)}
-                              disabled={isTestingTelegram}
+                              role="switch"
+                              aria-checked={cfg.isActive !== false}
+                              aria-label={cfg.isActive !== false ? t('settings.configActive') : t('settings.configInactive')}
+                              title={cfg.isActive !== false ? t('settings.configActive') : t('settings.configInactive')}
+                              className={`toggle-switch config-toggle-switch ${cfg.isActive !== false ? 'checked' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleConfigActive(cfg.id, cfg.isActive === false);
+                              }}
                             >
-                              {t('settings.testBtn')}
+                              <span className="toggle-switch-handle" />
                             </button>
                             <button
                               type="button"
@@ -2949,9 +3113,38 @@ function AppContent() {
             </div>
           )}
         </div>
+
+        {/* Android App & Offline Installation Card (Only shown on web when not installed) */}
+        {!isAppInstalled && (
+          <div className="settings-card pwa-install-settings-card">
+            <div className="card-header">
+              <div className="card-icon-wrapper android-icon-wrapper">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                  <line x1="12" y1="18" x2="12.01" y2="18" />
+                </svg>
+              </div>
+              <div className="card-header-text">
+                <h2 className="card-title">{t('settings.installAndroidApp')}</h2>
+                <p className="card-subtitle">{t('notificationSettings.pwaInstallSectionSubtitle')}</p>
+              </div>
+            </div>
+
+            <div className="pwa-settings-action-row">
+              <button
+                type="button"
+                className="save-btn pwa-settings-install-btn"
+                onClick={handleInstallPwa}
+              >
+                <span className="install-btn-icon" aria-hidden="true">📲</span>
+                {t('settings.installAndroidApp')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-        </section>
-      )}
+    </section>
+  )}
 
       {/* Delete Confirmation Modal */}
       {deleteModalConfig && (
