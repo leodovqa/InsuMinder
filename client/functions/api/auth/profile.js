@@ -31,12 +31,15 @@ export async function onRequest(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { firstName, lastName, phone, language, basalTime, theme } = body;
+    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences } = body;
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
     const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
     const cleanTheme = (theme && ['dark', 'light'].includes(theme)) ? theme : null;
+    const cleanNotificationPrefs = notificationPreferences !== undefined
+      ? (typeof notificationPreferences === 'object' ? JSON.stringify(notificationPreferences) : String(notificationPreferences))
+      : null;
 
-    if ((cleanLang || cleanBasalTime || cleanTheme) && firstName === undefined && lastName === undefined) {
+    if ((cleanLang || cleanBasalTime || cleanTheme || cleanNotificationPrefs !== null) && firstName === undefined && lastName === undefined) {
       const updates = [];
       const params = [];
       if (cleanLang) {
@@ -51,6 +54,10 @@ export async function onRequest(context) {
         updates.push('theme = ?');
         params.push(cleanTheme);
       }
+      if (cleanNotificationPrefs !== null) {
+        updates.push('notification_preferences = ?');
+        params.push(cleanNotificationPrefs);
+      }
       params.push(authUser.userId);
 
       await db
@@ -59,9 +66,18 @@ export async function onRequest(context) {
         .run();
 
       const updatedUser = await db
-        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme FROM users WHERE id = ?')
+        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences FROM users WHERE id = ?')
         .bind(authUser.userId)
         .first();
+
+      let parsedPrefs = null;
+      if (updatedUser.notification_preferences) {
+        try {
+          parsedPrefs = JSON.parse(updatedUser.notification_preferences);
+        } catch {
+          parsedPrefs = null;
+        }
+      }
 
       return new Response(JSON.stringify({
         success: true,
@@ -76,7 +92,8 @@ export async function onRequest(context) {
           shareCode: updatedUser.share_code || '',
           language: updatedUser.language || cleanLang || 'en',
           basalTime: updatedUser.basal_time || '20:00',
-          theme: updatedUser.theme || cleanTheme || 'dark'
+          theme: updatedUser.theme || cleanTheme || 'dark',
+          notificationPreferences: parsedPrefs
         }
       }), {
         status: 200,
@@ -114,6 +131,10 @@ export async function onRequest(context) {
       fullUpdates.push('theme = ?');
       fullParams.push(cleanTheme);
     }
+    if (cleanNotificationPrefs !== null) {
+      fullUpdates.push('notification_preferences = ?');
+      fullParams.push(cleanNotificationPrefs);
+    }
     fullParams.push(authUser.userId);
 
     await db
@@ -122,9 +143,18 @@ export async function onRequest(context) {
       .run();
 
     const updatedUser = await db
-      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme FROM users WHERE id = ?')
+      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences FROM users WHERE id = ?')
       .bind(authUser.userId)
       .first();
+
+    let parsedPrefs = null;
+    if (updatedUser.notification_preferences) {
+      try {
+        parsedPrefs = JSON.parse(updatedUser.notification_preferences);
+      } catch {
+        parsedPrefs = null;
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,
@@ -139,7 +169,8 @@ export async function onRequest(context) {
         shareCode: updatedUser.share_code || '',
         language: updatedUser.language || 'en',
         basalTime: updatedUser.basal_time || '20:00',
-        theme: updatedUser.theme || 'dark'
+        theme: updatedUser.theme || 'dark',
+        notificationPreferences: parsedPrefs
       }
     }), {
       status: 200,

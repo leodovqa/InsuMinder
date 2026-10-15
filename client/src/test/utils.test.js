@@ -17,7 +17,8 @@ import {
   isCustomConfigName,
   getReminderStatus,
   getBasalReminderStatus,
-  getFriendlyReminderError
+  getFriendlyReminderError,
+  getEffectiveNotificationPreferences
 } from '../utils';
 
 describe('Utility Functions & Helpers', () => {
@@ -55,6 +56,11 @@ describe('Utility Functions & Helpers', () => {
       expect(getTabFromUrl('?tab=profile')).toBe('profile');
     });
 
+    it('returns "notifications" when page=notifications or tab=notifications is present', () => {
+      expect(getTabFromUrl('?page=notifications')).toBe('notifications');
+      expect(getTabFromUrl('?tab=notifications')).toBe('notifications');
+    });
+
     it('falls back to "home" for unknown page values', () => {
       expect(getTabFromUrl('?page=unknown')).toBe('home');
       expect(getTabFromUrl('?page=billing')).toBe('home');
@@ -79,6 +85,11 @@ describe('Utility Functions & Helpers', () => {
     it('updates URL search params to ?page=profile for profile tab', () => {
       updateUrlForTab('profile');
       expect(window.location.search).toContain('page=profile');
+    });
+
+    it('updates URL search params to ?page=notifications for notifications tab', () => {
+      updateUrlForTab('notifications');
+      expect(window.location.search).toContain('page=notifications');
     });
 
     it('removes page parameter when navigating to home', () => {
@@ -584,6 +595,122 @@ describe('Utility Functions & Helpers', () => {
       expect(res.icon).toBe('⏳');
       expect(res.label).toBe('Upcoming');
       expect(res.pillLabel).toBe('Pending');
+    });
+
+    it('returns disabled status when basal is disabled in preferences or recorded as disabled', () => {
+      const disabledPrefs = {
+        personal: { rem10m: true, rem2h: true, rem3h: true, basal: false },
+        shared: { rem10m: true, rem2h: true, rem3h: true, basal: true }
+      };
+
+      const res = getBasalReminderStatus(null, '20:00', true, 'en', false, disabledPrefs, 'personal');
+      expect(res.status).toBe('disabled');
+      expect(res.pillClass).toBe('disabled');
+      expect(res.badgeClass).toBe('badge-disabled');
+      expect(res.icon).toBe('🔕');
+      expect(res.label).toBe('Disabled in settings');
+      expect(res.isDisabled).toBe(true);
+
+      // In shared context where basal is enabled
+      const resShared = getBasalReminderStatus(null, '23:59', true, 'en', false, disabledPrefs, 'shared');
+      expect(resShared.status).toBe('upcoming');
+      expect(resShared.isDisabled).toBe(false);
+
+      // When rawError is explicitly 'Disabled in notification settings.'
+      const resExplicit = getBasalReminderStatus({
+        status_sent: 0,
+        error: 'Disabled in notification settings.'
+      }, '20:00', true, 'en');
+      expect(resExplicit.status).toBe('disabled');
+      expect(resExplicit.isDisabled).toBe(true);
+    });
+  });
+
+  describe('getEffectiveNotificationPreferences', () => {
+    it('returns all true defaults when input is null or empty', () => {
+      const prefs = getEffectiveNotificationPreferences(null);
+      expect(prefs).toEqual({
+        personal: { rem10m: true, rem2h: true, rem3h: true, basal: true },
+        shared: { rem10m: true, rem2h: true, rem3h: true, basal: true }
+      });
+    });
+
+    it('parses JSON string correctly', () => {
+      const jsonStr = JSON.stringify({
+        personal: { rem10m: false, rem2h: true, rem3h: false, basal: true },
+        shared: { rem10m: true, rem2h: false, rem3h: true, basal: false }
+      });
+      const prefs = getEffectiveNotificationPreferences(jsonStr);
+      expect(prefs.personal.rem10m).toBe(false);
+      expect(prefs.personal.rem3h).toBe(false);
+      expect(prefs.shared.rem2h).toBe(false);
+      expect(prefs.shared.basal).toBe(false);
+    });
+
+    it('fills in missing keys with default true', () => {
+      const partial = {
+        personal: { rem10m: false }
+      };
+      const prefs = getEffectiveNotificationPreferences(partial);
+      expect(prefs.personal.rem10m).toBe(false);
+      expect(prefs.personal.rem2h).toBe(true);
+      expect(prefs.personal.rem3h).toBe(true);
+      expect(prefs.personal.basal).toBe(true);
+      expect(prefs.shared.rem10m).toBe(true);
+    });
+  });
+
+  describe('getReminderStatus with notification preferences', () => {
+    it('returns disabled status when reminder type is turned off in preferences', () => {
+      const log = {
+        id: 1,
+        injected_at: new Date().toISOString(),
+        notify_10m_at: new Date(Date.now() + 600000).toISOString(),
+        notify_2h_at: new Date(Date.now() + 7200000).toISOString(),
+        notify_3h_at: new Date(Date.now() + 10800000).toISOString()
+      };
+      const prefs = {
+        personal: { rem10m: false, rem2h: true, rem3h: false, basal: true },
+        shared: { rem10m: true, rem2h: true, rem3h: true, basal: true }
+      };
+
+      const rem10m = getReminderStatus(log, '10m', true, 'en', prefs, 'personal');
+      expect(rem10m.status).toBe('disabled');
+      expect(rem10m.icon).toBe('🔕');
+      expect(rem10m.pillClass).toBe('disabled');
+      expect(rem10m.badgeClass).toBe('badge-disabled');
+      expect(rem10m.label).toBe('Disabled in settings');
+      expect(rem10m.isDisabled).toBe(true);
+
+      const rem2h = getReminderStatus(log, '2h', true, 'en', prefs, 'personal');
+      expect(rem2h.status).toBe('upcoming');
+      expect(rem2h.isDisabled).toBe(false);
+
+      const rem3h = getReminderStatus(log, '3h', true, 'en', prefs, 'personal');
+      expect(rem3h.status).toBe('disabled');
+      expect(rem3h.isDisabled).toBe(true);
+
+      // In shared context, rem10m is enabled
+      const shared10m = getReminderStatus(log, '10m', true, 'en', prefs, 'shared');
+      expect(shared10m.status).toBe('upcoming');
+      expect(shared10m.isDisabled).toBe(false);
+    });
+
+    it('returns sent status even if preference is disabled if status_sent was already 1', () => {
+      const log = {
+        id: 1,
+        status_10m: 1,
+        notify_10m_at: new Date().toISOString()
+      };
+      const prefs = {
+        personal: { rem10m: false, rem2h: true, rem3h: true, basal: true },
+        shared: { rem10m: true, rem2h: true, rem3h: true, basal: true }
+      };
+
+      const rem10m = getReminderStatus(log, '10m', true, 'en', prefs, 'personal');
+      expect(rem10m.status).toBe('sent');
+      expect(rem10m.icon).toBe('✅');
+      expect(rem10m.isDisabled).toBe(false);
     });
   });
 });

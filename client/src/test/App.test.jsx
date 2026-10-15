@@ -40,6 +40,11 @@ describe('App Component - Home & Logs UI Tests', () => {
           json: () => Promise.resolve({ success: true, user: mockUser })
         });
       }
+      if (url === '/api/auth/profile') {
+        return Promise.resolve({
+          json: () => Promise.resolve({ success: true, user: mockUser })
+        });
+      }
       if (url === '/api/logs') {
         return Promise.resolve({
           json: () => Promise.resolve({ success: true, logs: mockLogs })
@@ -287,14 +292,28 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
 
-    it('directly renders Settings page when URL is /?page=settings', async () => {
+    it('directly renders App Settings page when URL is /?page=settings', async () => {
       window.history.pushState({}, '', '/?page=settings');
 
       render(<App />);
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: 'App Settings' })).toBeInTheDocument();
         expect(screen.getByText('Telegram Notifications')).toBeInTheDocument();
+      });
+    });
+
+    it('directly renders Notification Settings page when URL is /?page=notifications', async () => {
+      window.history.pushState({}, '', '/?page=notifications');
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 1, name: 'Notification Settings' })).toBeInTheDocument();
+        expect(screen.getByText('10-Minute Meal Reminder')).toBeInTheDocument();
+        expect(screen.getByText('2-Hour Glucose Check')).toBeInTheDocument();
+        expect(screen.getByText('3-Hour Safe Window')).toBeInTheDocument();
+        expect(screen.getByText('Daily Basal Reminder')).toBeInTheDocument();
       });
     });
 
@@ -1238,6 +1257,79 @@ describe('App Component - Home & Logs UI Tests', () => {
       await waitFor(() => {
         expect(clearCalled).toBe(true);
         expect(screen.getByText(/Notification queue cleared/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Notification Preferences & Settings UI', () => {
+    it('allows toggling individual reminders, switches scopes, and updates localStorage', async () => {
+      window.history.pushState({}, '', '/?page=notifications');
+      localStorage.removeItem('insuminder_notification_prefs');
+
+      render(<App />);
+
+      await screen.findByRole('heading', { level: 1, name: 'Notification Settings' });
+
+      // Find switch for 10-Minute Meal Reminder
+      const mealSwitch = screen.getByRole('switch', { name: '10-Minute Meal Reminder' });
+      expect(mealSwitch).toHaveAttribute('aria-checked', 'true');
+
+      // Click to toggle off
+      fireEvent.click(mealSwitch);
+
+      await waitFor(() => {
+        expect(mealSwitch).toHaveAttribute('aria-checked', 'false');
+        const stored = JSON.parse(localStorage.getItem('insuminder_notification_prefs') || '{}');
+        expect(stored.personal?.rem10m).toBe(false);
+      });
+
+      // Switch to Shared Data scope
+      const sharedTabBtn = screen.getByRole('tab', { name: /Shared Data/i });
+      fireEvent.click(sharedTabBtn);
+
+      const sharedMealSwitch = screen.getByRole('switch', { name: '10-Minute Meal Reminder' });
+      expect(sharedMealSwitch).toHaveAttribute('aria-checked', 'true');
+
+      // Toggle off in shared scope
+      fireEvent.click(sharedMealSwitch);
+      await waitFor(() => {
+        expect(sharedMealSwitch).toHaveAttribute('aria-checked', 'false');
+        const stored = JSON.parse(localStorage.getItem('insuminder_notification_prefs') || '{}');
+        expect(stored.shared?.rem10m).toBe(false);
+      });
+    });
+
+    it('shows disabled status pill when reminder is disabled in settings, and opens modal with shortcut button', async () => {
+      localStorage.setItem('insuminder_notification_prefs', JSON.stringify({
+        personal: { rem10m: true, rem2h: false, rem3h: true, basal: true },
+        shared: { rem10m: true, rem2h: true, rem3h: true, basal: true }
+      }));
+      window.history.pushState({}, '', '/');
+
+      render(<App />);
+
+      // Wait for home page to render
+      await screen.findByText('Daily Injections');
+
+      // Check the latest reminder pill for 2h reminder
+      const disabledBadge = await screen.findByRole('button', { name: /2-Hour Reminder: Disabled in settings/i });
+      expect(disabledBadge).toBeInTheDocument();
+      expect(disabledBadge.textContent).toContain('Disabled in settings');
+
+      // Click the disabled pill to open modal
+      fireEvent.click(disabledBadge);
+
+      // Verify modal content
+      expect(await screen.findByRole('heading', { level: 3, name: '2-Hour Reminder' })).toBeInTheDocument();
+      expect(screen.getByText('This reminder is disabled in Notification Settings and will not be sent.')).toBeInTheDocument();
+
+      // Click shortcut button to jump to Notification Settings
+      const shortcutBtn = screen.getByRole('button', { name: /Open Notification Settings/i });
+      fireEvent.click(shortcutBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { level: 1, name: 'Notification Settings' })).toBeInTheDocument();
+        expect(window.location.search).toContain('page=notifications');
       });
     });
   });

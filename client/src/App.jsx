@@ -16,10 +16,12 @@ import {
   maskBotToken,
   isCustomConfigName,
   getReminderStatus,
-  getBasalReminderStatus
+  getBasalReminderStatus,
+  getEffectiveNotificationPreferences
 } from './utils';
 import AuthModal from './AuthModal';
 import Profile from './Profile';
+import NotificationSettings from './NotificationSettings';
 import TimePicker24h from './TimePicker24h';
 import { authService } from './authService';
 import { LanguageProvider, useTranslation } from './i18n';
@@ -215,6 +217,66 @@ function AppContent() {
   const [isEarlyBolusModalOpen, setIsEarlyBolusModalOpen] = useState(false);
   const [isClearingQueue, setIsClearingQueue] = useState(false);
 
+  // Granular Notification Preferences State
+  const [notificationPreferences, setNotificationPreferences] = useState(() => {
+    if (user?.notificationPreferences) {
+      return getEffectiveNotificationPreferences(user.notificationPreferences);
+    }
+    try {
+      const cached = localStorage.getItem('insuminder_notification_prefs');
+      return getEffectiveNotificationPreferences(cached ? JSON.parse(cached) : null);
+    } catch {
+      return getEffectiveNotificationPreferences(null);
+    }
+  });
+
+  const [prevUserForPrefs, setPrevUserForPrefs] = useState(user);
+  if (user !== prevUserForPrefs) {
+    setPrevUserForPrefs(user);
+    if (user?.notificationPreferences) {
+      setNotificationPreferences(getEffectiveNotificationPreferences(user.notificationPreferences));
+    } else {
+      try {
+        const cached = localStorage.getItem('insuminder_notification_prefs');
+        setNotificationPreferences(getEffectiveNotificationPreferences(cached ? JSON.parse(cached) : null));
+      } catch {
+        setNotificationPreferences(getEffectiveNotificationPreferences(null));
+      }
+    }
+  }
+
+  const handleUpdateNotificationPreferences = async (newPrefs) => {
+    const effective = getEffectiveNotificationPreferences(newPrefs);
+    setNotificationPreferences(effective);
+    try {
+      localStorage.setItem('insuminder_notification_prefs', JSON.stringify(effective));
+    } catch {
+      // ignore
+    }
+    if (isLoggedIn) {
+      try {
+        const res = await fetch('/api/auth/profile', {
+          method: 'PUT',
+          headers: {
+            ...authService.getAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ notificationPreferences: effective })
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(data.user);
+        }
+      } catch (err) {
+        console.error('Failed to save notification preferences to server:', err);
+      }
+    }
+    setNotification({
+      type: 'success',
+      message: t('notificationSettings.savedSuccess')
+    });
+  };
+
   // Synchronize URL search params with activeTab
   useEffect(() => {
     updateUrlForTab(activeTab);
@@ -342,15 +404,15 @@ function AppContent() {
         (localStorage.getItem('insuminder_telegram_bot_token') && localStorage.getItem('insuminder_telegram_chat_id')) ||
         (telegramBotToken.trim() && telegramChatId.trim())
       );
-  const latest10m = getReminderStatus(latestBolusLog, '10m', isTelegramConfigured, language);
-  const latest2h = getReminderStatus(latestBolusLog, '2h', isTelegramConfigured, language);
-  const latest3h = getReminderStatus(latestBolusLog, '3h', isTelegramConfigured, language);
+  const latest10m = getReminderStatus(latestBolusLog, '10m', isTelegramConfigured, language, notificationPreferences, activeContext);
+  const latest2h = getReminderStatus(latestBolusLog, '2h', isTelegramConfigured, language, notificationPreferences, activeContext);
+  const latest3h = getReminderStatus(latestBolusLog, '3h', isTelegramConfigured, language, notificationPreferences, activeContext);
 
   const handleOpenReminderModal = (log, type) => {
     if (!log) return;
     if (type === 'basal') {
       const hasLoggedBasalToday = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at) === todayDateKey);
-      const statusInfo = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, hasLoggedBasalToday);
+      const statusInfo = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, hasLoggedBasalToday, notificationPreferences, activeContext);
       setReminderModalData({
         ...statusInfo,
         title: t('modals.basalReminderTitle'),
@@ -358,7 +420,7 @@ function AppContent() {
       });
       return;
     }
-    const statusInfo = getReminderStatus(log, type, isTelegramConfigured, language);
+    const statusInfo = getReminderStatus(log, type, isTelegramConfigured, language, notificationPreferences, activeContext);
     const title = type === '10m'
       ? t('home.rem10mTitle')
       : type === '2h'
@@ -1114,6 +1176,8 @@ function AppContent() {
         return t('nav.logs');
       case 'profile':
         return t('nav.profile');
+      case 'notifications':
+        return t('nav.notifications');
       case 'settings':
         return t('nav.settings');
       case 'home':
@@ -1262,6 +1326,18 @@ function AppContent() {
           >
             <span className="nav-icon" role="img" aria-label="profile">👤</span>
             <span className="nav-label">{t('nav.profile')}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-item ${activeTab === 'notifications' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('notifications');
+              setIsNavOpen(false);
+            }}
+          >
+            <span className="nav-icon" role="img" aria-label="notifications">🔔</span>
+            <span className="nav-label">{t('nav.notifications')}</span>
           </button>
 
           <button
@@ -2161,7 +2237,7 @@ function AppContent() {
                             </div>
                             {log.type === 'basal' ? (
                               (() => {
-                                const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, true);
+                                const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, true, notificationPreferences, activeContext);
                                 return (
                                   <div className="log-field">
                                     <span className="log-label">{t('logs.basalReminderLabel')}</span>
@@ -2182,9 +2258,9 @@ function AppContent() {
                               })()
                             ) : (
                               (() => {
-                                const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured, language);
-                                const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured, language);
-                                const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured, language);
+                                const logRem10m = getReminderStatus(log, '10m', isTelegramConfigured, language, notificationPreferences, activeContext);
+                                const logRem2h = getReminderStatus(log, '2h', isTelegramConfigured, language, notificationPreferences, activeContext);
+                                const logRem3h = getReminderStatus(log, '3h', isTelegramConfigured, language, notificationPreferences, activeContext);
                                 return (
                                   <>
                                     <div className="log-field">
@@ -2251,7 +2327,7 @@ function AppContent() {
                             </div>
                           </div>
                           {(() => {
-                            const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, false);
+                            const basalStatus = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, false, notificationPreferences, activeContext);
                             return (
                               <div className="log-field">
                                 <span className="log-label">{t('logs.basalReminderLabel')}</span>
@@ -2305,7 +2381,15 @@ function AppContent() {
         />
       )}
 
-      {/* VIEW 3: SETTINGS (Language & Telegram) */}
+      {/* VIEW 3: NOTIFICATION SETTINGS */}
+      {activeTab === 'notifications' && (
+        <NotificationSettings
+          preferences={notificationPreferences}
+          onUpdatePreferences={handleUpdateNotificationPreferences}
+        />
+      )}
+
+      {/* VIEW 4: SETTINGS (Language & Telegram) */}
       {activeTab === 'settings' && (
         <section className="tab-view settings-view">
           <div className="settings-container">
@@ -3133,6 +3217,10 @@ function AppContent() {
                   <p className="reminder-modal-success-text">
                     {t('modals.sentSuccessText')}
                   </p>
+                ) : reminderModalData.status === 'disabled' ? (
+                  <p className="reminder-modal-disabled-text">
+                    {reminderModalData.friendlyError?.message || t('status.disabledInSettingsDesc')}
+                  </p>
                 ) : reminderModalData.status === 'failed' ? (
                   <div className="reminder-modal-error-content">
                     <p className="reminder-modal-error-category">
@@ -3143,7 +3231,7 @@ function AppContent() {
                     </p>
                     {reminderModalData.rawError &&
                      reminderModalData.rawError !== reminderModalData.friendlyError?.message &&
-                     !/not configured|already injected/i.test(reminderModalData.rawError) && (
+                     !/not configured|already injected|disabled in/i.test(reminderModalData.rawError) && (
                       <p className="reminder-modal-error-raw">
                         {t('modals.reminderDetailsLabel')} {reminderModalData.rawError}
                       </p>
@@ -3158,6 +3246,18 @@ function AppContent() {
             </div>
 
             <div className="modal-actions">
+              {reminderModalData.status === 'disabled' && (
+                <button
+                  type="button"
+                  className="modal-btn confirm-btn reminder-modal-settings-btn"
+                  onClick={() => {
+                    handleCloseReminderModal();
+                    setActiveTab('notifications');
+                  }}
+                >
+                  🔔 {t('notificationSettings.goToSettings')}
+                </button>
+              )}
               <button
                 type="button"
                 className="modal-btn cancel-btn"

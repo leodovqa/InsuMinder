@@ -35,6 +35,7 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'", () => {});
       db.run("ALTER TABLE users ADD COLUMN basal_time TEXT DEFAULT '20:00'", () => {});
       db.run("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'", () => {});
+      db.run("ALTER TABLE users ADD COLUMN notification_preferences TEXT", () => {});
     });
 
   // Verification codes table
@@ -186,7 +187,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, theme, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, theme, notification_preferences, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -257,6 +258,10 @@ function updateUser(id, updates, callback) {
   if (updates.theme !== undefined) {
     fields.push("theme = ?");
     values.push(updates.theme);
+  }
+  if (updates.notification_preferences !== undefined) {
+    fields.push("notification_preferences = ?");
+    values.push(typeof updates.notification_preferences === 'object' ? JSON.stringify(updates.notification_preferences) : updates.notification_preferences);
   }
 
   if (fields.length === 0) return callback(null);
@@ -800,7 +805,7 @@ function recordBasalReminder(userId, dateStr, scheduledTime, statusSent, errorMs
 
 function getUsersPendingBasalReminder(currentTimeStr, dateStr, callback) {
   db.all(
-    "SELECT u.id, u.email, u.language, COALESCE(u.basal_time, '20:00') as basal_time "
+    "SELECT u.id, u.email, u.language, u.notification_preferences, COALESCE(u.basal_time, '20:00') as basal_time "
     + "FROM users u "
     + "WHERE COALESCE(u.basal_time, '20:00') <= ? "
     + "AND NOT EXISTS ("
