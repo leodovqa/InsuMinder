@@ -92,7 +92,7 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 
 ### 7. Multilingual Internationalization & Parity (EN, HE, RU)
 - **Three Supported Languages:** Complete native dictionaries for English (`en`), Hebrew (`he` - RTL), and Russian (`ru` - LTR).
-- **100% Three-Way Parity:** Strict enforcement via pre-commit and CI (`npm run check:i18n`) verifying all 338 leaf keys, non-empty values, and identical token interpolation.
+- **100% Three-Way Parity:** Strict enforcement via pre-commit and CI (`npm run check:i18n`) verifying all 362 leaf keys, non-empty values, and identical token interpolation.
 - **Natural Clinical Terminology:** Medically accurate phrasing tailored for diabetes management, insulin logs, and timed reminders.
 - **Localized Telegram Dispatch:** Reminders and test alerts are automatically sent in the patient's chosen language.
 - **Persistent Preferences:** User language choice persists seamlessly across client localStorage and backend profile database records.
@@ -104,6 +104,19 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **High Contrast & Accessible Light Theme:** Refined color palettes for light mode ensuring crisp, readable text and UI components across context switchers, profile forms, 24h clock picker, and shared group controls without altering dark mode.
 - **Full Cloud & Account Sync:** User theme selection is stored locally across sessions and synchronized with the user's account profile via `PUT /api/auth/profile` and `GET /api/auth/me`.
 - **Automated Theme Parity Enforcement:** Pre-commit hooks (`.husky/pre-commit`) and CI (`.github/workflows/ci.yml`) enforce theme variable completeness, critical component overrides, and contrast safety via `npm run check:theme`.
+
+### 9. Granular Notification Preferences & Dedicated Settings View
+- **Per-Notification Preference Toggles:** Full user control to enable or disable individual clinical notifications:
+  - 🍽️ **10-Minute Meal Time Reminder (`rem10m`)**
+  - 🩸 **2-Hour Glucose Check (`rem2h`)**
+  - 🎯 **3-Hour Safe Window Reminder (`rem3h`)**
+  - 🌙 **Daily Basal Reminder (`basal`)**
+- **Dual-Scoped Notification Preferences:** Distinct preference controls for **My Data** (personal doses) vs **Shared Data** (caregiver/viewed accounts), ensuring users only receive the specific alerts relevant to their role.
+- **Dedicated Navigation Route:** Directly accessible via the sidebar drawer with dedicated 🔔 icon, URL synchronization (`/?page=notifications`), and active drawer indicator.
+- **Sleek iOS-Style Segmented Control:** Pill selector switching effortlessly between `👤 My Data` and `👥 Shared Data` with descriptive status badges.
+- **Tactile Interactive Cards:** 16px radius cards with smooth hover lift, individual color accents (amber, red, emerald, violet), full keyboard accessibility (<kbd>Enter</kbd> / <kbd>Space</kbd>), and distinct dimmed states when disabled.
+- **UI Status Indicators & Shortcut Navigation:** If a reminder is turned off by user settings, its status is clearly marked as **"Disabled in settings"** on dashboard tiles and injection log pills. Clicking the status opens a reminder details modal featuring an instant shortcut button (**"🔔 Open Notification Settings"**) with zero nested container clutter.
+- **Dual Backend Validation:** Both the local Node.js scheduler (`server/src/scheduler.js`) and the Cloudflare Pages serverless edge dispatcher (`functions/api/_telegram.js`) verify user preference flags before scheduling or delivering Telegram reminders.
 
 ---
 
@@ -117,8 +130,16 @@ InsuMinder/
 │   │   ├── services/api.js     # Centralized API fetch layer
 │   │   ├── App.jsx             # Main dashboard view & routing
 │   │   ├── Profile.jsx         # User profile management view
+│   │   ├── NotificationSettings.jsx # Granular notification preference controls
 │   │   ├── utils.js            # Clinical calculation & timezone utilities
 │   │   └── test/               # Vitest component & UX integration test suites
+│   │       ├── App.test.jsx    # Dashboard, modals & clinical timer tests
+│   │       ├── auth.test.jsx   # Authentication & session tests
+│   │       ├── notificationSettings.test.jsx # Notification preferences test suite
+│   │       ├── profile.test.jsx# Profile management tests
+│   │       ├── share.test.jsx  # Caregiver & family group tests
+│   │       ├── theme.test.jsx  # Dual theme consistency tests
+│   │       └── utils.test.js   # Clinical calculation test suite
 │   └── functions/api/          # Cloudflare Pages Functions (Frontend copy for parity)
 ├── functions/api/              # Cloudflare Pages Functions (Production edge backend)
 │   ├── _db.js                  # Cloudflare D1 Serverless SQLite connection
@@ -149,7 +170,8 @@ InsuMinder/
 ## 💻 Local Development Setup
 
 ### Prerequisites
-- Node.js 20+ and npm installed.
+- Node.js 22+ (LTS) or Node.js 24 and npm installed.
+- GitHub Actions workflows pinned to Ubuntu 24.04 and v5 actions for LTS stability.
 
 ### Start Development Environment
 You can start both client and server in parallel with:

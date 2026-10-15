@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS users (
     language TEXT DEFAULT 'en',
     basal_time TEXT DEFAULT '20:00',
     theme TEXT DEFAULT 'dark',
+    notification_preferences TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -133,9 +134,10 @@ Core API Endpoints
 - **Authentication**:
   - `POST /api/auth/send-code`: Generates 6-digit code for email.
   - `POST /api/auth/verify-code`: Verifies code, logs in, returns session user.
-- **User Profile**:
+  - `GET /api/auth/me`: Validates session cookie or token, returns current user profile and parsed `notification_preferences`.
+- **User Profile & Notification Settings**:
   - `GET /api/user/profile`: Fetches user profile.
-  - `PUT /api/user/profile`: Updates first name, last name, phone, basal time (`HH:MM`).
+  - `PUT /api/auth/profile`: Updates first name, last name, phone, basal time (`HH:MM`), theme (`'dark'` | `'light'`), and `notificationPreferences` JSON object.
 - **Caregiver / Family Sharing**:
   - `GET /api/share/groups`: Retrieves user groups and members.
   - `POST /api/share/groups`: Creates a new group with share code `INSU-XXXXXX`.
@@ -149,6 +151,39 @@ Core API Endpoints
   - `POST /api/telegram/test`: Tests bot connectivity.
   - `POST /api/dev/clear-notifications`: Clears and resets pending notification queues in injection_logs and basal_reminders (dev & testing).
   - `GET /api/cron`: Dispatches due reminders (automated background runner).
+
+---
+
+## Granular Notification Preferences & Scoped Settings
+
+- **Preference Structure**:
+  Stored as JSON in `users.notification_preferences` with scoped boolean toggles:
+  ```json
+  {
+    "personal": {
+      "rem10m": true,
+      "rem2h": true,
+      "rem3h": true,
+      "basal": true
+    },
+    "shared": {
+      "rem10m": true,
+      "rem2h": true,
+      "rem3h": true,
+      "basal": true
+    }
+  }
+  ```
+- **Scopes**:
+  - `personal`: Controls notifications triggered for the user's own injections (`My Data`).
+  - `shared`: Controls notifications received for injections logged by connected family members (`Shared Data`).
+- **Backend Verification**:
+  - `server/src/scheduler.js`: Resolves user notification preferences before dispatching 10m, 2h, 3h, or basal reminders. If disabled (`=== false`), records status as `"Disabled in notification settings."` and skips delivery.
+  - `functions/api/_telegram.js`: Cloudflare Pages dispatcher verifies preferences and marks logs accordingly.
+- **Frontend Presentation**:
+  - `NotificationSettings.jsx`: Interactive toggle cards for both scopes with segmented pill navigation and accessible keyboard controls.
+  - Disabled reminders display a neutral `"Disabled in settings"` badge in injection logs and dashboard status cards.
+  - Reminder modal details provide a direct shortcut button (**"🔔 Open Notification Settings"**) for quick configuration.
 
 Agent Coding Constraints
 Relative Scope: * When instructed to write UI, only touch client/.
