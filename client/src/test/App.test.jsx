@@ -1269,8 +1269,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       const basalBtn = await screen.findByRole('button', { name: /Basal Insulin/i });
       const bolusSplitBtn = screen.getByRole('button', { name: /Bolus Insulin/i });
 
-      // Bolus is gray, Basal is NOT gray
-      expect(bolusSplitBtn.classList.contains('btn-gray')).toBe(true);
+      // Wait for async logs fetch to update bolus eligibility (Bolus becomes gray, Basal is NOT gray)
+      await waitFor(() => {
+        expect(bolusSplitBtn.classList.contains('btn-gray')).toBe(true);
+      });
       expect(basalBtn.classList.contains('btn-gray')).toBe(false);
 
       // Clicking Basal logs directly without opening early modal
