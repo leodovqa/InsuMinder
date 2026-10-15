@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from '../App';
 import { authService } from '../authService';
+import * as pwa from '../pwa';
 
 describe('App Component - Home & Logs UI Tests', () => {
   const mockLogs = [
@@ -1428,7 +1429,7 @@ describe('App Component - Home & Logs UI Tests', () => {
     });
 
     it('hides all Android installation buttons and cards when app is already installed or standalone', async () => {
-      localStorage.setItem('insuminder_app_installed', 'true');
+      vi.spyOn(pwa, 'isStandaloneApp').mockReturnValue(true);
 
       render(<App />);
 

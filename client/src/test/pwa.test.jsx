@@ -157,13 +157,24 @@ describe('PWA Installation Detection & Persistence Tests', () => {
     vi.restoreAllMocks();
   });
 
-  it('isStandaloneApp correctly identifies standalone display mode and localStorage', () => {
+  it('isStandaloneApp correctly identifies standalone display mode and navigator.standalone', () => {
     expect(pwa.isStandaloneApp()).toBe(false);
 
-    pwa.markAppInstalled(true);
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(display-mode: standalone)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+
     expect(pwa.isStandaloneApp()).toBe(true);
 
-    pwa.markAppInstalled(false);
+    window.matchMedia = originalMatchMedia;
     expect(pwa.isStandaloneApp()).toBe(false);
   });
 
@@ -181,7 +192,6 @@ describe('PWA Installation Detection & Persistence Tests', () => {
 
       const installed = await pwa.checkIsAppInstalled();
       expect(installed).toBe(true);
-      expect(localStorage.getItem('insuminder_app_installed')).toBe('true');
     } finally {
       Object.defineProperty(globalThis, 'navigator', {
         value: originalNavigator,
