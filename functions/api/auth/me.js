@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
   }
 
   let user = await db
-    .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, created_at FROM users WHERE id = ?')
     .bind(authUser.userId)
     .first();
 
@@ -37,6 +37,15 @@ export async function onRequestGet(context) {
     user.share_code = newCode;
   }
 
+  let parsedPrefs = null;
+  if (user.notification_preferences) {
+    try {
+      parsedPrefs = JSON.parse(user.notification_preferences);
+    } catch {
+      parsedPrefs = null;
+    }
+  }
+
   return new Response(JSON.stringify({
     success: true,
     user: {
@@ -50,7 +59,8 @@ export async function onRequestGet(context) {
       shareCode: user.share_code,
       language: user.language || 'en',
       basalTime: user.basal_time || '20:00',
-      theme: user.theme || 'dark'
+      theme: user.theme || 'dark',
+      notificationPreferences: parsedPrefs
     }
   }), {
     status: 200,

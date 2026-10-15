@@ -21,6 +21,34 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
+function formatUserResponse(user, shareCode) {
+  let notificationPreferences = null;
+  if (user && user.notification_preferences) {
+    try {
+      notificationPreferences = typeof user.notification_preferences === 'object'
+        ? user.notification_preferences
+        : JSON.parse(user.notification_preferences);
+    } catch {
+      notificationPreferences = null;
+    }
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name || (user.email ? user.email.split('@')[0] : ''),
+    firstName: user.first_name || '',
+    lastName: user.last_name || '',
+    phone: user.phone || '',
+    avatar: user.avatar || '',
+    shareCode: shareCode || user.share_code || '',
+    language: user.language || 'en',
+    basalTime: user.basal_time || '20:00',
+    theme: user.theme || 'dark',
+    notificationPreferences
+  };
+}
+
 /* =========================================================================
    AUTHENTICATION ENDPOINTS
    ========================================================================= */
@@ -216,18 +244,7 @@ app.post('/api/auth/verify', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name || cleanEmail.split('@')[0],
-        firstName: user.first_name || '',
-        lastName: user.last_name || '',
-        phone: user.phone || '',
-        avatar: user.avatar || '',
-        shareCode: user.share_code || '',
-        language: user.language || 'en',
-        basalTime: user.basal_time || '20:00'
-      }
+      user: formatUserResponse(user)
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Verification failed.' });
@@ -303,18 +320,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name || cleanEmail.split('@')[0],
-        firstName: user.first_name || '',
-        lastName: user.last_name || '',
-        phone: user.phone || '',
-        avatar: user.avatar || '',
-        shareCode: user.share_code || '',
-        language: user.language || 'en',
-        basalTime: user.basal_time || '20:00'
-      }
+      user: formatUserResponse(user)
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Login failed.' });
@@ -439,18 +445,7 @@ app.post('/api/auth/google', async (req, res) => {
     res.json({
       success: true,
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name || userEmail.split('@')[0],
-        firstName: user.first_name || '',
-        lastName: user.last_name || '',
-        phone: user.phone || '',
-        avatar: user.avatar || '',
-        shareCode: user.share_code || '',
-        language: user.language || 'en',
-        basalTime: user.basal_time || '20:00'
-      }
+      user: formatUserResponse(user)
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Google authentication failed.' });
@@ -466,18 +461,7 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
     db.ensureShareCode(user.id, (codeErr, shareCode) => {
       res.json({
         success: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name || user.email.split('@')[0],
-          firstName: user.first_name || '',
-          lastName: user.last_name || '',
-          phone: user.phone || '',
-          avatar: user.avatar || '',
-          shareCode: shareCode || user.share_code || '',
-          language: user.language || 'en',
-          basalTime: user.basal_time || '20:00'
-        }
+        user: formatUserResponse(user, shareCode)
       });
     });
   });
@@ -486,14 +470,18 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // 6. Update User Profile (Onboarding Step & Profile Updates)
 const handleProfileUpdate = async (req, res) => {
   try {
-    const { firstName, lastName, phone, language, basalTime } = req.body || {};
+    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences } = req.body || {};
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
     const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
+    const cleanTheme = (theme && ['dark', 'light'].includes(theme)) ? theme : null;
+    const hasNotificationPrefs = notificationPreferences !== undefined;
 
-    if ((cleanLang || cleanBasalTime) && firstName === undefined && lastName === undefined) {
+    if ((cleanLang || cleanBasalTime || cleanTheme || hasNotificationPrefs) && firstName === undefined && lastName === undefined) {
       const updates = {};
       if (cleanLang) updates.language = cleanLang;
       if (cleanBasalTime) updates.basal_time = cleanBasalTime;
+      if (cleanTheme) updates.theme = cleanTheme;
+      if (hasNotificationPrefs) updates.notification_preferences = notificationPreferences;
 
       await new Promise((resolve, reject) => {
         db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -503,18 +491,7 @@ const handleProfileUpdate = async (req, res) => {
       });
       return res.json({
         success: true,
-        user: {
-          id: updatedUser.id,
-          email: updatedUser.email,
-          name: updatedUser.name || updatedUser.email.split('@')[0],
-          firstName: updatedUser.first_name || '',
-          lastName: updatedUser.last_name || '',
-          phone: updatedUser.phone || '',
-          avatar: updatedUser.avatar || '',
-          shareCode: updatedUser.share_code || '',
-          language: updatedUser.language || cleanLang || 'en',
-          basalTime: updatedUser.basal_time || '20:00'
-        }
+        user: formatUserResponse(updatedUser)
       });
     }
 
@@ -539,6 +516,8 @@ const handleProfileUpdate = async (req, res) => {
     };
     if (cleanLang) updates.language = cleanLang;
     if (cleanBasalTime) updates.basal_time = cleanBasalTime;
+    if (cleanTheme) updates.theme = cleanTheme;
+    if (hasNotificationPrefs) updates.notification_preferences = notificationPreferences;
 
     await new Promise((resolve, reject) => {
       db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -550,18 +529,7 @@ const handleProfileUpdate = async (req, res) => {
 
     res.json({
       success: true,
-      user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        name: updatedUser.name || fullName,
-        firstName: updatedUser.first_name || cleanFirstName,
-        lastName: updatedUser.last_name || cleanLastName,
-        phone: updatedUser.phone || '',
-        avatar: updatedUser.avatar || '',
-        shareCode: updatedUser.share_code || '',
-        language: updatedUser.language || 'en',
-        basalTime: updatedUser.basal_time || '20:00'
-      }
+      user: formatUserResponse(updatedUser)
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Failed to update profile.' });

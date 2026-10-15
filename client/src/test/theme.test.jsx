@@ -221,7 +221,7 @@ describe('Theme Context & Dark/Light Mode Tests', () => {
     const menuBtn = screen.getByRole('button', { name: /open navigation menu/i });
     fireEvent.click(menuBtn);
 
-    const settingsTabBtn = screen.getByRole('button', { name: /Settings/i });
+    const settingsTabBtn = screen.getByRole('button', { name: /App Settings/i });
     fireEvent.click(settingsTabBtn);
 
     // Verify Theme card heading does NOT exist in Settings

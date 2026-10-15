@@ -5,7 +5,7 @@ export const pad2 = (num) => String(num).padStart(2, '0');
 export const getTabFromUrl = (search = typeof window !== 'undefined' ? window.location.search : '') => {
   const params = new URLSearchParams(search);
   const page = params.get('page') || params.get('tab');
-  if (page === 'logs' || page === 'settings' || page === 'profile') {
+  if (page === 'logs' || page === 'settings' || page === 'profile' || page === 'notifications') {
     return page;
   }
   return 'home';
@@ -14,7 +14,7 @@ export const getTabFromUrl = (search = typeof window !== 'undefined' ? window.lo
 export const updateUrlForTab = (tab) => {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  if (tab === 'logs' || tab === 'settings' || tab === 'profile') {
+  if (tab === 'logs' || tab === 'settings' || tab === 'profile' || tab === 'notifications') {
     url.searchParams.set('page', tab);
   } else {
     url.searchParams.delete('page');
@@ -359,6 +359,13 @@ export const getFriendlyReminderError = (rawError, isTelegramConfigured = true, 
     };
   }
 
+  if (/disabled in/i.test(err)) {
+    return {
+      category: translate('status.disabledInSettings', {}, lang),
+      message: translate('status.disabledInSettingsDesc', {}, lang)
+    };
+  }
+
   if (/too many requests|rate limit|429|500|502|503|504|internal|service/i.test(err)) {
     return {
       category: translate('errors.telegramServiceIssue', {}, lang),
@@ -372,7 +379,50 @@ export const getFriendlyReminderError = (rawError, isTelegramConfigured = true, 
   };
 };
 
-export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true, lang = 'en') => {
+export const DEFAULT_NOTIFICATION_PREFERENCES = {
+  personal: {
+    rem10m: true,
+    rem2h: true,
+    rem3h: true,
+    basal: true
+  },
+  shared: {
+    rem10m: true,
+    rem2h: true,
+    rem3h: true,
+    basal: true
+  }
+};
+
+export const getEffectiveNotificationPreferences = (userPrefs) => {
+  let parsed = userPrefs;
+  if (typeof userPrefs === 'string') {
+    try {
+      parsed = JSON.parse(userPrefs);
+    } catch {
+      parsed = null;
+    }
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return DEFAULT_NOTIFICATION_PREFERENCES;
+  }
+  return {
+    personal: {
+      rem10m: parsed.personal?.rem10m !== false,
+      rem2h: parsed.personal?.rem2h !== false,
+      rem3h: parsed.personal?.rem3h !== false,
+      basal: parsed.personal?.basal !== false
+    },
+    shared: {
+      rem10m: parsed.shared?.rem10m !== false,
+      rem2h: parsed.shared?.rem2h !== false,
+      rem3h: parsed.shared?.rem3h !== false,
+      basal: parsed.shared?.basal !== false
+    }
+  };
+};
+
+export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true, lang = 'en', notificationPreferences = null, activeContext = 'personal') => {
   if (!log) {
     return {
       type,
@@ -385,7 +435,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
       title: 'No reminder scheduled',
       targetTime: null,
       friendlyError: null,
-      rawError: null
+      rawError: null,
+      isDisabled: false
     };
   }
 
@@ -395,15 +446,24 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
 
   if (type === '10m') {
     targetTime = log.notify_10m_at || (log.injected_at ? new Date(new Date(log.injected_at).getTime() + 10 * 60 * 1000).toISOString() : null);
-    isSent = Boolean(log.status_10m_sent === 1 || log.status_10m_sent === true || log.status_10m_sent === '1');
+    isSent = Boolean(
+      log.status_10m_sent === 1 || log.status_10m_sent === true || log.status_10m_sent === '1' ||
+      log.status_10m === 1 || log.status_10m === true || log.status_10m === '1'
+    );
     rawError = log.error_10m;
   } else if (type === '3h') {
     targetTime = log.notify_3h_at;
-    isSent = Boolean(log.status_3h_sent === 1 || log.status_3h_sent === true || log.status_3h_sent === '1');
+    isSent = Boolean(
+      log.status_3h_sent === 1 || log.status_3h_sent === true || log.status_3h_sent === '1' ||
+      log.status_3h === 1 || log.status_3h === true || log.status_3h === '1'
+    );
     rawError = log.error_3h;
   } else {
     targetTime = log.notify_2h_at;
-    isSent = Boolean(log.status_2h_sent === 1 || log.status_2h_sent === true || log.status_2h_sent === '1');
+    isSent = Boolean(
+      log.status_2h_sent === 1 || log.status_2h_sent === true || log.status_2h_sent === '1' ||
+      log.status_2h === 1 || log.status_2h === true || log.status_2h === '1'
+    );
     rawError = log.error_2h;
   }
 
@@ -419,7 +479,34 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
       title: 'Reminder delivered to Telegram.',
       targetTime,
       friendlyError: null,
-      rawError: null
+      rawError: null,
+      isDisabled: false
+    };
+  }
+
+  const effectivePrefs = getEffectiveNotificationPreferences(notificationPreferences);
+  const scope = activeContext === 'shared' ? 'shared' : 'personal';
+  const prefKey = type === '10m' ? 'rem10m' : (type === '3h' ? 'rem3h' : 'rem2h');
+  const isEnabled = effectivePrefs[scope]?.[prefKey] !== false;
+  const isExplicitlyDisabled = rawError === 'Disabled in notification settings.' || !isEnabled;
+
+  if (isExplicitlyDisabled) {
+    return {
+      type,
+      status: 'disabled',
+      label: translate('status.disabledInSettings', {}, lang),
+      pillLabel: translate('status.disabledInSettings', {}, lang),
+      icon: '🔕',
+      badgeClass: 'badge-disabled',
+      pillClass: 'disabled',
+      title: translate('status.disabledInSettingsDesc', {}, lang),
+      targetTime,
+      friendlyError: {
+        category: translate('status.disabledInSettings', {}, lang),
+        message: translate('status.disabledInSettingsDesc', {}, lang)
+      },
+      rawError: rawError ? String(rawError).trim() : null,
+      isDisabled: true
     };
   }
 
@@ -439,7 +526,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
       title: friendly.message,
       targetTime,
       friendlyError: friendly,
-      rawError: rawError ? String(rawError).trim() : null
+      rawError: rawError ? String(rawError).trim() : null,
+      isDisabled: false
     };
   }
 
@@ -454,11 +542,28 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
     title: targetTime ? `Scheduled for ${formatDateTime(targetTime)}` : 'Scheduled',
     targetTime,
     friendlyError: null,
-    rawError: null
+    rawError: null,
+    isDisabled: false
   };
 };
 
-export const getBasalReminderStatus = (basalReminder, basalTime = '20:00', isTelegramConfigured = true, lang = 'en') => {
+export const getBasalReminderStatus = (
+  basalReminder,
+  basalTime = '20:00',
+  isTelegramConfigured = true,
+  lang = 'en',
+  hasLoggedBasalTodayOrPrefs = false,
+  notificationPreferences = null,
+  activeContext = 'personal'
+) => {
+  let effectivePrefs = notificationPreferences;
+  let effectiveContext = activeContext;
+
+  if (typeof hasLoggedBasalTodayOrPrefs === 'object' && hasLoggedBasalTodayOrPrefs !== null) {
+    effectivePrefs = hasLoggedBasalTodayOrPrefs;
+    effectiveContext = typeof notificationPreferences === 'string' ? notificationPreferences : 'personal';
+  }
+
   const scheduledTime = basalReminder?.scheduled_time || basalTime || '20:00';
   const isSent = Boolean(basalReminder?.status_sent === 1 || basalReminder?.status_sent === true || basalReminder?.status_sent === '1');
   const rawError = basalReminder?.error || null;
@@ -476,7 +581,34 @@ export const getBasalReminderStatus = (basalReminder, basalTime = '20:00', isTel
       targetTime: basalReminder?.sent_at || null,
       scheduledTime,
       friendlyError: null,
-      rawError: null
+      rawError: null,
+      isDisabled: false
+    };
+  }
+
+  const effectivePreferencesObj = getEffectiveNotificationPreferences(effectivePrefs);
+  const scope = effectiveContext === 'shared' ? 'shared' : 'personal';
+  const isEnabled = effectivePreferencesObj[scope]?.basal !== false;
+  const isExplicitlyDisabled = rawError === 'Disabled in notification settings.' || !isEnabled;
+
+  if (isExplicitlyDisabled) {
+    return {
+      type: 'basal',
+      status: 'disabled',
+      label: translate('status.disabledInSettings', {}, lang),
+      pillLabel: translate('status.disabledInSettings', {}, lang),
+      icon: '🔕',
+      badgeClass: 'badge-disabled',
+      pillClass: 'disabled',
+      title: translate('status.disabledInSettingsDesc', {}, lang),
+      targetTime: null,
+      scheduledTime,
+      friendlyError: {
+        category: translate('status.disabledInSettings', {}, lang),
+        message: translate('status.disabledInSettingsDesc', {}, lang)
+      },
+      rawError: rawError ? String(rawError).trim() : null,
+      isDisabled: true
     };
   }
 
@@ -502,7 +634,8 @@ export const getBasalReminderStatus = (basalReminder, basalTime = '20:00', isTel
       targetTime: null,
       scheduledTime,
       friendlyError: friendly,
-      rawError: String(rawError).trim()
+      rawError: String(rawError).trim(),
+      isDisabled: false
     };
   }
 
@@ -521,7 +654,8 @@ export const getBasalReminderStatus = (basalReminder, basalTime = '20:00', isTel
         targetTime: null,
         scheduledTime,
         friendlyError: friendly,
-        rawError: rawError ? String(rawError).trim() : null
+        rawError: rawError ? String(rawError).trim() : null,
+        isDisabled: false
       };
     }
   }
@@ -538,7 +672,8 @@ export const getBasalReminderStatus = (basalReminder, basalTime = '20:00', isTel
     targetTime: null,
     scheduledTime,
     friendlyError: null,
-    rawError: null
+    rawError: null,
+    isDisabled: false
   };
 };
 

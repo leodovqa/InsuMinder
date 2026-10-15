@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     share_code TEXT UNIQUE,
     basal_time TEXT DEFAULT '20:00',
     theme TEXT DEFAULT 'dark',
+    notification_preferences TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1141,6 +1141,12 @@
   border: 1px solid rgba(156, 163, 175, 0.25);
 }
 
+.badge-disabled {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
 .reminder-time-info {
   display: flex;
   align-items: center;
@@ -1503,6 +1509,12 @@
   border: 1px solid rgba(239, 68, 68, 0.35);
   color: #f87171;
   cursor: help;
+}
+
+.latest-reminder-pill.disabled {
+  background-color: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #94a3b8;
 }
 
 .latest-expanded-panel {
@@ -2295,6 +2307,12 @@
   background-color: rgba(14, 165, 233, 0.15);
   color: #38bdf8;
   border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.log-status-pill.disabled {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
 }
 
 /* Settings Container & Cards */
@@ -3237,6 +3255,7 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  border: none;
   transition: all 0.2s ease;
 }
 
@@ -3524,6 +3543,13 @@
   font-size: 13.5px;
   line-height: 1.5;
   color: #38bdf8;
+}
+
+.reminder-modal-disabled-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #94a3b8);
 }
 
 /* Application Footer */
@@ -5474,6 +5500,24 @@
   border-color: rgba(14, 165, 233, 0.35);
 }
 
+[data-theme="light"] .log-status-pill.disabled {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .latest-reminder-pill.disabled {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+[data-theme="light"] .badge-disabled {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
 /* 5. TimePicker24h Modal & Popover */
 [data-theme="light"] .clock-picker-popover {
   background-color: #ffffff;
@@ -5639,5 +5683,432 @@
   color: #dc2626;
   border-color: rgba(239, 68, 68, 0.4);
 }
+
+/* ========================================================
+   6. Notification Settings View & Controls
+   ======================================================== */
+.notification-settings-view {
+  width: 100%;
+}
+
+.notification-settings-container {
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: start;
+}
+
+[dir="rtl"] .notification-settings-container {
+  text-align: right;
+}
+
+/* Header & Scope Switcher */
+.notification-scope-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.notification-view-subtitle {
+  font-size: 13.5px;
+  color: var(--text-muted, #94a3b8);
+  margin: 0;
+  line-height: 1.45;
+  max-width: 440px;
+}
+
+.notification-scope-pill {
+  display: flex;
+  background-color: rgba(15, 23, 42, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 4px;
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
+}
+
+.scope-pill-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope-pill-btn:hover {
+  color: var(--text, #f1f5f9);
+}
+
+.scope-pill-btn.active {
+  background-color: var(--accent, #0ea5e9);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.35);
+}
+
+.scope-pill-icon {
+  font-size: 14px;
+}
+
+.notification-scope-caption-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+.notification-scope-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #0ea5e9;
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.6);
+  flex-shrink: 0;
+}
+
+.notification-scope-desc {
+  line-height: 1.4;
+}
+
+/* Notification Toggle Cards List */
+.notification-toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notification-toggle-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-sizing: border-box;
+  text-align: start;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+[dir="rtl"] .notification-toggle-card {
+  text-align: right;
+}
+
+.notification-toggle-card:hover {
+  border-color: rgba(14, 165, 233, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.notification-toggle-card:focus-visible {
+  outline: none;
+  border-color: var(--accent, #0ea5e9);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.35);
+}
+
+.notification-toggle-card.disabled {
+  opacity: 0.85;
+}
+
+.notification-toggle-card.disabled:hover {
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+/* Icon Wrappers */
+.notification-card-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 20px;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.notification-toggle-card.disabled .notification-card-icon-wrapper {
+  opacity: 0.65;
+  filter: grayscale(0.25);
+}
+
+.notification-card-icon-wrapper.rem10m {
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.notification-card-icon-wrapper.rem2h {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.notification-card-icon-wrapper.rem3h {
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.notification-card-icon-wrapper.basal {
+  background-color: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+/* Card Content & Text Alignment */
+.notification-card-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: start;
+}
+
+[dir="rtl"] .notification-card-content {
+  text-align: right;
+}
+
+.notification-card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notification-card-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text, #f1f5f9);
+  line-height: 1.3;
+  text-align: start;
+}
+
+[dir="rtl"] .notification-card-title {
+  text-align: right;
+}
+
+.notification-status-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  line-height: 1.25;
+}
+
+.notification-status-badge.badge-active {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.notification-status-badge.badge-disabled {
+  background-color: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.notification-card-description {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.4;
+  text-align: start;
+}
+
+[dir="rtl"] .notification-card-description {
+  text-align: right;
+}
+
+.notification-card-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* iOS-Style Toggle Switch */
+.toggle-switch {
+  position: relative;
+  width: 50px;
+  height: 28px;
+  background-color: rgba(148, 163, 184, 0.28);
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.toggle-switch:focus-visible {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.4);
+}
+
+.toggle-switch.checked {
+  background-color: #10b981;
+}
+
+.toggle-switch-handle {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-switch.checked .toggle-switch-handle {
+  transform: translateX(22px);
+}
+
+[dir="rtl"] .toggle-switch.checked .toggle-switch-handle {
+  transform: translateX(-22px);
+}
+
+[dir="rtl"] .toggle-switch-handle {
+  left: auto;
+  right: 2px;
+}
+
+/* Reminder Modal Disabled Content & Shortcut Button */
+.reminder-status-icon-wrapper.disabled {
+  background-color: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+.reminder-modal-settings-btn {
+  background-color: var(--accent, #0ea5e9);
+  color: #ffffff;
+  border: none;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminder-modal-settings-btn:hover {
+  background-color: #0284c7;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.45);
+}
+
+.reminder-modal-settings-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.45);
+}
+
+/* ========================================================
+   Light Theme Overrides for Notification Settings & Modals
+   ======================================================== */
+[data-theme="light"] .notification-view-subtitle {
+  color: #64748b;
+}
+
+[data-theme="light"] .notification-scope-pill {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .scope-pill-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .scope-pill-btn:hover {
+  color: #0f172a;
+}
+
+[data-theme="light"] .scope-pill-btn.active {
+  background-color: #0284c7;
+  color: #ffffff;
+}
+
+[data-theme="light"] .notification-scope-desc {
+  color: #64748b;
+}
+
+[data-theme="light"] .notification-toggle-card {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .notification-toggle-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .notification-card-title {
+  color: #0f172a;
+}
+
+[data-theme="light"] .notification-card-description {
+  color: #64748b;
+}
+
+[data-theme="light"] .notification-status-badge.badge-active {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="light"] .notification-status-badge.badge-disabled {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .toggle-switch {
+  background-color: #cbd5e1;
+}
+
+[data-theme="light"] .toggle-switch.checked {
+  background-color: #059669;
+}
+
+[data-theme="light"] .reminder-modal-disabled-text {
+  color: #64748b;
+}
+
+[data-theme="light"] .reminder-status-icon-wrapper.disabled {
+  background-color: #f1f5f9;
+  color: #64748b;
+}
+
+[data-theme="light"] .reminder-modal-settings-btn {
+  background-color: #0284c7;
+  color: #ffffff;
+  border: none;
+}
+
+[data-theme="light"] .reminder-modal-settings-btn:hover {
+  background-color: #0369a1;
+}
+
+
+
 
 

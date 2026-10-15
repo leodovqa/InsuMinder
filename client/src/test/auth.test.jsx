@@ -769,7 +769,7 @@ describe('Authentication & User Experience Tests', () => {
       const hamburgerBtn = screen.getByRole('button', { name: /Open navigation menu/i });
       fireEvent.click(hamburgerBtn);
 
-      const settingsNavItem = screen.getByRole('button', { name: /Settings/i });
+      const settingsNavItem = screen.getByRole('button', { name: /App Settings/i });
       fireEvent.click(settingsNavItem);
 
       await waitFor(() => {

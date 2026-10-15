@@ -250,6 +250,11 @@ export async function ensureTablesExist(db) {
   } catch (err) {
     void err;
   }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN notification_preferences TEXT`).run();
+  } catch (err) {
+    void err;
+  }
 }
 
 export function formatDoseTime(isoString) {
@@ -427,6 +432,22 @@ export async function dispatchDueNotifications(db) {
       return 'en';
     };
 
+    const getPreferencesForLog = async (log) => {
+      if (log.user_id) {
+        const userRow = await db.prepare(
+          `SELECT notification_preferences FROM users WHERE id = ? LIMIT 1`
+        ).bind(log.user_id).first();
+        if (userRow && userRow.notification_preferences) {
+          try {
+            return JSON.parse(userRow.notification_preferences);
+          } catch {
+            return null;
+          }
+        }
+      }
+      return null;
+    };
+
     let count = 0;
 
     if (due10m && due10m.length > 0) {
@@ -438,6 +459,14 @@ export async function dispatchDueNotifications(db) {
         if (minutesOverdue > 45) {
           await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
             .bind('Notification expired without delivery (overdue).', log.id)
+            .run();
+          continue;
+        }
+
+        const prefs = await getPreferencesForLog(log);
+        if (prefs?.personal?.rem10m === false) {
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
+            .bind('Disabled in notification settings.', log.id)
             .run();
           continue;
         }
@@ -474,6 +503,14 @@ export async function dispatchDueNotifications(db) {
           continue;
         }
 
+        const prefs = await getPreferencesForLog(log);
+        if (prefs?.personal?.rem2h === false) {
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
+            .bind('Disabled in notification settings.', log.id)
+            .run();
+          continue;
+        }
+
         const cfg = await getConfigForLog(log);
         if (!cfg || !cfg.bot_token || !cfg.chat_id) {
           await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
@@ -506,6 +543,14 @@ export async function dispatchDueNotifications(db) {
           continue;
         }
 
+        const prefs = await getPreferencesForLog(log);
+        if (prefs?.personal?.rem3h === false) {
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
+            .bind('Disabled in notification settings.', log.id)
+            .run();
+          continue;
+        }
+
         const cfg = await getConfigForLog(log);
         if (!cfg || !cfg.bot_token || !cfg.chat_id) {
           await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
@@ -529,7 +574,7 @@ export async function dispatchDueNotifications(db) {
     try {
       const { dateStr: jerusalemDate, timeStr: jerusalemTime } = getJerusalemDateAndTime(now);
       const { results: pendingBasalUsers } = await db.prepare(
-        `SELECT u.id, u.email, u.language, COALESCE(u.basal_time, '20:00') as basal_time
+        `SELECT u.id, u.email, u.language, u.notification_preferences, COALESCE(u.basal_time, '20:00') as basal_time
          FROM users u
          WHERE COALESCE(u.basal_time, '20:00') <= ?
          AND NOT EXISTS (
@@ -540,6 +585,22 @@ export async function dispatchDueNotifications(db) {
 
       if (pendingBasalUsers && pendingBasalUsers.length > 0) {
         for (const pendingUser of pendingBasalUsers) {
+          let pendingUserPrefs = null;
+          if (pendingUser.notification_preferences) {
+            try {
+              pendingUserPrefs = JSON.parse(pendingUser.notification_preferences);
+            } catch {
+              pendingUserPrefs = null;
+            }
+          }
+          if (pendingUserPrefs?.personal?.basal === false) {
+            await db.prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 0, NULL, 'Disabled in notification settings.')
+               ON CONFLICT(user_id, reminder_date) DO NOTHING`
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time).run();
+            continue;
+          }
           // Check if user already logged basal injection today
           const { results: recentBasalLogs } = await db.prepare(
             `SELECT id, injected_at FROM injection_logs WHERE user_id = ? AND type = 'basal' ORDER BY injected_at DESC LIMIT 10`
