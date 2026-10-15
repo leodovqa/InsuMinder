@@ -95,7 +95,18 @@ CREATE TABLE IF NOT EXISTS telegram_configs (
     bot_token TEXT NOT NULL,
     chat_id TEXT NOT NULL,
     is_default BOOLEAN DEFAULT 1,
+    is_active INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS groups (
@@ -144,13 +155,19 @@ Core API Endpoints
   - `POST /api/share/join`: Joins a group using share code.
   - `DELETE /api/share/groups/:id`: Leaves or deletes group.
 - **Telegram & Reminders**:
-  - `GET /api/telegram-configs`: Returns user configs with default indicator.
+  - `GET /api/telegram-configs`: Returns user configs with default indicator and active state.
   - `POST /api/telegram-configs`: Adds new config.
-  - `POST /api/telegram-configs/default`: Switches active default.
+  - `PUT /api/telegram-configs/:id/default`: Switches active default.
+  - `PUT /api/telegram-configs/:id/toggle`: Toggles `is_active` destination state on/off.
   - `DELETE /api/telegram-configs/:id`: Deletes config.
   - `POST /api/telegram/test`: Tests bot connectivity.
   - `POST /api/dev/clear-notifications`: Clears and resets pending notification queues in injection_logs and basal_reminders (dev & testing).
-  - `GET /api/cron`: Dispatches due reminders (automated background runner).
+  - `GET /api/cron`: Dispatches due reminders across Telegram and Web Push (automated background runner).
+- **Web Push Notifications & PWA**:
+  - `GET /api/push/vapid-public-key`: Returns public VAPID key.
+  - `POST /api/push/subscribe`: Subscribes browser/device to Web Push.
+  - `POST /api/push/unsubscribe`: Removes browser/device push subscription.
+  - `POST /api/push/test`: Sends a test push alert to the current device.
 
 ---
 

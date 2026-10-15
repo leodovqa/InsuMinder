@@ -1,3 +1,5 @@
+import { sendWebPush } from './_webpush.js';
+
 const TELEGRAM_API_BASE = 'https://api.telegram.org';
 
 async function postToTelegramApi(token, targetChatId, text) {
@@ -153,12 +155,19 @@ export async function ensureTablesExist(db) {
       bot_token TEXT NOT NULL,
       chat_id TEXT NOT NULL,
       is_default INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ).run();
 
   try {
     await db.prepare(`ALTER TABLE telegram_configs ADD COLUMN user_id INTEGER`).run();
+  } catch (err) {
+    void err;
+  }
+
+  try {
+    await db.prepare(`ALTER TABLE telegram_configs ADD COLUMN is_active INTEGER DEFAULT 1`).run();
   } catch (err) {
     void err;
   }
@@ -197,6 +206,19 @@ export async function ensureTablesExist(db) {
       error TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, reminder_date)
+    )`
+  ).run();
+
+  // Push subscriptions table
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      endpoint TEXT UNIQUE NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ).run();
 
@@ -367,6 +389,220 @@ export function buildMessageBasal(isLocal = false, lang = 'en') {
   return `${prefix}\n⏰ Basal Injection Reminder\n\nPlease remember to take and log your daily basal insulin dose.`;
 }
 
+export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
+  const doseTime = formatDoseTime(injectedAt);
+  if (type === '10m') {
+    if (lang === 'he') {
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      return {
+        title: '🍽️ תזכורת זמן ארוחה',
+        body: `${doseLine}חלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!`,
+        tag: 'insuminder-10m',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    if (lang === 'ru') {
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      return {
+        title: '🍽️ Напоминание о приёме пищи',
+        body: `${doseLine}Прошло 10 минут с момента инъекции. Теперь можно приступить к еде!`,
+        tag: 'insuminder-10m',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    return {
+      title: '🍽️ Meal Time Reminder',
+      body: `${doseLine}10 minutes have passed since your injection. You can now start your meal!`,
+      tag: 'insuminder-10m',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+
+  if (type === '2h') {
+    if (lang === 'he') {
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      return {
+        title: '🩸 בדיקת סוכר לאחר שעתיים',
+        body: `${doseLine}נא לבדוק את רמת הסוכר לאחר שעתיים מההזרקה.`,
+        tag: 'insuminder-2h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    if (lang === 'ru') {
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      return {
+        title: '🩸 Проверка уровня сахара',
+        body: `${doseLine}Пожалуйста, измерьте уровень сахара в крови через 2 часа после инъекции.`,
+        tag: 'insuminder-2h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    return {
+      title: '🩸 2-Hour Glucose Check',
+      body: `${doseLine}Please go and check your Glucose level after 2 Hours.`,
+      tag: 'insuminder-2h',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+
+  if (type === '3h') {
+    if (lang === 'he') {
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      return {
+        title: '🎯 חלון הזרקה בטוח (3 שעות)',
+        body: `${doseLine}חלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.`,
+        tag: 'insuminder-3h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    if (lang === 'ru') {
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      return {
+        title: '🎯 Безопасное окно для инъекции (3 часа)',
+        body: `${doseLine}Прошло 3 часа с момента инъекции. Наступило безопасное окно для следующей дозы при необходимости.`,
+        tag: 'insuminder-3h',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/badge-72x72.png',
+        data: { url: '/' }
+      };
+    }
+    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    return {
+      title: '🎯 3-Hour Injection Eligibility',
+      body: `${doseLine}3 hours have passed since your injection. Safe window reached for your next dose if needed.`,
+      tag: 'insuminder-3h',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+
+  // Basal
+  if (lang === 'he') {
+    return {
+      title: '🌙 תזכורת להזרקת אינסולין בזאלי',
+      body: 'נא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.',
+      tag: 'insuminder-basal',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+  if (lang === 'ru') {
+    return {
+      title: '🌙 Напоминание о базальном инсулине',
+      body: 'Пожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.',
+      tag: 'insuminder-basal',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      data: { url: '/' }
+    };
+  }
+  return {
+    title: '🌙 Basal Injection Reminder',
+    body: 'Please remember to take and log your daily basal insulin dose.',
+    tag: 'insuminder-basal',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/badge-72x72.png',
+    data: { url: '/' }
+  };
+}
+
+async function dispatchMultiChannelReminderEdge({
+  db,
+  type,
+  injectedAt,
+  lang = 'en',
+  telegramConfig,
+  pushSubs,
+  userPrefs,
+  isLocal = false
+}) {
+  const isBasal = type === 'basal';
+  const prefKey = isBasal ? 'basal' : (type === '10m' ? 'rem10m' : (type === '2h' ? 'rem2h' : 'rem3h'));
+
+  if (userPrefs?.personal?.[prefKey] === false) {
+    return { ok: false, disabled: true, error: 'Disabled in notification settings.' };
+  }
+
+  const isTelegramConfigured = Boolean(
+    telegramConfig &&
+    telegramConfig.is_active !== 0 &&
+    telegramConfig.is_active !== false &&
+    telegramConfig.bot_token &&
+    telegramConfig.chat_id &&
+    telegramConfig.bot_token.trim() &&
+    telegramConfig.chat_id.trim()
+  );
+  const isPushConfigured = Boolean(pushSubs && pushSubs.length > 0);
+
+  const telegramEnabled = userPrefs?.personal?.telegram !== false;
+  const pushEnabled = userPrefs?.personal?.webPush !== false;
+
+  const shouldSendTelegram = isTelegramConfigured && telegramEnabled;
+  const shouldSendPush = isPushConfigured && pushEnabled;
+
+  if (!shouldSendTelegram && !shouldSendPush) {
+    if (!isTelegramConfigured && !isPushConfigured) {
+      return { ok: false, unconfigured: true, error: 'Telegram is not configured. Go to Settings to set up your destination.' };
+    }
+    return { ok: false, disabled: true, error: 'Disabled in notification settings.' };
+  }
+
+  let successCount = 0;
+  const errors = [];
+
+  if (shouldSendTelegram) {
+    let msg = '';
+    if (type === '10m') msg = buildMessage10m(injectedAt, isLocal, lang);
+    else if (type === '2h') msg = buildMessage2h(injectedAt, isLocal, lang);
+    else if (type === '3h') msg = buildMessage3h(injectedAt, isLocal, lang);
+    else if (type === 'basal') msg = buildMessageBasal(isLocal, lang);
+
+    const tgRes = await sendTelegramMessage(telegramConfig.bot_token.trim(), telegramConfig.chat_id.trim(), msg);
+    if (tgRes.ok) {
+      successCount++;
+    } else {
+      errors.push(`Telegram: ${tgRes.error}`);
+    }
+  }
+
+  if (shouldSendPush) {
+    const payload = buildPushPayload(type, { injectedAt, lang });
+    for (const sub of pushSubs) {
+      const pRes = await sendWebPush(sub, payload);
+      if (pRes.ok) {
+        successCount++;
+      } else if (pRes.expired) {
+        await db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).bind(sub.endpoint).run();
+      } else {
+        errors.push(`Push: ${pRes.error}`);
+      }
+    }
+  }
+
+  if (successCount > 0) {
+    return { ok: true };
+  }
+  return { ok: false, error: errors.join('; ') || 'Failed to dispatch notification.' };
+}
+
 export async function dispatchDueNotifications(db) {
   if (!db) return { dispatched: 0 };
   try {
@@ -402,7 +638,6 @@ export async function dispatchDueNotifications(db) {
     const { results: due3h } = await db.prepare(
       `SELECT * FROM injection_logs WHERE (type IS NULL OR type = 'bolus') AND status_3h_sent = 0 AND notify_3h_at <= ? AND notify_3h_at >= ? ORDER BY notify_3h_at ASC LIMIT 5`
     ).bind(nowIso, cutoff24hAgo).all();
-
 
     // Helper to find default config for a specific log's user
     const getConfigForLog = async (log) => {
@@ -448,14 +683,24 @@ export async function dispatchDueNotifications(db) {
       return null;
     };
 
+    const getPushSubsForLog = async (log) => {
+      if (log.user_id) {
+        const { results } = await db.prepare(
+          `SELECT * FROM push_subscriptions WHERE user_id = ?`
+        ).bind(log.user_id).all();
+        return results || [];
+      }
+      return [];
+    };
+
     let count = 0;
+    const unconfiguredError = 'Telegram is not configured. Go to Settings to set up your destination.';
 
     if (due10m && due10m.length > 0) {
       for (const log of due10m) {
         const notifyTime = new Date(log.notify_10m_at).getTime();
         const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
 
-        // Expire if 10m reminder is more than 45 minutes overdue
         if (minutesOverdue > 45) {
           await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
             .bind('Notification expired without delivery (overdue).', log.id)
@@ -464,28 +709,30 @@ export async function dispatchDueNotifications(db) {
         }
 
         const prefs = await getPreferencesForLog(log);
-        if (prefs?.personal?.rem10m === false) {
-          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
-            .bind('Disabled in notification settings.', log.id)
-            .run();
-          continue;
-        }
-
         const cfg = await getConfigForLog(log);
-        if (!cfg || !cfg.bot_token || !cfg.chat_id) {
-          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`)
-            .bind('Telegram is not configured. Go to Settings to set up your destination.', log.id)
-            .run();
-          continue;
-        }
+        const pushSubs = await getPushSubsForLog(log);
         const lang = await getLanguageForLog(log);
-        const msg = buildMessage10m(log.injected_at, false, lang);
-        const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
-        if (sendRes.ok) {
+
+        const res10m = await dispatchMultiChannelReminderEdge({
+          db,
+          type: '10m',
+          injectedAt: log.injected_at,
+          lang,
+          telegramConfig: cfg,
+          pushSubs,
+          userPrefs: prefs,
+          isLocal: false
+        });
+
+        if (res10m.ok) {
           await db.prepare(`UPDATE injection_logs SET status_10m_sent = 1, error_10m = NULL WHERE id = ?`).bind(log.id).run();
           count++;
+        } else if (res10m.disabled) {
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`).bind('Disabled in notification settings.', log.id).run();
+        } else if (res10m.unconfigured) {
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`).bind(unconfiguredError, log.id).run();
         } else {
-          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`).bind(sendRes.error || 'Failed to send Telegram reminder.', log.id).run();
+          await db.prepare(`UPDATE injection_logs SET error_10m = ? WHERE id = ?`).bind(res10m.error, log.id).run();
         }
       }
     }
@@ -495,7 +742,6 @@ export async function dispatchDueNotifications(db) {
         const notifyTime = new Date(log.notify_2h_at).getTime();
         const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
 
-        // Expire if 2h reminder is more than 2 hours overdue (>4h after dose)
         if (minutesOverdue > 120) {
           await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
             .bind('Notification expired without delivery (overdue).', log.id)
@@ -504,28 +750,30 @@ export async function dispatchDueNotifications(db) {
         }
 
         const prefs = await getPreferencesForLog(log);
-        if (prefs?.personal?.rem2h === false) {
-          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
-            .bind('Disabled in notification settings.', log.id)
-            .run();
-          continue;
-        }
-
         const cfg = await getConfigForLog(log);
-        if (!cfg || !cfg.bot_token || !cfg.chat_id) {
-          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`)
-            .bind('Telegram is not configured. Go to Settings to set up your destination.', log.id)
-            .run();
-          continue;
-        }
+        const pushSubs = await getPushSubsForLog(log);
         const lang = await getLanguageForLog(log);
-        const msg = buildMessage2h(log.injected_at, false, lang);
-        const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
-        if (sendRes.ok) {
+
+        const res2h = await dispatchMultiChannelReminderEdge({
+          db,
+          type: '2h',
+          injectedAt: log.injected_at,
+          lang,
+          telegramConfig: cfg,
+          pushSubs,
+          userPrefs: prefs,
+          isLocal: false
+        });
+
+        if (res2h.ok) {
           await db.prepare(`UPDATE injection_logs SET status_2h_sent = 1, error_2h = NULL WHERE id = ?`).bind(log.id).run();
           count++;
+        } else if (res2h.disabled) {
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind('Disabled in notification settings.', log.id).run();
+        } else if (res2h.unconfigured) {
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind(unconfiguredError, log.id).run();
         } else {
-          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind(sendRes.error || 'Failed to send Telegram reminder.', log.id).run();
+          await db.prepare(`UPDATE injection_logs SET error_2h = ? WHERE id = ?`).bind(res2h.error, log.id).run();
         }
       }
     }
@@ -535,7 +783,6 @@ export async function dispatchDueNotifications(db) {
         const notifyTime = new Date(log.notify_3h_at).getTime();
         const minutesOverdue = (now.getTime() - notifyTime) / (60 * 1000);
 
-        // Expire if 3h reminder is more than 3 hours overdue (>6h after dose)
         if (minutesOverdue > 180) {
           await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
             .bind('Notification expired without delivery (overdue).', log.id)
@@ -544,28 +791,30 @@ export async function dispatchDueNotifications(db) {
         }
 
         const prefs = await getPreferencesForLog(log);
-        if (prefs?.personal?.rem3h === false) {
-          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
-            .bind('Disabled in notification settings.', log.id)
-            .run();
-          continue;
-        }
-
         const cfg = await getConfigForLog(log);
-        if (!cfg || !cfg.bot_token || !cfg.chat_id) {
-          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`)
-            .bind('Telegram is not configured. Go to Settings to set up your destination.', log.id)
-            .run();
-          continue;
-        }
+        const pushSubs = await getPushSubsForLog(log);
         const lang = await getLanguageForLog(log);
-        const msg = buildMessage3h(log.injected_at, false, lang);
-        const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
-        if (sendRes.ok) {
+
+        const res3h = await dispatchMultiChannelReminderEdge({
+          db,
+          type: '3h',
+          injectedAt: log.injected_at,
+          lang,
+          telegramConfig: cfg,
+          pushSubs,
+          userPrefs: prefs,
+          isLocal: false
+        });
+
+        if (res3h.ok) {
           await db.prepare(`UPDATE injection_logs SET status_3h_sent = 1, error_3h = NULL WHERE id = ?`).bind(log.id).run();
           count++;
+        } else if (res3h.disabled) {
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind('Disabled in notification settings.', log.id).run();
+        } else if (res3h.unconfigured) {
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind(unconfiguredError, log.id).run();
         } else {
-          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind(sendRes.error || 'Failed to send Telegram reminder.', log.id).run();
+          await db.prepare(`UPDATE injection_logs SET error_3h = ? WHERE id = ?`).bind(res3h.error, log.id).run();
         }
       }
     }
@@ -625,32 +874,46 @@ export async function dispatchDueNotifications(db) {
           }
 
           const cfg = await getConfigForLog({ user_id: pendingUser.id });
-          if (!cfg || !cfg.bot_token || !cfg.chat_id) {
-            await db.prepare(
-              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
-               VALUES (?, ?, ?, 0, NULL, ?)
-               ON CONFLICT(user_id, reminder_date) DO UPDATE SET error = excluded.error`
-            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, 'Telegram is not configured. Go to Settings to set up your destination.').run();
-            continue;
-          }
+          const { results: pushSubs } = await db.prepare(
+            `SELECT * FROM push_subscriptions WHERE user_id = ?`
+          ).bind(pendingUser.id).all();
 
           const lang = pendingUser.language || 'en';
-          const msg = buildMessageBasal(false, lang);
-          const sendRes = await sendTelegramMessage(cfg.bot_token, cfg.chat_id, msg);
+          const resBasal = await dispatchMultiChannelReminderEdge({
+            db,
+            type: 'basal',
+            lang,
+            telegramConfig: cfg,
+            pushSubs: pushSubs || [],
+            userPrefs: pendingUserPrefs,
+            isLocal: false
+          });
 
-          if (sendRes.ok) {
+          if (resBasal.ok) {
             await db.prepare(
               `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
                VALUES (?, ?, ?, 1, ?, NULL)
                ON CONFLICT(user_id, reminder_date) DO UPDATE SET status_sent = 1, sent_at = excluded.sent_at, error = NULL`
             ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, nowIso).run();
             count++;
+          } else if (resBasal.disabled) {
+            await db.prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 0, NULL, 'Disabled in notification settings.')
+               ON CONFLICT(user_id, reminder_date) DO NOTHING`
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time).run();
+          } else if (resBasal.unconfigured) {
+            await db.prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 0, NULL, ?)
+               ON CONFLICT(user_id, reminder_date) DO UPDATE SET error = excluded.error`
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, unconfiguredError).run();
           } else {
             await db.prepare(
               `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
                VALUES (?, ?, ?, 0, NULL, ?)
                ON CONFLICT(user_id, reminder_date) DO UPDATE SET error = excluded.error`
-            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, sendRes.error || 'Failed to send Telegram reminder.').run();
+            ).bind(pendingUser.id, jerusalemDate, pendingUser.basal_time, resBasal.error).run();
           }
         }
       }

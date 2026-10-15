@@ -47,7 +47,8 @@ export async function onRequestPut(context) {
           name: updated.name,
           botToken: updated.bot_token,
           chatId: updated.chat_id,
-          isDefault: Boolean(updated.is_default)
+          isDefault: Boolean(updated.is_default),
+          isActive: updated.is_active === undefined || updated.is_active === null ? true : Boolean(updated.is_active)
         } : null
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }

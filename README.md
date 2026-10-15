@@ -78,6 +78,7 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 ### 5. Multi-Destination Telegram Reminders
 - **Multi-Bot Configuration:** Save multiple Telegram bot tokens and chat IDs with custom names (e.g., "Personal Bot", "Family Channel").
 - **Default Selector:** Toggle which configuration is active with instant default switching.
+- **Destination Active / Inactive Switch:** Granular toggle switch on each saved Telegram destination allowing users to pause or resume reminders for specific bots without deleting credentials.
 - **Auto-Formatting Web K Channel IDs:** Automatically converts `-4304245048` format to `-1004304245048` supergroup/channel format.
 - **Test Notification Tool:** Built-in test dispatcher with live error reporting.
 - **Rich Message Templates:** Messages feature emoji icons (`🍽️`, `🩸`, `🎯`), explicit injection timestamps (`💉 Dose logged at: 14:31`), and environment tagging (`From InsuMinder (Local):` vs production `From InsuMinder:`).
@@ -92,7 +93,7 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 
 ### 7. Multilingual Internationalization & Parity (EN, HE, RU)
 - **Three Supported Languages:** Complete native dictionaries for English (`en`), Hebrew (`he` - RTL), and Russian (`ru` - LTR).
-- **100% Three-Way Parity:** Strict enforcement via pre-commit and CI (`npm run check:i18n`) verifying all 362 leaf keys, non-empty values, and identical token interpolation.
+- **100% Three-Way Parity:** Strict enforcement via pre-commit and CI (`npm run check:i18n`) verifying all 390 leaf keys, non-empty values, and identical token interpolation.
 - **Natural Clinical Terminology:** Medically accurate phrasing tailored for diabetes management, insulin logs, and timed reminders.
 - **Localized Telegram Dispatch:** Reminders and test alerts are automatically sent in the patient's chosen language.
 - **Persistent Preferences:** User language choice persists seamlessly across client localStorage and backend profile database records.
@@ -100,7 +101,7 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 ### 8. Dark & Light Theme Appearance
 - **Dual Visual Themes:** Complete styling system with dedicated color palettes for both Dark mode and Light mode.
 - **Dark Mode Primary Default:** Dark mode is always the robust default, with automatic detection of system preference (`prefers-color-scheme: light`) when no preference is saved.
-- **Sidebar Drawer Theme Pill:** Single, dedicated quick-toggle pill (🌙 Dark / ☀️ Light) located directly above the user name & email badge in the sidebar navigation drawer.
+- **Sidebar Drawer Theme Pill:** Single, dedicated quick-toggle pill (🌙 Dark / ☀️ Light) located directly below the Install Android App button in the sidebar navigation drawer.
 - **High Contrast & Accessible Light Theme:** Refined color palettes for light mode ensuring crisp, readable text and UI components across context switchers, profile forms, 24h clock picker, and shared group controls without altering dark mode.
 - **Full Cloud & Account Sync:** User theme selection is stored locally across sessions and synchronized with the user's account profile via `PUT /api/auth/profile` and `GET /api/auth/me`.
 - **Automated Theme Parity Enforcement:** Pre-commit hooks (`.husky/pre-commit`) and CI (`.github/workflows/ci.yml`) enforce theme variable completeness, critical component overrides, and contrast safety via `npm run check:theme`.
@@ -117,6 +118,14 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Tactile Interactive Cards:** 16px radius cards with smooth hover lift, individual color accents (amber, red, emerald, violet), full keyboard accessibility (<kbd>Enter</kbd> / <kbd>Space</kbd>), and distinct dimmed states when disabled.
 - **UI Status Indicators & Shortcut Navigation:** If a reminder is turned off by user settings, its status is clearly marked as **"Disabled in settings"** on dashboard tiles and injection log pills. Clicking the status opens a reminder details modal featuring an instant shortcut button (**"🔔 Open Notification Settings"**) with zero nested container clutter.
 - **Dual Backend Validation:** Both the local Node.js scheduler (`server/src/scheduler.js`) and the Cloudflare Pages serverless edge dispatcher (`functions/api/_telegram.js`) verify user preference flags before scheduling or delivering Telegram reminders.
+
+### 10. Progressive Web App (PWA) & Web Push Notifications
+- **Installable Android App (PWA):** Compliant Web App Manifest (`manifest.webmanifest`), standalone display mode, brand squircle SVG/PNG app icons, and background Service Worker (`sw.js`).
+- **Context-Aware Install Prompts:** Prominently surfaced on Web in the App Settings tab, a dismissible banner at the bottom of the Home dashboard, and in the sidebar navigation drawer.
+- **Automated Standalone Detection:** Automatically hides all installation buttons and banners once the app is installed or running in standalone mode (`display-mode: standalone`, `matchMedia`, `navigator.standalone`).
+- **Encrypted Web Push Notifications:** Zero-dependency native RFC 8291 / RFC 8292 Web Push encryption using VAPID keys, delivering native real-time reminder alerts directly to Android notification trays and desktop browsers even when the app is closed.
+- **Multi-Channel Dispatch:** Dispatches clinical reminders concurrently across both Telegram and Web Push according to the user's granular preferences.
+- **Push Management in Notification Settings:** Full device push controls enabling instant subscription, unsubscription, status detection (Active, Not Subscribed, Blocked), and test push dispatch.
 
 ---
 

@@ -89,10 +89,12 @@ db.serialize(() => {
     + "bot_token TEXT NOT NULL,"
     + "chat_id TEXT NOT NULL,"
     + "is_default BOOLEAN DEFAULT 0,"
+    + "is_active INTEGER DEFAULT 1,"
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
     + "FOREIGN KEY(user_id) REFERENCES users(id)"
     + ")", () => {
       db.run("ALTER TABLE telegram_configs ADD COLUMN user_id INTEGER", () => {});
+      db.run("ALTER TABLE telegram_configs ADD COLUMN is_active INTEGER DEFAULT 1", () => {});
     });
 
   // Users profile and share_code columns
@@ -133,6 +135,18 @@ db.serialize(() => {
     + "error TEXT,"
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
     + "UNIQUE(user_id, reminder_date),"
+    + "FOREIGN KEY(user_id) REFERENCES users(id)"
+    + ")");
+
+  // Push subscriptions table (Web Push & Android PWA notifications)
+  db.run("CREATE TABLE IF NOT EXISTS push_subscriptions ("
+    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    + "user_id INTEGER NOT NULL,"
+    + "endpoint TEXT UNIQUE NOT NULL,"
+    + "p256dh TEXT NOT NULL,"
+    + "auth TEXT NOT NULL,"
+    + "user_agent TEXT,"
+    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
     + "FOREIGN KEY(user_id) REFERENCES users(id)"
     + ")");
 });
@@ -472,7 +486,7 @@ function addTelegramConfig(userIdOrConfig, configOrCallback, maybeCallback) {
       if (err) return callback(err);
 
       const stmt = db.prepare(
-        "INSERT INTO telegram_configs (user_id, name, bot_token, chat_id, is_default) VALUES (?, ?, ?, ?, 1)"
+        "INSERT INTO telegram_configs (user_id, name, bot_token, chat_id, is_default, is_active) VALUES (?, ?, ?, ?, 1, 1)"
       );
       stmt.run(userId, label, cleanToken, cleanChatId, function(insertErr) {
         if (insertErr) return callback(insertErr);
@@ -489,7 +503,8 @@ function addTelegramConfig(userIdOrConfig, configOrCallback, maybeCallback) {
             name: label,
             bot_token: cleanToken,
             chat_id: cleanChatId,
-            is_default: 1
+            is_default: 1,
+            is_active: 1
           });
         });
       });
@@ -601,6 +616,38 @@ function deleteTelegramConfig(userIdOrId, idOrCallback, maybeCallback) {
       } else {
         callback(null);
       }
+    });
+  });
+}
+
+function toggleTelegramConfigActive(userIdOrId, idOrActive, activeOrCallback, maybeCallback) {
+  let userId = null;
+  let id = null;
+  let isActive = 1;
+  let callback = () => {};
+
+  if (typeof userIdOrId === 'number' && typeof idOrActive === 'number') {
+    userId = userIdOrId;
+    id = idOrActive;
+    isActive = activeOrCallback ? 1 : 0;
+    callback = maybeCallback || (() => {});
+  } else {
+    id = userIdOrId;
+    isActive = idOrActive ? 1 : 0;
+    callback = activeOrCallback || (() => {});
+  }
+
+  const updateSql = userId
+    ? "UPDATE telegram_configs SET is_active = ? WHERE id = ? AND user_id = ?"
+    : "UPDATE telegram_configs SET is_active = ? WHERE id = ?";
+  const updateParams = userId ? [isActive, id, userId] : [isActive, id];
+
+  db.run(updateSql, updateParams, function(err) {
+    if (err) return callback(err);
+    if (this.changes === 0) return callback(new Error("Config not found"));
+    db.get("SELECT * FROM telegram_configs WHERE id = ?", [id], (getErr, row) => {
+      if (getErr) return callback(getErr);
+      callback(null, row);
     });
   });
 }
@@ -886,6 +933,54 @@ function clearNotificationQueue(userId, callback) {
   });
 }
 
+/* =========================================================================
+   PUSH SUBSCRIPTION OPERATIONS (PWA Web Push)
+   ========================================================================= */
+
+function savePushSubscription(userId, subscription, userAgent, cb) {
+  if (!userId || !subscription || !subscription.endpoint || !subscription.keys) {
+    return cb(new Error('Invalid push subscription payload'));
+  }
+  const { endpoint, keys } = subscription;
+  const p256dh = keys.p256dh;
+  const auth = keys.auth;
+  const ua = userAgent || '';
+
+  const sql = `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(endpoint) DO UPDATE SET
+                 user_id = excluded.user_id,
+                 p256dh = excluded.p256dh,
+                 auth = excluded.auth,
+                 user_agent = excluded.user_agent,
+                 created_at = CURRENT_TIMESTAMP`;
+
+  db.run(sql, [userId, endpoint, p256dh, auth, ua], function(err) {
+    if (err) return cb(err);
+    cb(null, { id: this.lastID || null, endpoint });
+  });
+}
+
+function getPushSubscriptions(userId, cb) {
+  if (!userId) return cb(null, []);
+  const sql = `SELECT id, user_id, endpoint, p256dh, auth, user_agent, created_at
+               FROM push_subscriptions
+               WHERE user_id = ?`;
+  db.all(sql, [userId], (err, rows) => {
+    if (err) return cb(err);
+    cb(null, rows || []);
+  });
+}
+
+function deletePushSubscription(endpoint, cb) {
+  if (!endpoint) return cb(null);
+  const sql = `DELETE FROM push_subscriptions WHERE endpoint = ?`;
+  db.run(sql, [endpoint], function(err) {
+    if (err) return cb(err);
+    cb(null, { deleted: this.changes });
+  });
+}
+
 module.exports = {
   db,
   createUser,
@@ -905,6 +1000,7 @@ module.exports = {
   addTelegramConfig,
   setDefaultTelegramConfig,
   deleteTelegramConfig,
+  toggleTelegramConfigActive,
   getDueNotifications,
   markNotificationSent,
   recordNotificationError,
@@ -920,5 +1016,9 @@ module.exports = {
   getTodayBasalReminder,
   recordBasalReminder,
   getUsersPendingBasalReminder,
-  clearNotificationQueue
+  clearNotificationQueue,
+  savePushSubscription,
+  getPushSubscriptions,
+  deletePushSubscription
 };
+

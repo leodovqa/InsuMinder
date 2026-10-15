@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from '../App';
 import { authService } from '../authService';
 
@@ -940,6 +940,56 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(screen.getByText(/Are you sure you want to delete configuration for chat/i)).toBeInTheDocument();
       });
     });
+
+    it('renders an active toggle switch instead of test button for saved configs, and toggles config status', async () => {
+      let toggledBody = null;
+      const mockConfigs = [
+        { id: 10, name: 'Main Bot', botToken: '12345:TOKEN', chatId: '-4304245048', isDefault: true, isActive: true }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url, options) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
+        }
+        if (url === '/api/settings') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, settings: {} }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: mockConfigs }) });
+        }
+        if (url === '/api/telegram-configs/10/toggle' && options && options.method === 'PUT') {
+          toggledBody = JSON.parse(options.body);
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, config: { ...mockConfigs[0], isActive: toggledBody.isActive } }) });
+        }
+        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Saved Configurations')).toBeInTheDocument();
+      });
+
+      // Assert row test button does NOT exist
+      const configItem = screen.getByText('Main Bot').closest('li');
+      expect(configItem).toBeInTheDocument();
+      expect(within(configItem).queryByRole('button', { name: /^Test$/i })).not.toBeInTheDocument();
+
+      // Assert toggle switch exists and is checked (active)
+      const toggleSwitch = within(configItem).getByRole('switch');
+      expect(toggleSwitch).toBeInTheDocument();
+      expect(toggleSwitch).toHaveAttribute('aria-checked', 'true');
+
+      // Click toggle switch to turn OFF
+      fireEvent.click(toggleSwitch);
+
+      await waitFor(() => {
+        expect(toggledBody).toEqual({ isActive: false });
+      });
+    });
   });
 
   describe('Basal Insulin & 24h Time Schedule UI', () => {
@@ -1333,4 +1383,74 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
   });
+
+  describe('Android App Installation Multi-Placement & Hiding on Web', () => {
+    beforeEach(() => {
+      localStorage.clear();
+      window.history.pushState({}, '', '/');
+    });
+
+    afterEach(() => {
+      localStorage.clear();
+      vi.restoreAllMocks();
+    });
+
+    it('renders Android installation button in sidebar, banner at bottom of mainpage, and card in settings when on web', async () => {
+      render(<App />);
+
+      // 1. Mainpage bottom banner
+      expect(await screen.findByText('Get InsuMinder on Android')).toBeInTheDocument();
+      expect(screen.getByText(/Install as a standalone app for instant access and dependable reminders/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Install App' })).toBeInTheDocument();
+
+      // 2. Sidebar Navigation Drawer button
+      expect(screen.getByRole('button', { name: /Install Android App/i, hidden: true })).toBeInTheDocument();
+
+      // 3. Navigate to Settings Tab
+      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
+      fireEvent.click(settingsNavBtn);
+
+      // Verify Android installation card in Settings
+      expect(await screen.findByRole('heading', { level: 2, name: 'Install Android App' })).toBeInTheDocument();
+    });
+
+    it('dismisses the mainpage Android banner when clicking dismiss button', async () => {
+      render(<App />);
+
+      expect(await screen.findByText('Get InsuMinder on Android')).toBeInTheDocument();
+      const dismissBtn = screen.getByRole('button', { name: 'Dismiss' });
+      fireEvent.click(dismissBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Get InsuMinder on Android')).not.toBeInTheDocument();
+      });
+      expect(localStorage.getItem('insuminder_home_pwa_dismissed')).toBe('true');
+    });
+
+    it('hides all Android installation buttons and cards when app is already installed or standalone', async () => {
+      localStorage.setItem('insuminder_app_installed', 'true');
+
+      render(<App />);
+
+      await screen.findByRole('heading', { level: 1, name: 'InsuMinder' });
+
+      // Assert banner on mainpage is hidden
+      expect(screen.queryByText('Get InsuMinder on Android')).not.toBeInTheDocument();
+
+      // Assert sidebar install button is hidden
+      expect(screen.queryByRole('button', { name: /Install Android App/i, hidden: true })).not.toBeInTheDocument();
+
+      // Navigate to Settings
+      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
+      fireEvent.click(settingsNavBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Language')).toBeInTheDocument();
+      });
+
+      // Assert installation card in Settings is hidden
+      expect(screen.queryByRole('heading', { level: 2, name: 'Install Android App' })).not.toBeInTheDocument();
+    });
+  });
 });
+

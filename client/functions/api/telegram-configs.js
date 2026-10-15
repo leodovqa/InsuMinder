@@ -43,7 +43,8 @@ export async function onRequestGet(context) {
       name: row.name,
       botToken: row.bot_token,
       chatId: row.chat_id,
-      isDefault: Boolean(row.is_default)
+      isDefault: Boolean(row.is_default),
+      isActive: row.is_active === undefined || row.is_active === null ? true : Boolean(row.is_active)
     }));
 
     return new Response(
@@ -114,7 +115,7 @@ export async function onRequestPost(context) {
 
     // Insert new default config
     const insertInfo = await db
-      .prepare("INSERT INTO telegram_configs (user_id, name, bot_token, chat_id, is_default) VALUES (?, ?, ?, ?, 1)")
+      .prepare("INSERT INTO telegram_configs (user_id, name, bot_token, chat_id, is_default, is_active) VALUES (?, ?, ?, ?, 1, 1)")
       .bind(effectiveUserId, cleanName, cleanToken, cleanChatId)
       .run();
 
@@ -128,7 +129,8 @@ export async function onRequestPost(context) {
           name: cleanName,
           botToken: cleanToken,
           chatId: cleanChatId,
-          isDefault: true
+          isDefault: true,
+          isActive: true
         }
       }),
       {
