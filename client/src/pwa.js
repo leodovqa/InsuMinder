@@ -230,44 +230,24 @@ export async function promptPwaInstall() {
 
 export function isStandaloneApp() {
   if (typeof window === 'undefined') return false;
-  const isDisplayStandalone = Boolean(
-    (window.matchMedia && (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.matchMedia('(display-mode: fullscreen)').matches ||
-      window.matchMedia('(display-mode: minimal-ui)').matches
-    )) ||
-    window.navigator.standalone === true ||
-    (typeof document !== 'undefined' && document.referrer && document.referrer.includes('android-app://'))
+  return Boolean(
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    window.navigator.standalone === true
   );
-  if (isDisplayStandalone) {
-    try {
-      localStorage.setItem('insuminder_app_installed', 'true');
-    } catch (e) {
-      void e;
-    }
-    return true;
-  }
-  try {
-    if (localStorage.getItem('insuminder_app_installed') === 'true') {
-      return true;
-    }
-  } catch (e) {
-    void e;
-  }
-  return false;
 }
 
 export async function checkIsAppInstalled() {
   if (isStandaloneApp()) return true;
+  // If running in browser on web, clean up any legacy false-positive flags
+  try {
+    localStorage.removeItem('insuminder_app_installed');
+  } catch (e) {
+    void e;
+  }
   if (typeof navigator !== 'undefined' && 'getInstalledRelatedApps' in navigator) {
     try {
       const related = await navigator.getInstalledRelatedApps();
       if (Array.isArray(related) && related.length > 0) {
-        try {
-          localStorage.setItem('insuminder_app_installed', 'true');
-        } catch (e) {
-          void e;
-        }
         return true;
       }
     } catch (e) {
@@ -280,8 +260,9 @@ export async function checkIsAppInstalled() {
 export function markAppInstalled(installed = true) {
   try {
     if (installed) {
-      localStorage.setItem('insuminder_app_installed', 'true');
+      sessionStorage.setItem('insuminder_app_just_installed', 'true');
     } else {
+      sessionStorage.removeItem('insuminder_app_just_installed');
       localStorage.removeItem('insuminder_app_installed');
     }
   } catch (e) {

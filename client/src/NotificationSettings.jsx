@@ -7,7 +7,6 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   sendTestPush,
-  subscribeToInstallPrompt,
   promptPwaInstall,
   isStandaloneApp,
   checkIsAppInstalled
@@ -30,7 +29,6 @@ export default function NotificationSettings({
   const [pushFeedback, setPushFeedback] = useState(null);
 
   // PWA install state
-  const [installPrompt, setInstallPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
   const [installing, setInstalling] = useState(false);
 
@@ -52,15 +50,8 @@ export default function NotificationSettings({
     }
     checkExistingSub();
 
-    const unsubscribePrompt = subscribeToInstallPrompt((prompt) => {
-      if (isMounted) {
-        setInstallPrompt(prompt);
-      }
-    });
-
     return () => {
       isMounted = false;
-      unsubscribePrompt();
     };
   }, []);
 
@@ -374,19 +365,15 @@ export default function NotificationSettings({
             </div>
 
             <div className="pwa-install-actions">
-              {installPrompt ? (
-                <button
-                  type="button"
-                  className="push-action-btn btn-accent"
-                  onClick={handleInstallPwa}
-                  disabled={installing}
-                >
-                  <span className="install-btn-icon" aria-hidden="true">📲</span>
-                  {installing ? t('notificationSettings.pwaInstalling') : t('notificationSettings.pwaInstallBtn')}
-                </button>
-              ) : (
-                <p className="pwa-install-hint">{t('notificationSettings.pwaInstallUnavailable')}</p>
-              )}
+              <button
+                type="button"
+                className="push-action-btn btn-accent"
+                onClick={handleInstallPwa}
+                disabled={installing}
+              >
+                <span className="install-btn-icon" aria-hidden="true">📲</span>
+                {installing ? t('notificationSettings.pwaInstalling') : t('notificationSettings.pwaInstallBtn')}
+              </button>
             </div>
           </div>
         )}
