@@ -381,8 +381,8 @@ export const translations = {
       pwaInstallUnavailable: 'App is already installed or running natively.'
     },
     androidModal: {
-      title: 'InsuMinder for Android (.APK)',
-      badge: 'Verified & Clean Android Package',
+      title: 'InsuMinder for Android',
+      badge: 'Verified & Clean Package',
       downloadStarted: 'Download Started',
       downloadManual: 'If your download did not start automatically, click here to download.',
       step1Title: 'Download the APK',
@@ -849,8 +849,8 @@ export const translations = {
       pwaInstallUnavailable: 'האפליקציה כבר מותקנת או פועלת במצב עצמאי.'
     },
     androidModal: {
-      title: 'InsuMinder לאנדרואיד (APK)',
-      badge: 'חבילת אנדרואיד מאומתת ונקייה',
+      title: 'InsuMinder לאנדרואיד',
+      badge: 'חבילת התקנה מאומתת',
       downloadStarted: 'ההורדה החלה',
       downloadManual: 'אם ההורדה לא החלה אוטומטית, לחץ כאן להורדה ישירה.',
       step1Title: 'הורדת קובץ ה-APK',
@@ -1317,8 +1317,8 @@ export const translations = {
       pwaInstallUnavailable: 'Приложение уже установлено или работает автономно.'
     },
     androidModal: {
-      title: 'InsuMinder для Android (.APK)',
-      badge: 'Проверенный и безопасный пакет Android',
+      title: 'InsuMinder для Android',
+      badge: 'Проверенный пакет',
       downloadStarted: 'Загрузка началась',
       downloadManual: 'Если загрузка не началась автоматически, нажмите здесь для скачивания.',
       step1Title: 'Скачайте APK',

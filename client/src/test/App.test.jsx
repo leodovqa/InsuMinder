@@ -1469,7 +1469,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       fireEvent.click(downloadBtn);
 
       expect(await screen.findByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { level: 2, name: /InsuMinder for Android \(\.APK\)/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: /InsuMinder for Android/i })).toBeInTheDocument();
       expect(screen.getByText(/Download Started/i)).toBeInTheDocument();
 
       // Dismiss modal

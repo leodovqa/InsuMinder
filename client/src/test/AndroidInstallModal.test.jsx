@@ -31,8 +31,9 @@ describe('AndroidInstallModal Component', () => {
     );
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: /InsuMinder for Android \(\.APK\)/i })).toBeInTheDocument();
-    expect(screen.getByText(/Verified & Clean Android Package/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /InsuMinder for Android/i })).toBeInTheDocument();
+    expect(screen.getByText('APK')).toBeInTheDocument();
+    expect(screen.getByText(/Verified & Clean Package/i)).toBeInTheDocument();
     expect(screen.getByText(/Download Started/i)).toBeInTheDocument();
 
     expect(screen.getByText(/Download the APK/i)).toBeInTheDocument();

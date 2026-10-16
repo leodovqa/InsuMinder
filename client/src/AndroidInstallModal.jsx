@@ -41,14 +41,17 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
           <div className="android-modal-icon-badge">
             <span className="android-badge-icon" role="img" aria-hidden="true">🤖</span>
             <div className="android-badge-text-col">
-              <h2 id="android-modal-title" className="android-modal-title">
-                {t('androidModal.title')}
-              </h2>
-              <span className="android-modal-badge">
+              <div className="android-title-row">
+                <h2 id="android-modal-title" className="android-modal-title">
+                  {t('androidModal.title')}
+                </h2>
+                <span className="android-apk-badge" dir="ltr">APK</span>
+              </div>
+              <div className="android-modal-badge">
                 <span className="badge-check-icon" aria-hidden="true">✓</span>
-                <span>{t('androidModal.badge')}</span>
-                <bdi dir="ltr">({ANDROID_PACKAGE_INFO.version})</bdi>
-              </span>
+                <span className="badge-text">{t('androidModal.badge')}</span>
+                <span className="android-version-pill" dir="ltr">v{ANDROID_PACKAGE_INFO.version}</span>
+              </div>
             </div>
           </div>
           <button
@@ -157,7 +160,7 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
           <a
             href={ANDROID_PACKAGE_INFO.downloadUrl}
             onClick={handleDownloadAgain}
-            className="save-btn android-direct-download-btn"
+            className="android-direct-download-btn"
           >
             <span className="download-btn-icon" aria-hidden="true">⬇️</span>
             <span className="download-btn-text">{t('notificationSettings.pwaInstallBtn')}</span>
