@@ -36,12 +36,8 @@ public class MainActivity extends Activity {
             targetUri = targetUri.buildUpon().appendQueryParameter("app", "android").build();
         }
 
-        if (hasCustomTabsSupport()) {
-            launchCustomTabs(targetUri);
-        } else {
-            launchWebContainer(targetUri);
-        }
-
+        // Always launch native embedded WebContainer for standalone APK experience
+        launchWebContainer(targetUri);
         finish();
     }
 

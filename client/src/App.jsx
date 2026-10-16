@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import {
   pad2,
@@ -28,6 +28,7 @@ import UpdateBanner from './UpdateBanner';
 import { authService } from './authService';
 import {
   isStandaloneApp,
+  isAndroidApp,
   checkIsAppInstalled,
   markAppInstalled,
   subscribeToInstallPrompt,
@@ -680,13 +681,24 @@ function AppContent() {
     }
   }, [setLanguage, setTheme]);
 
+  // Set APK body class ONLY when running inside native Android container
+  useEffect(() => {
+    if (isAndroidApp() && typeof document !== 'undefined') {
+      document.body.classList.add('is-android-apk');
+    }
+  }, []);
+
   // Fetch configs and logs on mount
   useEffect(() => {
     fetchTelegramConfigs();
     fetchLogs();
   }, []);
 
-  const handleAuthSuccess = (authUser, joinedGroup = null) => {
+  const handleCloseAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+  }, []);
+
+  const handleAuthSuccess = useCallback((authUser, joinedGroup = null) => {
     setUser(authUser);
     setIsLoggedIn(true);
     setIsAuthModalOpen(false);
@@ -736,7 +748,7 @@ function AppContent() {
     fetchTelegramConfigs();
     fetchLogs();
     fetchShareStatus();
-  };
+  }, [setLanguage, setTheme, t]);
 
   const handleSignOut = async () => {
     await authService.logout();
@@ -3699,7 +3711,7 @@ function AppContent() {
         isOpen={isAuthModalOpen}
         initialMode={authModalMode}
         shareCode={urlShareCode}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={handleCloseAuthModal}
         onSuccess={handleAuthSuccess}
       />
 

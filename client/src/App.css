@@ -208,6 +208,21 @@
   }
 }
 
+/* Notch & Status Bar Inset: Active strictly for native Android APK */
+body.is-android-apk .app-header {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 36px);
+}
+
+@media (max-width: 1024px) {
+  body.is-android-apk .app-header {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 32px);
+  }
+}
+
+body.is-android-apk .nav-drawer {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+}
+
 .header-left {
   display: flex;
   align-items: center;

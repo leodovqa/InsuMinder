@@ -982,6 +982,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Saved Configurations')).toBeInTheDocument();
+        expect(screen.getByText('Main Bot')).toBeInTheDocument();
       });
 
       // Assert row test button does NOT exist
