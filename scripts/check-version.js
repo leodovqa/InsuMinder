@@ -49,6 +49,71 @@ if (!versionHistory.includes(canonicalVersion)) {
   error(`client/public/version.json "versionHistory" must include current version "${canonicalVersion}".`);
 }
 
+// 1b. Enforce Version Bump against main branch
+try {
+  const { execSync } = require('child_process');
+  let currentBranch = '';
+  try {
+    currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+  } catch {
+    // ignore
+  }
+
+  if (currentBranch && currentBranch !== 'main' && currentBranch !== 'origin/main') {
+    let rawMain = null;
+    try {
+      rawMain = execSync('git show origin/main:client/public/version.json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+    } catch {
+      try {
+        rawMain = execSync('git show main:client/public/version.json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+      } catch {
+        // origin/main not accessible
+      }
+    }
+
+    if (rawMain) {
+      try {
+        const mainData = JSON.parse(rawMain);
+        const mainVersion = mainData.version;
+        const mainCode = mainData.versionCode;
+
+        function parseSemver(v) {
+          const match = String(v).match(/^(\d+)\.(\d+)\.(\d+)/);
+          if (!match) return null;
+          return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
+        }
+
+        function isSemverGreater(vA, vB) {
+          const a = parseSemver(vA);
+          const b = parseSemver(vB);
+          if (!a || !b) return false;
+          if (a[0] !== b[0]) return a[0] > b[0];
+          if (a[1] !== b[1]) return a[1] > b[1];
+          return a[2] > b[2];
+        }
+
+        if (mainVersion && mainCode) {
+          if (!isSemverGreater(canonicalVersion, mainVersion)) {
+            error(
+              `Version must be bumped compared to main (current: v${canonicalVersion}, main: v${mainVersion}). ` +
+              `Every branch/PR must bump the version according to Semantic Versioning (MAJOR: X.0.0, MINOR: x.Y.0, or PATCH: x.y.Z).`
+            );
+          }
+          if (canonicalVersionCode <= mainCode) {
+            error(
+              `versionCode must be incremented compared to main (current: ${canonicalVersionCode}, main: ${mainCode}).`
+            );
+          }
+        }
+      } catch {
+        // JSON parse error
+      }
+    }
+  }
+} catch {
+  // child_process error
+}
+
 // 2. android/app/build.gradle
 const gradlePath = path.join(rootDir, 'android/app/build.gradle');
 if (fs.existsSync(gradlePath)) {

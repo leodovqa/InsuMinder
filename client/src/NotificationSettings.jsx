@@ -16,10 +16,27 @@ import { authService } from './authService';
 export default function NotificationSettings({
   preferences,
   onUpdatePreferences,
-  onDownloadApk
+  onDownloadApk,
+  initialScope = 'personal',
+  onScopeChange = null
 }) {
   const { t } = useTranslation();
-  const [activeScope, setActiveScope] = useState('personal'); // 'personal' | 'shared'
+  const [activeScope, setActiveScope] = useState(initialScope || 'personal');
+  const [prevInitialScope, setPrevInitialScope] = useState(initialScope);
+
+  if (initialScope !== prevInitialScope) {
+    setPrevInitialScope(initialScope);
+    if (initialScope && ['personal', 'shared'].includes(initialScope)) {
+      setActiveScope(initialScope);
+    }
+  }
+
+  const handleScopeSelect = (scope) => {
+    setActiveScope(scope);
+    if (onScopeChange) {
+      onScopeChange(scope);
+    }
+  };
 
   // Push notification state
   const [pushSupported] = useState(() => isPushSupported());
@@ -176,7 +193,7 @@ export default function NotificationSettings({
               role="tab"
               aria-selected={activeScope === 'personal'}
               className={`scope-pill-btn ${activeScope === 'personal' ? 'active' : ''}`}
-              onClick={() => setActiveScope('personal')}
+              onClick={() => handleScopeSelect('personal')}
             >
               <span className="scope-pill-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -191,7 +208,7 @@ export default function NotificationSettings({
               role="tab"
               aria-selected={activeScope === 'shared'}
               className={`scope-pill-btn ${activeScope === 'shared' ? 'active' : ''}`}
-              onClick={() => setActiveScope('shared')}
+              onClick={() => handleScopeSelect('shared')}
             >
               <span className="scope-pill-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

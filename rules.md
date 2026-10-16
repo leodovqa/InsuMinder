@@ -43,15 +43,21 @@ These rules outline the guidelines for developing the web-based application.
    - All elements must adhere to the application's color and design system (`client/src/index.css` and `client/src/App.css`), maintaining high contrast, clear readability, and proper type aesthetics. Dark-specific hardcoded backgrounds or white texts must never leak unreadable contrast into Light mode, and Dark mode must remain completely unbroken.
    - Parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm --prefix client run check:theme`. Commits or PRs with missing theme variable definitions, broken contrast rules, or unstyled light-mode elements will fail.
 9. **Unified Application Versioning & Parity Rule**:
-   - Whenever an update, bugfix, or release is prepared, the application version must be synchronized with 100% parity across all project manifests, configurations, and API endpoints according to Semantic Versioning (`MAJOR.MINOR.PATCH`):
+   - Every single branch, PR, or release MUST bump the application version compared to `main` and increment `versionCode` (strictly enforced by `scripts/check-version.js` in pre-commit and CI).
+   - Version bumps follow Semantic Versioning (`MAJOR.MINOR.PATCH`):
+     - **MAJOR (`X.0.0`)**: Breaking architectural changes, completely overhauled database schema/API contracts, or fundamental workflow rewrites.
+     - **MINOR (`x.Y.0`)**: New features, capabilities, or major settings (e.g. adding master telegram toggle, manual injection logging, caregiver shared access).
+     - **PATCH (`x.y.Z`)**: Bug fixes, regression remedies, UI styling/alignment adjustments, translation polish, or performance refactors.
+     - **`versionCode`**: Always increment by +1 (integer: 1, 2, 3, 4, 5, ...).
+   - Whenever an update or fix is prepared, the version must be synchronized with 100% parity across all 9 project manifests, configurations, and API endpoints:
      - `android/app/build.gradle` (`versionName` and incremented `versionCode`)
      - `client/public/version.json` (`version`, `versionCode`, and `versionHistory`)
      - Root `package.json`, `client/package.json`, and `server/package.json`
      - `client/src/pwa.js` (`ANDROID_PACKAGE_INFO.version` and `APP_CURRENT_CHANGELOG`)
      - `functions/api/download/android.js` and `client/functions/api/download/android.js` (`version`)
      - `server/src/index.js` (`version`)
-   - Never release with mismatched or stale version strings across files.
-   - Version parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm run check:version` (`node scripts/check-version.js`). Commits or PRs with mismatched versions or unrecorded version history will fail.
+   - Never release with mismatched, stale, or unbumped version strings across files.
+   - Version parity and bump enforcement are strictly checked by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm run check:version` (`node scripts/check-version.js`). Commits or PRs without a bumped version will fail.
 10. **State Preservation & Localization Decoupling Rule**:
     - Changing the interface language / localization MUST NEVER alter, reset, branch, reload, or discard any user configuration, active session state, or displayed data.
     - Switching language must strictly and exclusively swap the localized UI dictionary and text direction (`ltr`/`rtl`).
