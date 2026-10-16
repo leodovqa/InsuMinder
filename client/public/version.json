@@ -1,0 +1,27 @@
+{
+  "version": "1.1.0",
+  "versionCode": 2,
+  "versionHistory": [
+    "1.0.0",
+    "1.1.0"
+  ],
+  "buildTime": "2026-10-16T15:00:00Z",
+  "changes": {
+    "en": [
+      "Native Android APK app support with seamless in-app live updates",
+      "Interactive Update notification with 'What's New' highlights",
+      "Enhanced clinical reminder delivery and offline reliability"
+    ],
+    "he": [
+      "תמיכה מלאה באפליקציית אנדרואיד (.APK) מקורית עם עדכונים חיים באפליקציה",
+      "התראת עדכון אינטראקטיבית עם פירוט תמציתי של מה שהשתנה",
+      "מסירת תזכורות קליניות משופרת ואמינות מלאה במצב לא מקוון"
+    ],
+    "ru": [
+      "Нативная поддержка приложения Android (.APK) с живыми обновлениями",
+      "Интерактивное уведомление об обновлении со списком изменений",
+      "Улучшенная доставка клинических напоминаний и офлайн-режим"
+    ]
+  }
+}
+

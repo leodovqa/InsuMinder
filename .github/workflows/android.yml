@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -51,16 +51,34 @@ jobs:
           cp android/app/build/outputs/apk/release/app-release.apk dist-apk/InsuMinder.apk
           ls -lh dist-apk/InsuMinder.apk
 
-      - name: Upload InsuMinder APK Artifact
-        uses: actions/upload-artifact@v4
+      - name: Verify APK Signature & Cryptographic Checksum
+        run: |
+          # 1. Locate latest Android SDK build-tools apksigner
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          echo "Using apksigner at: $APKSIGNER"
+
+          # 2. Cryptographically verify signature scheme v1, v2, and v3
+          "$APKSIGNER" verify --verbose dist-apk/InsuMinder.apk
+
+          # 3. Generate SHA-256 Checksum file
+          cd dist-apk
+          sha256sum InsuMinder.apk > InsuMinder.apk.sha256
+          echo "Generated SHA-256 Checksum:"
+          cat InsuMinder.apk.sha256
+          cd ..
+
+      - name: Upload InsuMinder APK & Checksum Artifacts
+        uses: actions/upload-artifact@v7
         with:
           name: InsuMinder-APK
-          path: dist-apk/InsuMinder.apk
+          path: |
+            dist-apk/InsuMinder.apk
+            dist-apk/InsuMinder.apk.sha256
           if-no-files-found: error
 
       - name: Publish or Update GitHub Release (Main Branch Only)
         if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: latest
           name: InsuMinder Android App (.APK)
@@ -69,14 +87,18 @@ jobs:
             
             Verified, genuine Android application package (.APK) for InsuMinder.
             - **Package**: `com.insuminder.app`
+            - **Cryptographic Signature**: Verified with Android Signature Scheme v2/v3
+            - **Integrity**: SHA-256 Checksum provided in `InsuMinder.apk.sha256`
             - **Instant In-App Updates**: Any web features or updates load automatically inside the app without requiring a new APK download.
-            - **Privacy**: Zero ads, zero trackers, clean permissions.
+            - **Privacy**: Zero ads, zero trackers, clean permissions (`android.permission.INTERNET` only).
             
             ### Installation Instructions:
             1. Download `InsuMinder.apk` on your Android device.
             2. Open the downloaded file and tap **Install**.
             3. If Android prompts "Install unknown apps", tap **Settings** and enable **Allow from this source**.
-          files: dist-apk/InsuMinder.apk
+          files: |
+            dist-apk/InsuMinder.apk
+            dist-apk/InsuMinder.apk.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

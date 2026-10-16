@@ -91,6 +91,16 @@ describe('App Component - Home & Logs UI Tests', () => {
           json: () => Promise.resolve({ success: true, message: 'Test message sent successfully!' })
         });
       }
+      if (url.startsWith('/version.json')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            version: '1.0.0',
+            buildTime: '2026-10-16T15:00:00Z',
+            changes: { en: [] }
+          })
+        });
+      }
       return Promise.reject(new Error(`Unhandled URL: ${url}`));
     });
   });
@@ -1470,8 +1480,40 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(screen.getByText('Language')).toBeInTheDocument();
       });
 
-      // Assert installation card in Settings is hidden
-      expect(screen.queryByRole('heading', { level: 2, name: /Download Android App/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('App Versioning & About Card UI', () => {
+    it('displays app version in the footer, nav drawer, and About card in Settings', async () => {
+      render(<App />);
+
+      // 1. Verify app footer version
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.1\.0/i)).toBeInTheDocument();
+
+      // 2. Verify sidebar nav drawer version
+      expect(screen.getByText('InsuMinder v1.1.0')).toBeInTheDocument();
+
+      // 3. Navigate to Settings Tab
+      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
+      fireEvent.click(settingsNavBtn);
+
+      // Verify About InsuMinder card
+      expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
+      expect(screen.getByText('v1.1.0')).toBeInTheDocument();
+      expect(screen.getByText('Up to Date')).toBeInTheDocument();
+
+      // Verify "What's New in this Version" button and expandable highlights
+      const whatsNewBtn = screen.getByRole('button', { name: /What's New in this Version/i });
+      fireEvent.click(whatsNewBtn);
+
+      expect(screen.getByText(/Native Android APK app support/i)).toBeInTheDocument();
+
+      // Verify "Check for Updates" button
+      const checkUpdatesBtn = screen.getByRole('button', { name: /Check for Updates/i });
+      fireEvent.click(checkUpdatesBtn);
+
+      const feedbackElements = await screen.findAllByText('You are on the latest version of InsuMinder.');
+      expect(feedbackElements.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

@@ -2425,9 +2425,17 @@
 }
 
 .basal-save-btn {
-  padding: 10px 22px;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
+  padding: 0 24px;
   font-size: 14px;
   font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Modern 24-Hour Clock Picker */
@@ -2437,15 +2445,19 @@
 }
 
 .clock-picker-trigger {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   min-width: 135px;
-  padding: 9px 14px;
+  padding: 0 14px;
   background-color: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--text-h);
   font-family: var(--mono);
   font-size: 16px;
@@ -5257,6 +5269,95 @@
   padding-right: 28px;
 }
 
+/* Android APK Install Modal in RTL */
+[dir="rtl"] .android-install-modal-card {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .android-modal-header {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+[dir="rtl"] .android-modal-icon-badge {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-badge-text-col {
+  text-align: right;
+}
+
+[dir="rtl"] .android-modal-title {
+  text-align: right;
+}
+
+[dir="rtl"] .android-modal-badge {
+  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+[dir="rtl"] .android-download-status-banner {
+  flex-direction: row;
+}
+
+[dir="rtl"] .status-text-block {
+  text-align: right;
+}
+
+[dir="rtl"] .android-step-item {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-step-content {
+  text-align: right;
+}
+
+[dir="rtl"] .android-step-title,
+[dir="rtl"] .android-step-desc {
+  text-align: right;
+}
+
+[dir="rtl"] .android-guarantee-box {
+  text-align: right;
+}
+
+[dir="rtl"] .guarantee-header-row {
+  flex-direction: row;
+}
+
+[dir="rtl"] .guarantee-desc {
+  text-align: right;
+}
+
+[dir="rtl"] .android-verify-toggle-btn {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-verify-details-box {
+  text-align: right;
+}
+
+[dir="rtl"] .android-verify-item {
+  flex-direction: row;
+  text-align: right;
+}
+
+[dir="rtl"] .android-verify-link {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-modal-footer {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-direct-download-btn {
+  flex-direction: row;
+}
+
+
 /* =========================================================================
    LIGHT THEME POLISH OVERRIDES (Explicit readability & visual parity)
    ========================================================================= */
@@ -6455,11 +6556,57 @@
   background-color: var(--accent-bg);
   color: var(--text-h);
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .nav-item.nav-install-app-btn:hover {
   background-color: rgba(2, 132, 199, 0.25);
   border-color: var(--accent);
+}
+
+.nav-item.nav-install-app-btn .nav-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.nav-item.nav-install-app-btn .nav-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.nav-apk-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  padding: 2px 6px;
+  border-radius: 6px;
+  background-color: rgba(14, 165, 233, 0.2);
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  color: #38bdf8;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+[data-theme="light"] .nav-apk-pill {
+  background-color: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.3);
+  color: #0284c7;
 }
 
 /* Home Page Android App Installation Banner */
@@ -6633,6 +6780,29 @@
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
 }
 
+.android-modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-muted, #94a3b8);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-h, #ffffff);
+  }
+}
+
 .android-modal-icon-badge {
   display: flex;
   align-items: center;
@@ -6790,20 +6960,147 @@
   line-height: 1.4;
 }
 
+.android-verify-toggle-btn {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #38bdf8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.85;
+    text-decoration: underline;
+  }
+}
+
+.verify-toggle-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.android-verify-details-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.android-verify-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted, #cbd5e1);
+}
+
+.verify-item-check {
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.android-verify-link {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: #38bdf8;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .android-modal-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 20px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
   border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
 }
 
 .android-direct-download-btn {
+  flex: 1;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff !important;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+
+  &:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+  }
+}
+
+.android-modal-gotit-btn {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background-color: var(--code-bg, #0f172a);
+  color: var(--text-h, #ffffff);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-h, #ffffff);
+  }
+}
+
+@media (max-width: 480px) {
+  .android-modal-footer {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+  .android-direct-download-btn,
+  .android-modal-gotit-btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
 }
 
 /* Light mode overrides for Android Install Modal */
@@ -6846,9 +7143,773 @@
   color: #475569;
 }
 
+[data-theme="light"] .android-modal-close-btn {
+  color: #64748b;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    color: #0f172a;
+  }
+}
+
 [data-theme="light"] .android-modal-footer {
   border-top-color: #f1f5f9;
 }
+
+[data-theme="light"] .android-modal-gotit-btn {
+  background-color: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+
+  &:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+}
+
+[data-theme="light"] .android-verify-details-box {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .android-verify-toggle-btn {
+  color: #0284c7;
+}
+
+[data-theme="light"] .android-verify-item {
+  color: #475569;
+}
+
+[data-theme="light"] .android-verify-link {
+  color: #0284c7;
+}
+
+
+/* ========================================================
+   In-App Live Update Notification Banner
+   ======================================================== */
+.app-update-banner {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(2, 132, 199, 0.12) 100%);
+  border-bottom: 1px solid rgba(14, 165, 233, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 12px 16px;
+  position: relative;
+  z-index: 100;
+  animation: slideDownUpdateBanner 0.25s ease-out;
+}
+
+@keyframes slideDownUpdateBanner {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.update-banner-container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.update-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.update-badge-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.update-rocket-icon {
+  font-size: 1.15rem;
+}
+
+.update-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.update-version-tag {
+  background: rgba(14, 165, 233, 0.25);
+  color: #7dd3fc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid rgba(14, 165, 233, 0.4);
+}
+
+.update-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.update-close-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.update-banner-body {
+  padding: 2px 0;
+}
+
+.update-whats-new-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin: 0 0 6px 0;
+}
+
+.update-changes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.update-change-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.update-bullet {
+  color: #38bdf8;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.update-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.btn-update-now {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+  transition: all 0.15s ease;
+}
+
+.btn-update-now:hover:not(:disabled) {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  transform: translateY(-1px);
+}
+
+.btn-update-now:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.btn-update-later {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-update-later:hover:not(:disabled) {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.update-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: updateSpin 0.7s linear infinite;
+}
+
+@keyframes updateSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Light Mode Overrides for Update Banner */
+[data-theme="light"] .app-update-banner {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(2, 132, 199, 0.08) 100%);
+  border-bottom-color: rgba(14, 165, 233, 0.25);
+}
+
+[data-theme="light"] .update-title {
+  color: #0284c7;
+}
+
+[data-theme="light"] .update-version-tag {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+  border-color: rgba(14, 165, 233, 0.3);
+}
+
+[data-theme="light"] .update-close-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .update-close-btn:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .update-whats-new-label {
+  color: #334155;
+}
+
+[data-theme="light"] .update-change-item {
+  color: #475569;
+}
+
+[data-theme="light"] .update-bullet {
+  color: #0284c7;
+}
+
+[data-theme="light"] .btn-update-later {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .btn-update-later:hover:not(:disabled) {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+/* Sidebar Version Display */
+.nav-version-footer {
+  margin-top: 14px;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.nav-version-text {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  opacity: 0.7;
+  letter-spacing: 0.03em;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  user-select: none;
+}
+
+[data-theme="light"] .nav-version-text {
+  color: #64748b;
+  opacity: 0.85;
+}
+
+/* About InsuMinder Settings Card */
+.about-app-card {
+  margin-top: 20px;
+}
+
+.about-icon-wrapper {
+  background-color: rgba(14, 165, 233, 0.15);
+  color: var(--accent, #0ea5e9);
+}
+
+.about-app-body {
+  padding-top: 8px;
+}
+
+.about-app-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.about-app-logo-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(2, 132, 199, 0.1) 100%);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
+}
+
+.about-logo-symbol {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.about-app-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.about-app-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.about-app-version-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h);
+  line-height: 1;
+}
+
+.about-app-version-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 7px;
+  line-height: 1;
+  border-radius: 999px;
+  background-color: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  color: var(--accent, #0ea5e9);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.03em;
+  box-sizing: border-box;
+}
+
+.about-app-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.about-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  flex-shrink: 0;
+}
+
+.about-status-text {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.about-app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.btn-check-updates {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background-color: var(--code-bg, #0f172a);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background-color: var(--accent-bg, rgba(14, 165, 233, 0.1));
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.btn-whats-new-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  background-color: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: var(--code-bg, #0f172a);
+    color: var(--text-h);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+}
+
+.expand-arrow {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-inline-start: 4px;
+}
+
+.about-whats-new-box {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(14, 165, 233, 0.05);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  border-radius: 12px;
+}
+
+.about-whats-new-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent, #0ea5e9);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.about-whats-new-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-whats-new-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.whats-new-bullet {
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 12px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+/* Light Theme for About Component */
+[data-theme="light"] .about-app-card {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .about-icon-wrapper {
+  background-color: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+}
+
+[data-theme="light"] .about-app-logo-badge {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(241, 245, 249, 0.9) 100%);
+  border-color: rgba(2, 132, 199, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .about-app-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .about-app-version-pill {
+  background-color: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.25);
+  color: #0369a1;
+}
+
+[data-theme="light"] .about-status-text {
+  color: #16a34a;
+}
+
+[data-theme="light"] .about-status-dot {
+  background-color: #16a34a;
+  box-shadow: 0 0 6px rgba(22, 163, 74, 0.4);
+}
+
+[data-theme="light"] .btn-check-updates {
+  background-color: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(2, 132, 199, 0.08);
+    border-color: #0284c7;
+    color: #0284c7;
+  }
+}
+
+[data-theme="light"] .btn-whats-new-toggle {
+  background-color: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+
+  &:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+}
+
+[data-theme="light"] .about-whats-new-box {
+  background: rgba(2, 132, 199, 0.05);
+  border-color: rgba(2, 132, 199, 0.2);
+}
+
+[data-theme="light"] .about-whats-new-title {
+  color: #0369a1;
+}
+
+[data-theme="light"] .about-whats-new-item {
+  color: #334155;
+}
+
+.about-inline-feedback {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: fadeIn 0.2s ease-out;
+
+  &.success {
+    background-color: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+  }
+}
+
+.about-inline-feedback .feedback-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+[data-theme="light"] .about-inline-feedback.success {
+  background-color: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.25);
+  color: #15803d;
+}
+
+.about-status-dot.update-available {
+  background-color: #0ea5e9;
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.6);
+  animation: pulse-update-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-update-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.8;
+  }
+}
+
+.about-status-urgent-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  margin-inline-start: 6px;
+}
+
+.btn-apply-update-highlight {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
+
+  &:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  }
+}
+
+/* Mandatory Update Blocking Overlay (Android only when >= 3 updates behind) */
+.update-blocking-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background-color: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.update-blocking-modal {
+  max-width: 480px;
+  width: 100%;
+  background: var(--bg-card, #1e293b);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  border-radius: 20px;
+  padding: 28px 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px rgba(239, 68, 68, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  animation: modal-enter 0.25s ease-out;
+}
+
+.update-blocking-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-blocking-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.update-blocking-header-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.update-blocking-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.update-blocking-version-pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  color: #38bdf8;
+  font-family: var(--font-mono, monospace);
+}
+
+.update-blocking-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text, #cbd5e1);
+}
+
+.update-blocking-body {
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.update-blocking-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-blocking-update {
+  width: 100%;
+  justify-content: center;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.5);
+  }
+}
+
+/* Light Theme Overrides for Mandatory Update */
+[data-theme="light"] .update-blocking-overlay {
+  background-color: rgba(241, 245, 249, 0.94);
+}
+
+[data-theme="light"] .update-blocking-modal {
+  background: #ffffff;
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 24px rgba(239, 68, 68, 0.15);
+}
+
+[data-theme="light"] .update-blocking-desc {
+  color: #334155;
+}
+
+[data-theme="light"] .update-blocking-body {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
 
 
 

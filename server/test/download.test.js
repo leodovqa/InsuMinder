@@ -52,5 +52,14 @@ describe('Android APK Download Endpoint', () => {
 
     server.close();
   });
+
+  it('server/src/index.js syntax and entrypoint compiles cleanly', () => {
+    const { execFileSync } = require('node:child_process');
+    const path = require('node:path');
+    const indexPath = path.resolve(__dirname, '../src/index.js');
+    assert.doesNotThrow(() => {
+      execFileSync(process.execPath, ['-c', indexPath], { stdio: 'pipe' });
+    });
+  });
 });
 
