@@ -289,6 +289,27 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(screen.getByText(/You can inject now\. No previous injections have been recorded\./i)).toBeInTheDocument();
       });
     });
+
+    it('displays the Android app installation banner on home page and dismisses when close button is clicked', async () => {
+      localStorage.removeItem('insuminder_home_pwa_dismissed');
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Download InsuMinder for Android/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Download APK/i })).toBeInTheDocument();
+      });
+
+      const dismissBtn = screen.getByRole('button', { name: 'Dismiss' });
+      expect(dismissBtn).toBeInTheDocument();
+
+      fireEvent.click(dismissBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Download InsuMinder for Android/i)).not.toBeInTheDocument();
+      });
+      expect(localStorage.getItem('insuminder_home_pwa_dismissed')).toBe('true');
+    });
   });
 
   describe('Dedicated URL Parameter Routing', () => {
@@ -982,6 +1003,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Saved Configurations')).toBeInTheDocument();
+        expect(screen.getByText('Main Bot')).toBeInTheDocument();
       });
 
       // Assert row test button does NOT exist
@@ -1413,7 +1435,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // 1. Mainpage bottom banner
       expect(await screen.findByText('Download InsuMinder for Android')).toBeInTheDocument();
-      expect(screen.getByText(/Download the clean, verified Android app \(\.APK\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/Download the clean, verified Android app/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Download APK/i })).toBeInTheDocument();
 
       // 2. Sidebar Navigation Drawer button
@@ -1447,7 +1469,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       fireEvent.click(downloadBtn);
 
       expect(await screen.findByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { level: 2, name: /InsuMinder for Android \(\.APK\)/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: /InsuMinder for Android/i })).toBeInTheDocument();
       expect(screen.getByText(/Download Started/i)).toBeInTheDocument();
 
       // Dismiss modal

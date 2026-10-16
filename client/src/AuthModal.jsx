@@ -125,14 +125,29 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     }
   }, [shareCode, onSuccess, onClose]);
 
-  // Render Google Identity Services button if available & configured
+  const handleGoogleCredentialResponseRef = useRef(handleGoogleCredentialResponse);
   useEffect(() => {
-    if (!isOpen || (mode !== 'login' && mode !== 'register')) return;
+    handleGoogleCredentialResponseRef.current = handleGoogleCredentialResponse;
+  });
+
+  const renderedModeRef = useRef(null);
+
+  // Render Google Identity Services button if available & configured (only re-render on mode change)
+  useEffect(() => {
+    if (!isOpen || (mode !== 'login' && mode !== 'register')) {
+      renderedModeRef.current = null;
+      return;
+    }
+
+    if (renderedModeRef.current === mode && googleBtnRef.current?.hasChildNodes()) {
+      return;
+    }
+
     if (typeof window !== 'undefined' && window.google?.accounts?.id && googleClientId && googleBtnRef.current) {
       try {
         window.google.accounts.id.initialize({
           client_id: googleClientId,
-          callback: handleGoogleCredentialResponse,
+          callback: (response) => handleGoogleCredentialResponseRef.current?.(response),
           auto_select: false,
           cancel_on_tap_outside: true,
         });
@@ -146,11 +161,12 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
           shape: 'rectangular',
           logo_alignment: 'left',
         });
+        renderedModeRef.current = mode;
       } catch (err) {
         console.warn('Failed to render Google Sign-In button:', err);
       }
     }
-  }, [isOpen, mode, googleClientId, gisAvailable, handleGoogleCredentialResponse]);
+  }, [isOpen, mode, googleClientId, gisAvailable]);
 
   if (!isOpen) return null;
 
@@ -338,7 +354,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
       try {
         window.google.accounts.id.initialize({
           client_id: googleClientId,
-          callback: handleGoogleCredentialResponse,
+          callback: (response) => handleGoogleCredentialResponseRef.current?.(response),
           auto_select: false,
           cancel_on_tap_outside: true,
         });

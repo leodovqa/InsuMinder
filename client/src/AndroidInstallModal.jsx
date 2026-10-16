@@ -41,14 +41,17 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
           <div className="android-modal-icon-badge">
             <span className="android-badge-icon" role="img" aria-hidden="true">🤖</span>
             <div className="android-badge-text-col">
-              <h2 id="android-modal-title" className="android-modal-title">
-                {t('androidModal.title')}
-              </h2>
-              <span className="android-modal-badge">
+              <div className="android-title-row">
+                <h2 id="android-modal-title" className="android-modal-title">
+                  {t('androidModal.title')}
+                </h2>
+                <span className="android-apk-badge" dir="ltr">APK</span>
+              </div>
+              <div className="android-modal-badge">
                 <span className="badge-check-icon" aria-hidden="true">✓</span>
-                <span>{t('androidModal.badge')}</span>
-                <bdi dir="ltr">({ANDROID_PACKAGE_INFO.version})</bdi>
-              </span>
+                <span className="badge-text">{t('androidModal.badge')}</span>
+                <span className="android-version-pill" dir="ltr">v{ANDROID_PACKAGE_INFO.version}</span>
+              </div>
             </div>
           </div>
           <button
@@ -120,7 +123,9 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
               onClick={() => setShowSecurityDetails((prev) => !prev)}
               aria-expanded={showSecurityDetails}
             >
-              <span className="verify-toggle-icon" aria-hidden="true">{showSecurityDetails ? '▾' : '▸'}</span>
+              <span className={`verify-toggle-icon ${showSecurityDetails ? 'is-expanded' : ''}`} aria-hidden="true">
+                {showSecurityDetails ? '▾' : '▸'}
+              </span>
               <span>{t('androidModal.verifyDetailsBtn')}</span>
             </button>
 
@@ -155,9 +160,23 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
           <a
             href={ANDROID_PACKAGE_INFO.downloadUrl}
             onClick={handleDownloadAgain}
-            className="save-btn android-direct-download-btn"
+            className="android-direct-download-btn"
           >
-            <span className="download-btn-icon" aria-hidden="true">⬇️</span>
+            <svg
+              className="download-btn-icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <polyline points="19 12 12 19 5 12" />
+            </svg>
             <span className="download-btn-text">{t('notificationSettings.pwaInstallBtn')}</span>
           </a>
           <button

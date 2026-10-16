@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import {
   pad2,
@@ -28,6 +28,7 @@ import UpdateBanner from './UpdateBanner';
 import { authService } from './authService';
 import {
   isStandaloneApp,
+  isAndroidApp,
   checkIsAppInstalled,
   markAppInstalled,
   subscribeToInstallPrompt,
@@ -680,13 +681,24 @@ function AppContent() {
     }
   }, [setLanguage, setTheme]);
 
+  // Set APK body class ONLY when running inside native Android container
+  useEffect(() => {
+    if (isAndroidApp() && typeof document !== 'undefined') {
+      document.body.classList.add('is-android-apk');
+    }
+  }, []);
+
   // Fetch configs and logs on mount
   useEffect(() => {
     fetchTelegramConfigs();
     fetchLogs();
   }, []);
 
-  const handleAuthSuccess = (authUser, joinedGroup = null) => {
+  const handleCloseAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+  }, []);
+
+  const handleAuthSuccess = useCallback((authUser, joinedGroup = null) => {
     setUser(authUser);
     setIsLoggedIn(true);
     setIsAuthModalOpen(false);
@@ -736,7 +748,7 @@ function AppContent() {
     fetchTelegramConfigs();
     fetchLogs();
     fetchShareStatus();
-  };
+  }, [setLanguage, setTheme, t]);
 
   const handleSignOut = async () => {
     await authService.logout();
@@ -2030,6 +2042,15 @@ function AppContent() {
         {/* Android App Installation Banner (Bottom of Mainpage, only on web when not installed) */}
         {!isAppInstalled && !isHomeBannerDismissed && (
           <div className="home-pwa-banner">
+            <button
+              type="button"
+              className="home-pwa-dismiss-btn"
+              onClick={handleDismissHomeBanner}
+              aria-label={t('home.dismissBanner')}
+              title={t('home.dismissBanner')}
+            >
+              &times;
+            </button>
             <div className="home-pwa-banner-icon-col">
               <img src="/icons/icon-192x192.png" alt="" className="home-pwa-banner-logo" width="42" height="42" />
             </div>
@@ -2043,16 +2064,8 @@ function AppContent() {
                 className="home-pwa-install-btn"
                 onClick={handleInstallPwa}
               >
-                {t('home.installAppBannerBtn')}
-              </button>
-              <button
-                type="button"
-                className="home-pwa-dismiss-btn"
-                onClick={handleDismissHomeBanner}
-                aria-label={t('home.dismissBanner')}
-                title={t('home.dismissBanner')}
-              >
-                &times;
+                <span className="home-pwa-btn-icon" aria-hidden="true">📲</span>
+                <span>{t('home.installAppBannerBtn')}</span>
               </button>
             </div>
           </div>
@@ -3699,7 +3712,7 @@ function AppContent() {
         isOpen={isAuthModalOpen}
         initialMode={authModalMode}
         shareCode={urlShareCode}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={handleCloseAuthModal}
         onSuccess={handleAuthSuccess}
       />
 

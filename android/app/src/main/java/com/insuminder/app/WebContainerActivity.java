@@ -2,15 +2,18 @@ package com.insuminder.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Message;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
 import android.webkit.ServiceWorkerClient;
 import android.webkit.ServiceWorkerController;
 import android.webkit.WebChromeClient;
@@ -26,6 +29,7 @@ import android.widget.RelativeLayout;
  * WebContainerActivity
  * Provides an embedded, zero-leak, hardware-accelerated WebContainer for InsuMinder.
  * Enforces HTTPS-only, isolates external links, supports Service Worker caching and live updates.
+ * Seamlessly supports Google Identity Services and OAuth popups within the native container.
  */
 public class WebContainerActivity extends Activity {
 
@@ -45,6 +49,7 @@ public class WebContainerActivity extends Activity {
 
         RelativeLayout layout = new RelativeLayout(this);
         layout.setBackgroundColor(Color.parseColor("#0f172a"));
+        layout.setFitsSystemWindows(true);
 
         mWebView = new WebView(this);
         mProgressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
@@ -66,6 +71,11 @@ public class WebContainerActivity extends Activity {
 
         setContentView(layout);
 
+        // Configure cookies (including third-party for Google Sign-In)
+        CookieManager cookieManager = CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+        cookieManager.setAcceptThirdPartyCookies(mWebView, true);
+
         // Configure WebView settings for modern PWA features
         WebSettings settings = mWebView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -79,10 +89,13 @@ public class WebContainerActivity extends Activity {
         settings.setUseWideViewPort(true);
         settings.setLoadWithOverviewMode(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setJavaScriptCanOpenWindowsAutomatically(true);
+        settings.setSupportMultipleWindows(true);
 
-        // Append custom User-Agent tag so the web app recognizes the native container
+        // Clean User-Agent: strip "Version/4.0" and "; wv" so Google Identity Services doesn't reject auth
         String defaultUa = settings.getUserAgentString();
-        settings.setUserAgentString(defaultUa + " InsuMinder-Android/" + BuildConfig.VERSION_NAME);
+        String cleanUa = defaultUa.replace("; wv", "").replaceAll("Version/\\d+\\.\\d+\\s*", "");
+        settings.setUserAgentString(cleanUa + " InsuMinder-Android/" + BuildConfig.VERSION_NAME);
 
         // Hardware Acceleration
         mWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
@@ -112,6 +125,39 @@ public class WebContainerActivity extends Activity {
                     mProgressBar.setVisibility(View.GONE);
                 }
             }
+
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+                WebView popupView = new WebView(WebContainerActivity.this);
+                WebSettings popupSettings = popupView.getSettings();
+                popupSettings.setJavaScriptEnabled(true);
+                popupSettings.setDomStorageEnabled(true);
+                popupSettings.setUserAgentString(settings.getUserAgentString());
+                CookieManager.getInstance().setAcceptThirdPartyCookies(popupView, true);
+
+                Dialog popupDialog = new Dialog(WebContainerActivity.this, android.R.style.Theme_DeviceDefault_Light_Dialog_NoActionBar);
+                popupDialog.setContentView(popupView);
+                popupDialog.show();
+
+                popupView.setWebViewClient(new WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView pView, WebResourceRequest pRequest) {
+                        Uri pUri = pRequest.getUrl();
+                        String pHost = pUri.getHost();
+                        if (pHost != null && (pHost.endsWith("pages.dev") || pHost.contains("insuminder"))) {
+                            mWebView.loadUrl(pUri.toString());
+                            popupDialog.dismiss();
+                            return true;
+                        }
+                        return false;
+                    }
+                });
+
+                WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+                transport.setWebView(popupView);
+                resultMsg.sendToTarget();
+                return true;
+            }
         });
 
         mWebView.setWebViewClient(new WebViewClient() {
@@ -119,9 +165,19 @@ public class WebContainerActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String host = uri.getHost();
-                if (host != null && (host.endsWith("pages.dev") || host.contains("insuminder"))) {
+
+                // Keep app domains, Google Identity Services, and OAuth inside container
+                if (host != null && (
+                        host.endsWith("pages.dev") ||
+                        host.contains("insuminder") ||
+                        host.endsWith("google.com") ||
+                        host.endsWith("googleapis.com") ||
+                        host.endsWith("gstatic.com") ||
+                        host.endsWith("googleusercontent.com")
+                )) {
                     return false; // Stay in container
                 }
+
                 // External URLs open in system browser
                 try {
                     Intent externalIntent = new Intent(Intent.ACTION_VIEW, uri);
@@ -154,4 +210,3 @@ public class WebContainerActivity extends Activity {
         }
     }
 }
-
