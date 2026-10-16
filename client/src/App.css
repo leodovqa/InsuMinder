@@ -223,6 +223,40 @@ body.is-android-apk .nav-drawer {
   padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
 }
 
+/* Modals & Overlays in Native Android APK: Safely clear camera notch and gesture insets */
+body.is-android-apk .modal-overlay,
+body.is-android-apk .auth-modal-backdrop,
+body.is-android-apk .update-blocking-overlay {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 36px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  body.is-android-apk .modal-overlay,
+  body.is-android-apk .auth-modal-backdrop,
+  body.is-android-apk .update-blocking-overlay {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 32px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  }
+}
+
+body.is-android-apk .modal-card,
+body.is-android-apk .auth-modal-container,
+body.is-android-apk .android-install-modal-card,
+body.is-android-apk .update-blocking-modal {
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 64px);
+  overflow-y: auto;
+}
+
+body.is-android-apk .app-update-banner {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+}
+
+body.is-android-apk .app-update-banner + .app-header {
+  padding-top: 18px;
+}
+
 .header-left {
   display: flex;
   align-items: center;
