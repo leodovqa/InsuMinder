@@ -120,7 +120,9 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
               onClick={() => setShowSecurityDetails((prev) => !prev)}
               aria-expanded={showSecurityDetails}
             >
-              <span className="verify-toggle-icon" aria-hidden="true">{showSecurityDetails ? '▾' : '▸'}</span>
+              <span className={`verify-toggle-icon ${showSecurityDetails ? 'is-expanded' : ''}`} aria-hidden="true">
+                {showSecurityDetails ? '▾' : '▸'}
+              </span>
               <span>{t('androidModal.verifyDetailsBtn')}</span>
             </button>
 

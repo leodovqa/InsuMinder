@@ -289,6 +289,27 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(screen.getByText(/You can inject now\. No previous injections have been recorded\./i)).toBeInTheDocument();
       });
     });
+
+    it('displays the Android app installation banner on home page and dismisses when close button is clicked', async () => {
+      localStorage.removeItem('insuminder_home_pwa_dismissed');
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Download InsuMinder for Android/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Download APK/i })).toBeInTheDocument();
+      });
+
+      const dismissBtn = screen.getByRole('button', { name: 'Dismiss' });
+      expect(dismissBtn).toBeInTheDocument();
+
+      fireEvent.click(dismissBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Download InsuMinder for Android/i)).not.toBeInTheDocument();
+      });
+      expect(localStorage.getItem('insuminder_home_pwa_dismissed')).toBe('true');
+    });
   });
 
   describe('Dedicated URL Parameter Routing', () => {

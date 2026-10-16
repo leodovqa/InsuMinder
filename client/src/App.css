@@ -5364,10 +5364,6 @@ body.is-android-apk .nav-drawer {
   flex-direction: row;
 }
 
-[dir="rtl"] .android-modal-footer {
-  flex-direction: row;
-}
-
 [dir="rtl"] .android-direct-download-btn {
   flex-direction: row;
 }
@@ -6626,16 +6622,23 @@ body.is-android-apk .nav-drawer {
 
 /* Home Page Android App Installation Banner */
 .home-pwa-banner {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
   margin-top: 24px;
   padding: 16px 20px;
+  padding-right: 48px;
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(30, 41, 59, 0.7) 100%);
   border: 1px solid rgba(14, 165, 233, 0.3);
   border-radius: 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s, box-shadow 0.2s;
+}
+
+[dir="rtl"] .home-pwa-banner {
+  padding-right: 20px;
+  padding-left: 48px;
 }
 
 .home-pwa-banner-icon-col {
@@ -6671,22 +6674,32 @@ body.is-android-apk .nav-drawer {
 .home-pwa-banner-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
   flex-shrink: 0;
 }
 
 .home-pwa-install-btn {
-  padding: 8px 16px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 20px;
   border-radius: 999px;
   background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   border: none;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(14, 165, 233, 0.4);
   transition: transform 0.15s, box-shadow 0.15s;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.home-pwa-btn-icon {
+  font-size: 15px;
+  line-height: 1;
 }
 
 .home-pwa-install-btn:hover {
@@ -6694,21 +6707,40 @@ body.is-android-apk .nav-drawer {
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.5);
 }
 
+.home-pwa-install-btn:active {
+  transform: translateY(0);
+}
+
 .home-pwa-dismiss-btn {
-  background: transparent;
-  border: none;
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
-  border-radius: 6px;
-  transition: color 0.2s, background-color 0.2s;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+[dir="rtl"] .home-pwa-dismiss-btn {
+  right: auto;
+  left: 12px;
 }
 
 .home-pwa-dismiss-btn:hover {
   color: #f1f5f9;
-  background-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 @media (max-width: 640px) {
@@ -6716,10 +6748,20 @@ body.is-android-apk .nav-drawer {
     flex-wrap: wrap;
     gap: 12px;
     padding: 14px 16px;
+    padding-right: 44px;
+  }
+  [dir="rtl"] .home-pwa-banner {
+    padding-right: 16px;
+    padding-left: 44px;
   }
   .home-pwa-banner-actions {
     width: 100%;
-    justify-content: flex-end;
+    margin-top: 2px;
+  }
+  .home-pwa-install-btn {
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
   }
 }
 
@@ -6777,9 +6819,23 @@ body.is-android-apk .nav-drawer {
 }
 
 /* Android APK Install Modal Styles */
+.android-modal-overlay {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .android-install-modal-card {
   max-width: 520px;
-  width: 92%;
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  margin: auto;
   background: var(--bg-card, #1e293b);
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
   border-radius: 16px;
@@ -6788,6 +6844,7 @@ body.is-android-apk .nav-drawer {
 }
 
 .android-modal-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6850,6 +6907,11 @@ body.is-android-apk .nav-drawer {
 }
 
 .android-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -6858,7 +6920,7 @@ body.is-android-apk .nav-drawer {
 
 .android-download-status-banner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
   border-radius: 10px;
@@ -6874,6 +6936,7 @@ body.is-android-apk .nav-drawer {
   box-shadow: 0 0 10px #38bdf8;
   animation: pulseDot 1.5s infinite;
   flex-shrink: 0;
+  margin-top: 5px;
 }
 
 @keyframes pulseDot {
@@ -6996,8 +7059,14 @@ body.is-android-apk .nav-drawer {
 }
 
 .verify-toggle-icon {
+  display: inline-block;
   font-size: 10px;
   line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+[dir="rtl"] .verify-toggle-icon:not(.is-expanded) {
+  transform: rotate(180deg);
 }
 
 .android-verify-details-box {
@@ -7043,6 +7112,7 @@ body.is-android-apk .nav-drawer {
 }
 
 .android-modal-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -7107,10 +7177,32 @@ body.is-android-apk .nav-drawer {
 }
 
 @media (max-width: 480px) {
-  .android-modal-footer {
-    flex-direction: column-reverse;
-    gap: 10px;
+  .android-modal-overlay {
+    padding: 10px;
   }
+
+  .android-install-modal-card {
+    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
+    border-radius: 14px;
+  }
+
+  .android-modal-header {
+    padding: 14px 16px;
+  }
+
+  .android-modal-body {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .android-modal-footer,
+  [dir="rtl"] .android-modal-footer {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+
   .android-direct-download-btn,
   .android-modal-gotit-btn {
     width: 100%;
