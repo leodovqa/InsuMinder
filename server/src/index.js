@@ -1082,6 +1082,8 @@ app.post('/api/push/test', optionalAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
 // Android APK Download Endpoint
 app.get('/api/download/android', async (req, res) => {
   const releaseApkUrl = 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk';
