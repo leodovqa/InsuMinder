@@ -874,14 +874,15 @@ body.is-android-apk .app-update-banner + .app-header {
   gap: 20px;
 }
 
-/* Telegram Not Configured Notice (Option 1: Inline Centered) */
+/* Telegram Not Configured Notice (Stacked Centered Layout) */
 .telegram-alert-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 6px;
   width: 100%;
-  padding: 13px 16px;
+  padding: 14px 16px;
   background-color: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: 14px;
@@ -897,16 +898,17 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .telegram-alert-icon {
-  font-size: 18px;
-  flex-shrink: 0;
+  font-size: 22px;
+  line-height: 1;
+  margin: 0 auto;
 }
 
 .telegram-alert-content {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 3px;
   font-size: 13.5px;
   line-height: 1.4;
   color: var(--text-h);

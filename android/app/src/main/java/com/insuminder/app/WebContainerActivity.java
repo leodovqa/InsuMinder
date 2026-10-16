@@ -261,8 +261,12 @@ public class WebContainerActivity extends Activity {
                     setupGoogleSignIn(webClientId);
                     if (mGoogleSignInClient != null) {
                         mGoogleSignInClient.signOut().addOnCompleteListener(task -> {
-                            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
-                            startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN);
+                            try {
+                                Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+                                startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN);
+                            } catch (Exception e) {
+                                notifyGoogleSignInError(e.getMessage() != null ? e.getMessage() : "Failed to launch Google Sign-In");
+                            }
                         });
                     }
                 } catch (Exception e) {

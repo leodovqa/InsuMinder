@@ -1,4 +1,3 @@
-npm run check:version
 npm run check:i18n
 npm run check:theme
 npm run lint

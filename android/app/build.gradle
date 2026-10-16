@@ -24,7 +24,6 @@ android {
             keyPassword System.getenv("KEY_PASSWORD") ?: "insuminder"
             v1SigningEnabled true
             v2SigningEnabled true
-            v3SigningEnabled true
         }
     }
 
