@@ -228,12 +228,35 @@ export async function promptPwaInstall() {
   }
 }
 
+export const ANDROID_PACKAGE_INFO = {
+  version: '1.0.0',
+  packageName: 'com.insuminder.app',
+  fileName: 'InsuMinder.apk',
+  downloadUrl: '/api/download/android',
+  releaseUrl: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk'
+};
+
+export function downloadAndroidApk() {
+  if (typeof document === 'undefined') return;
+  const link = document.createElement('a');
+  link.href = ANDROID_PACKAGE_INFO.downloadUrl;
+  link.setAttribute('download', ANDROID_PACKAGE_INFO.fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 export function isStandaloneApp() {
   if (typeof window === 'undefined') return false;
-  return Boolean(
+  const isDisplayStandalone = Boolean(
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
     window.navigator.standalone === true
   );
+  const isAndroidNativeApp = Boolean(
+    (window.navigator.userAgent && window.navigator.userAgent.includes('InsuMinder-Android')) ||
+    (typeof window.location !== 'undefined' && new URLSearchParams(window.location.search).get('app') === 'android')
+  );
+  return isDisplayStandalone || isAndroidNativeApp;
 }
 
 export async function checkIsAppInstalled() {

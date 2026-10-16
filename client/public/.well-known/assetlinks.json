@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.insuminder.app",
+      "sha256_cert_fingerprints": [
+        "9F:08:3E:3A:EC:74:D5:7D:94:D7:B3:46:71:7B:CB:E6:72:A5:32:35:20:C2:AA:5A:87:64:F8:5C:E5:20:AA:FE"
+      ]
+    }
+  }
+]
+

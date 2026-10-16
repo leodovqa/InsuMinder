@@ -62,8 +62,8 @@ describe('NotificationSettings Web Push & PWA Integration', () => {
       </LanguageProvider>
     );
 
-    expect(screen.getByText('Android App & Offline Installation')).toBeInTheDocument();
-    expect(screen.getByText(/Install InsuMinder as a standalone app on your Android device/i)).toBeInTheDocument();
+    expect(screen.getByText(/Android Application \(\.APK Package\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Install InsuMinder directly on your Android phone/i)).toBeInTheDocument();
   });
 
   it('subscribes to push notifications and displays active status upon successful enablement', async () => {

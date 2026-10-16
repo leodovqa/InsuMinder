@@ -119,10 +119,13 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **UI Status Indicators & Shortcut Navigation:** If a reminder is turned off by user settings, its status is clearly marked as **"Disabled in settings"** on dashboard tiles and injection log pills. Clicking the status opens a reminder details modal featuring an instant shortcut button (**"🔔 Open Notification Settings"**) with zero nested container clutter.
 - **Dual Backend Validation:** Both the local Node.js scheduler (`server/src/scheduler.js`) and the Cloudflare Pages serverless edge dispatcher (`functions/api/_telegram.js`) verify user preference flags before scheduling or delivering Telegram reminders.
 
-### 10. Progressive Web App (PWA) & Web Push Notifications
-- **Installable Android App (PWA):** Compliant Web App Manifest (`manifest.webmanifest`), standalone display mode, brand squircle SVG/PNG app icons, and background Service Worker (`sw.js`).
-- **Context-Aware Install Prompts:** Prominently surfaced on Web in the App Settings tab, a dismissible banner at the bottom of the Home dashboard, and in the sidebar navigation drawer.
-- **Automated Standalone Detection:** Automatically hides all installation buttons and banners once the app is installed or running in standalone mode (`display-mode: standalone`, `matchMedia`, `navigator.standalone`).
+### 10. Native Android App (.APK Package), PWA & Web Push Notifications
+- **Native Android APK Installer:** Standalone compiled Android application package (`InsuMinder.apk`, package `com.insuminder.app`) featuring AndroidX Custom Tabs / Trusted Web Activity (TWA) with an embedded hardware-accelerated WebContainer fallback.
+- **Instant In-App Live Updates:** Features and improvements deploy automatically over the air inside the Android app without requiring users to download or reinstall a new APK for regular web/frontend updates.
+- **Clean, Verified & Ad-Free:** Zero adware, zero telemetry trackers, and strictly minimal permissions (`INTERNET`, `ACCESS_NETWORK_STATE`, `POST_NOTIFICATIONS`, `VIBRATE`). Verified via Digital Asset Links (`.well-known/assetlinks.json`).
+- **Direct APK Download & Guided Modal:** The sidebar, mainpage bottom banner, and Settings provide direct "Download Android App (.APK)" actions that trigger `/api/download/android` and present a 3-step installation guide modal for Android users.
+- **Automated Standalone Detection:** Automatically detects when running inside the native Android APK (`InsuMinder-Android`, `?app=android`, or `display-mode: standalone`) and gracefully hides download prompts for installed users.
+- **Automated CI/CD Build Pipeline:** GitHub Actions workflow (`.github/workflows/android.yml`) compiles, signs, verifies, and publishes `InsuMinder.apk` as a release artifact on every release.
 - **Encrypted Web Push Notifications:** Zero-dependency native RFC 8291 / RFC 8292 Web Push encryption using VAPID keys, delivering native real-time reminder alerts directly to Android notification trays and desktop browsers even when the app is closed.
 - **Multi-Channel Dispatch:** Dispatches clinical reminders concurrently across both Telegram and Web Push according to the user's granular preferences.
 - **Push Management in Notification Settings:** Full device push controls enabling instant subscription, unsubscription, status detection (Active, Not Subscribed, Blocked), and test push dispatch.
