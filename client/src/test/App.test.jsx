@@ -1603,10 +1603,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.3\.0/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.3\.1/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.3.0')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.3.1')).toBeInTheDocument();
 
       // 3. Navigate to Settings Tab
       const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
@@ -1614,14 +1614,14 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.3.0')).toBeInTheDocument();
+      expect(screen.getByText('v1.3.1')).toBeInTheDocument();
       expect(screen.getByText('Up to Date')).toBeInTheDocument();
 
       // Verify "What's New in this Version" button and expandable highlights
       const whatsNewBtn = screen.getByRole('button', { name: /What's New in this Version/i });
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Master ON\/OFF switch for Telegram Notifications/i)).toBeInTheDocument();
+      expect(screen.getByText(/Preserved active context and settings when switching languages/i)).toBeInTheDocument();
 
       // Verify "Check for Updates" button
       const checkUpdatesBtn = screen.getByRole('button', { name: /Check for Updates/i });
