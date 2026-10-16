@@ -3528,8 +3528,6 @@ body.is-android-apk .app-update-banner + .app-header {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s ease, transform 0.1s ease;
-}
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
