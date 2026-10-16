@@ -2425,9 +2425,17 @@
 }
 
 .basal-save-btn {
-  padding: 10px 22px;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
+  padding: 0 24px;
   font-size: 14px;
   font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Modern 24-Hour Clock Picker */
@@ -2437,15 +2445,19 @@
 }
 
 .clock-picker-trigger {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   min-width: 135px;
-  padding: 9px 14px;
+  padding: 0 14px;
   background-color: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   color: var(--text-h);
   font-family: var(--mono);
   font-size: 16px;
@@ -5257,6 +5269,95 @@
   padding-right: 28px;
 }
 
+/* Android APK Install Modal in RTL */
+[dir="rtl"] .android-install-modal-card {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .android-modal-header {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+[dir="rtl"] .android-modal-icon-badge {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-badge-text-col {
+  text-align: right;
+}
+
+[dir="rtl"] .android-modal-title {
+  text-align: right;
+}
+
+[dir="rtl"] .android-modal-badge {
+  text-align: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+[dir="rtl"] .android-download-status-banner {
+  flex-direction: row;
+}
+
+[dir="rtl"] .status-text-block {
+  text-align: right;
+}
+
+[dir="rtl"] .android-step-item {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-step-content {
+  text-align: right;
+}
+
+[dir="rtl"] .android-step-title,
+[dir="rtl"] .android-step-desc {
+  text-align: right;
+}
+
+[dir="rtl"] .android-guarantee-box {
+  text-align: right;
+}
+
+[dir="rtl"] .guarantee-header-row {
+  flex-direction: row;
+}
+
+[dir="rtl"] .guarantee-desc {
+  text-align: right;
+}
+
+[dir="rtl"] .android-verify-toggle-btn {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-verify-details-box {
+  text-align: right;
+}
+
+[dir="rtl"] .android-verify-item {
+  flex-direction: row;
+  text-align: right;
+}
+
+[dir="rtl"] .android-verify-link {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-modal-footer {
+  flex-direction: row;
+}
+
+[dir="rtl"] .android-direct-download-btn {
+  flex-direction: row;
+}
+
+
 /* =========================================================================
    LIGHT THEME POLISH OVERRIDES (Explicit readability & visual parity)
    ========================================================================= */
@@ -6813,6 +6914,73 @@
   line-height: 1.4;
 }
 
+.android-verify-toggle-btn {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #38bdf8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.85;
+    text-decoration: underline;
+  }
+}
+
+.verify-toggle-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.android-verify-details-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.android-verify-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted, #cbd5e1);
+}
+
+.verify-item-check {
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.android-verify-link {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: #38bdf8;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .android-modal-footer {
   display: flex;
   align-items: center;
@@ -6824,11 +6992,15 @@
 
 .android-direct-download-btn {
   flex: 1;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 11px 18px;
+  padding: 0 18px;
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
@@ -6838,7 +7010,7 @@
   border-radius: 10px;
   box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
   transition: all 0.2s ease;
-  border: none;
+  border: 1px solid transparent;
 
   &:hover {
     background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
@@ -6847,10 +7019,14 @@
 }
 
 .android-modal-gotit-btn {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 11px 22px;
+  padding: 0 22px;
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
@@ -6945,6 +7121,24 @@
     border-color: #94a3b8;
   }
 }
+
+[data-theme="light"] .android-verify-details-box {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .android-verify-toggle-btn {
+  color: #0284c7;
+}
+
+[data-theme="light"] .android-verify-item {
+  color: #475569;
+}
+
+[data-theme="light"] .android-verify-link {
+  color: #0284c7;
+}
+
 
 /* ========================================================
    In-App Live Update Notification Banner

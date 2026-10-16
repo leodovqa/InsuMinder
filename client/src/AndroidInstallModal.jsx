@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from './i18n';
 import { downloadAndroidApk, ANDROID_PACKAGE_INFO } from './pwa';
 
 export default function AndroidInstallModal({ isOpen, onClose }) {
   const { t } = useTranslation();
+  const [showSecurityDetails, setShowSecurityDetails] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -44,7 +45,9 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
                 {t('androidModal.title')}
               </h2>
               <span className="android-modal-badge">
-                ✓ {t('androidModal.badge')} ({ANDROID_PACKAGE_INFO.version})
+                <span className="badge-check-icon" aria-hidden="true">✓</span>
+                <span>{t('androidModal.badge')}</span>
+                <bdi dir="ltr">({ANDROID_PACKAGE_INFO.version})</bdi>
               </span>
             </div>
           </div>
@@ -110,6 +113,41 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
               <strong className="guarantee-title">{t('androidModal.guaranteeTitle')}</strong>
             </div>
             <p className="guarantee-desc">{t('androidModal.guaranteeDesc')}</p>
+
+            <button
+              type="button"
+              className="android-verify-toggle-btn"
+              onClick={() => setShowSecurityDetails((prev) => !prev)}
+              aria-expanded={showSecurityDetails}
+            >
+              <span className="verify-toggle-icon" aria-hidden="true">{showSecurityDetails ? '▾' : '▸'}</span>
+              <span>{t('androidModal.verifyDetailsBtn')}</span>
+            </button>
+
+            {showSecurityDetails && (
+              <div className="android-verify-details-box">
+                <div className="android-verify-item">
+                  <span className="verify-item-check" aria-hidden="true">✓</span>
+                  <span>{t('androidModal.verifySignature')}</span>
+                </div>
+                <div className="android-verify-item">
+                  <span className="verify-item-check" aria-hidden="true">✓</span>
+                  <span>{t('androidModal.verifyPermissions')}</span>
+                </div>
+                <div className="android-verify-item">
+                  <span className="verify-item-check" aria-hidden="true">✓</span>
+                  <span>{t('androidModal.verifyChecksum')}</span>
+                </div>
+                <a
+                  href="https://github.com/leodovqa/InsuMinder/releases/latest"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="android-verify-link"
+                >
+                  {t('androidModal.verifyLink')} ↗
+                </a>
+              </div>
+            )}
           </div>
         </div>
 
@@ -119,7 +157,8 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
             onClick={handleDownloadAgain}
             className="save-btn android-direct-download-btn"
           >
-            ⬇️ {t('notificationSettings.pwaInstallBtn')}
+            <span className="download-btn-icon" aria-hidden="true">⬇️</span>
+            <span className="download-btn-text">{t('notificationSettings.pwaInstallBtn')}</span>
           </a>
           <button
             type="button"

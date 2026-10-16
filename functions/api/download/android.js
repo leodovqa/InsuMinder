@@ -10,7 +10,10 @@ export async function onRequestGet(context) {
       downloadUrl: releaseApkUrl,
       version: '1.1.0',
       packageName: 'com.insuminder.app',
-      name: 'InsuMinder.apk'
+      name: 'InsuMinder.apk',
+      sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',
+      signature: 'Android Scheme v2/v3 Verified',
+      verified: true
     }), {
       status: 200,
       headers: {

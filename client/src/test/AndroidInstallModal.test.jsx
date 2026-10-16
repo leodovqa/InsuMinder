@@ -35,13 +35,34 @@ describe('AndroidInstallModal Component', () => {
     expect(screen.getByText(/Verified & Clean Android Package/i)).toBeInTheDocument();
     expect(screen.getByText(/Download Started/i)).toBeInTheDocument();
 
-    // 3 steps
-    expect(screen.getByText(/1\. Download the APK/i)).toBeInTheDocument();
-    expect(screen.getByText(/2\. Open and Tap Install/i)).toBeInTheDocument();
-    expect(screen.getByText(/3\. Allow from this source/i)).toBeInTheDocument();
+    expect(screen.getByText(/Download the APK/i)).toBeInTheDocument();
+    expect(screen.getByText(/Open and Tap Install/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 4, name: /Allow from this source/i })).toBeInTheDocument();
 
     // Guarantee
     expect(screen.getByText(/Genuine, Safe & Automatic In-App Updates/i)).toBeInTheDocument();
+  });
+
+  it('toggles security and checksum verification details when clicking verify button', () => {
+    render(
+      <LanguageProvider>
+        <AndroidInstallModal isOpen={true} onClose={() => {}} />
+      </LanguageProvider>
+    );
+
+    const toggleBtn = screen.getByRole('button', { name: /Verify Integrity & Checksum/i });
+    expect(toggleBtn).toBeInTheDocument();
+    expect(screen.queryByText(/Cryptographic Signature: Android Scheme v2\/v3 Verified/i)).not.toBeInTheDocument();
+
+    // Expand
+    fireEvent.click(toggleBtn);
+    expect(screen.getByText(/Cryptographic Signature: Android Scheme v2\/v3 Verified/i)).toBeInTheDocument();
+    expect(screen.getByText(/Audited Permissions: Internet Access Only/i)).toBeInTheDocument();
+    expect(screen.getByText(/SHA-256 Checksum: Published on GitHub Release/i)).toBeInTheDocument();
+
+    // Collapse
+    fireEvent.click(toggleBtn);
+    expect(screen.queryByText(/Cryptographic Signature: Android Scheme v2\/v3 Verified/i)).not.toBeInTheDocument();
   });
 
   it('calls onClose when clicking close button or Got It button', () => {
