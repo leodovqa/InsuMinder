@@ -1,0 +1,82 @@
+name: Android APK Build
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, 'feature/*', 'fix/*' ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build & Verify Android APK
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Android SDK Licenses
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n" > "$ANDROID_HOME/licenses/android-sdk-license"
+          printf "84831b9409646a5780e442d80c055840ca044d44\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x android/gradlew
+
+      - name: Build Release APK with Gradle
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORD: insuminder
+          KEY_ALIAS: insuminder
+          KEY_PASSWORD: insuminder
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Prepare InsuMinder.apk Package
+        run: |
+          mkdir -p dist-apk
+          cp android/app/build/outputs/apk/release/app-release.apk dist-apk/InsuMinder.apk
+          ls -lh dist-apk/InsuMinder.apk
+
+      - name: Upload InsuMinder APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InsuMinder-APK
+          path: dist-apk/InsuMinder.apk
+          if-no-files-found: error
+
+      - name: Publish or Update GitHub Release (Main Branch Only)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: InsuMinder Android App (.APK)
+          body: |
+            ## InsuMinder Android Native App
+            
+            Verified, genuine Android application package (.APK) for InsuMinder.
+            - **Package**: `com.insuminder.app`
+            - **Instant In-App Updates**: Any web features or updates load automatically inside the app without requiring a new APK download.
+            - **Privacy**: Zero ads, zero trackers, clean permissions.
+            
+            ### Installation Instructions:
+            1. Download `InsuMinder.apk` on your Android device.
+            2. Open the downloaded file and tap **Install**.
+            3. If Android prompts "Install unknown apps", tap **Settings** and enable **Allow from this source**.
+          files: dist-apk/InsuMinder.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

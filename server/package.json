@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test test/telegram.test.js test/auth.test.js test/share.test.js test/webpush.test.js"
+    "test": "node --test test/telegram.test.js test/auth.test.js test/share.test.js test/webpush.test.js test/download.test.js"
   },
   "keywords": [],
   "author": "",

@@ -1402,32 +1402,51 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Mainpage bottom banner
-      expect(await screen.findByText('Get InsuMinder on Android')).toBeInTheDocument();
-      expect(screen.getByText(/Install as a standalone app for instant access and dependable reminders/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Install App' })).toBeInTheDocument();
+      expect(await screen.findByText('Download InsuMinder for Android')).toBeInTheDocument();
+      expect(screen.getByText(/Download the clean, verified Android app \(\.APK\)/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Download APK/i })).toBeInTheDocument();
 
       // 2. Sidebar Navigation Drawer button
-      expect(screen.getByRole('button', { name: /Install Android App/i, hidden: true })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Download Android App/i, hidden: true })).toBeInTheDocument();
 
       // 3. Navigate to Settings Tab
       const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
       fireEvent.click(settingsNavBtn);
 
       // Verify Android installation card in Settings
-      expect(await screen.findByRole('heading', { level: 2, name: 'Install Android App' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { level: 2, name: /Download Android App/i })).toBeInTheDocument();
     });
 
     it('dismisses the mainpage Android banner when clicking dismiss button', async () => {
       render(<App />);
 
-      expect(await screen.findByText('Get InsuMinder on Android')).toBeInTheDocument();
+      expect(await screen.findByText('Download InsuMinder for Android')).toBeInTheDocument();
       const dismissBtn = screen.getByRole('button', { name: 'Dismiss' });
       fireEvent.click(dismissBtn);
 
       await waitFor(() => {
-        expect(screen.queryByText('Get InsuMinder on Android')).not.toBeInTheDocument();
+        expect(screen.queryByText('Download InsuMinder for Android')).not.toBeInTheDocument();
       });
       expect(localStorage.getItem('insuminder_home_pwa_dismissed')).toBe('true');
+    });
+
+    it('opens Android APK download modal when clicking download button', async () => {
+      render(<App />);
+
+      const downloadBtn = await screen.findByRole('button', { name: /Download APK/i });
+      fireEvent.click(downloadBtn);
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 2, name: /InsuMinder for Android \(\.APK\)/i })).toBeInTheDocument();
+      expect(screen.getByText(/Download Started/i)).toBeInTheDocument();
+
+      // Dismiss modal
+      const gotItBtn = screen.getByRole('button', { name: 'Got It' });
+      fireEvent.click(gotItBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
     });
 
     it('hides all Android installation buttons and cards when app is already installed or standalone', async () => {
@@ -1438,10 +1457,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       await screen.findByRole('heading', { level: 1, name: 'InsuMinder' });
 
       // Assert banner on mainpage is hidden
-      expect(screen.queryByText('Get InsuMinder on Android')).not.toBeInTheDocument();
+      expect(screen.queryByText('Download InsuMinder for Android')).not.toBeInTheDocument();
 
       // Assert sidebar install button is hidden
-      expect(screen.queryByRole('button', { name: /Install Android App/i, hidden: true })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Download Android App/i, hidden: true })).not.toBeInTheDocument();
 
       // Navigate to Settings
       const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
@@ -1452,7 +1471,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
 
       // Assert installation card in Settings is hidden
-      expect(screen.queryByRole('heading', { level: 2, name: 'Install Android App' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 2, name: /Download Android App/i })).not.toBeInTheDocument();
     });
   });
 });

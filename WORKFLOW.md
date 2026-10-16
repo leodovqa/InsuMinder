@@ -27,6 +27,12 @@ InsuMinder/
 │   │   └── index.js         # Express server listener
 │   ├── insuminder.db        # SQLite database file
 │   └── package.json
+├── android/                 # Native Android App Package (Gradle + TWA / WebContainer)
+│   ├── app/                 # Android application module (Manifest, MainActivity, Keystore)
+│   └── gradle/              # Gradle wrapper
+├── .github/workflows/
+│   ├── ci.yml               # Automated test, build, lint & parity workflow
+│   └── android.yml          # Android APK compilation, signing & release workflow
 ├── .gitignore
 ├── DEPLOYMENT.md            # Human deployment guide (do not edit)
 └── WORKFLOW.md              # Agent coding instructions

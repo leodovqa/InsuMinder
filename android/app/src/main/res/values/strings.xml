@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">InsuMinder</string>
+    <string name="package_name">com.insuminder.app</string>
+    <string name="default_web_url">https://insuminder.pages.dev</string>
+</resources>
+

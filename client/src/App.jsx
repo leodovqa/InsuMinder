@@ -23,13 +23,14 @@ import AuthModal from './AuthModal';
 import Profile from './Profile';
 import NotificationSettings from './NotificationSettings';
 import TimePicker24h from './TimePicker24h';
+import AndroidInstallModal from './AndroidInstallModal';
 import { authService } from './authService';
 import {
-  promptPwaInstall,
   isStandaloneApp,
   checkIsAppInstalled,
   markAppInstalled,
-  subscribeToInstallPrompt
+  subscribeToInstallPrompt,
+  downloadAndroidApk
 } from './pwa';
 import { LanguageProvider, useTranslation } from './i18n';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
@@ -325,23 +326,14 @@ function AppContent() {
     };
   }, []);
 
-  const handleInstallPwa = async () => {
-    const res = await promptPwaInstall();
-    if (res.outcome === 'accepted') {
-      setIsAppInstalled(true);
-      markAppInstalled(true);
-      setNotification({
-        type: 'success',
-        message: t('notificationSettings.pwaInstalledBadge')
-      });
-      setIsNavOpen(false);
-    } else if (res.outcome === 'unavailable') {
-      setNotification({
-        type: 'info',
-        message: t('notificationSettings.pwaInstallUnavailable')
-      });
-    }
+  const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
+
+  const handleDownloadAndroidApk = () => {
+    downloadAndroidApk();
+    setIsAndroidModalOpen(true);
+    setIsNavOpen(false);
   };
+  const handleInstallPwa = handleDownloadAndroidApk;
 
   const handleDismissHomeBanner = () => {
     setIsHomeBannerDismissed(true);
@@ -367,6 +359,9 @@ function AppContent() {
       if (isEarlyBolusModalOpen) {
         setIsEarlyBolusModalOpen(false);
       }
+      if (isAndroidModalOpen) {
+        setIsAndroidModalOpen(false);
+      }
       if (removeMemberModalData) {
         setRemoveMemberModalData(null);
       }
@@ -380,7 +375,7 @@ function AppContent() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+  }, [isAuthModalOpen, isEarlyBolusModalOpen, isAndroidModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
 
   // Telegram Configuration State
   const [telegramConfigs, setTelegramConfigs] = useState(() => {
@@ -2545,6 +2540,7 @@ function AppContent() {
         <NotificationSettings
           preferences={notificationPreferences}
           onUpdatePreferences={handleUpdateNotificationPreferences}
+          onDownloadApk={handleDownloadAndroidApk}
         />
       )}
 
@@ -3531,6 +3527,12 @@ function AppContent() {
         shareCode={urlShareCode}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
+      />
+
+      {/* Android APK Download & Installation Guide Modal */}
+      <AndroidInstallModal
+        isOpen={isAndroidModalOpen}
+        onClose={() => setIsAndroidModalOpen(false)}
       />
 
       {/* Application Footer */}

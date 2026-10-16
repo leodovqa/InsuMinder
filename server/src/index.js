@@ -1082,6 +1082,19 @@ app.post('/api/push/test', optionalAuth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+// Android APK Download Endpoint
+app.get('/api/download/android', (req, res) => {
+  const releaseApkUrl = 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk';
+  if (req.query.info === 'true') {
+    return res.json({
+      success: true,
+      downloadUrl: releaseApkUrl,
+      version: '1.0.0',
+      packageName: 'com.insuminder.app',
+      name: 'InsuMinder.apk'
+    });
+  }
+  return res.redirect(302, releaseApkUrl);
 });
 
 // Start scheduler worker

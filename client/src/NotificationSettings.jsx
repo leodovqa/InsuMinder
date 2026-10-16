@@ -7,15 +7,16 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   sendTestPush,
-  promptPwaInstall,
   isStandaloneApp,
-  checkIsAppInstalled
+  checkIsAppInstalled,
+  downloadAndroidApk
 } from './pwa';
 import { authService } from './authService';
 
 export default function NotificationSettings({
   preferences,
-  onUpdatePreferences
+  onUpdatePreferences,
+  onDownloadApk
 }) {
   const { t } = useTranslation();
   const [activeScope, setActiveScope] = useState('personal'); // 'personal' | 'shared'
@@ -103,16 +104,14 @@ export default function NotificationSettings({
     }
   };
 
-  const handleInstallPwa = async () => {
-    setInstalling(true);
-    try {
-      const res = await promptPwaInstall();
-      if (res.outcome === 'accepted') {
-        setIsStandalone(true);
-      }
-    } finally {
-      setInstalling(false);
+  const handleInstallPwa = () => {
+    if (onDownloadApk) {
+      onDownloadApk();
+      return;
     }
+    setInstalling(true);
+    downloadAndroidApk();
+    setTimeout(() => setInstalling(false), 1200);
   };
 
   const notificationItems = [
