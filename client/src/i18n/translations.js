@@ -244,7 +244,8 @@ export const translations = {
       whatsNewBtn: "What's New in this Version",
       checkForUpdatesBtn: 'Check for Updates',
       checkingForUpdates: 'Checking for updates...',
-      latestVersionNotice: 'You are on the latest version of InsuMinder.'
+      latestVersionNotice: 'You are on the latest version of InsuMinder.',
+      updateNowBtn: 'Update to v{version}'
     },
     modals: {
       deleteConfigTitle: 'Delete Telegram Configuration?',
@@ -403,7 +404,11 @@ export const translations = {
       updateLater: 'Later',
       updating: 'Updating...',
       upToDate: 'InsuMinder is up to date',
-      dismiss: 'Dismiss'
+      dismiss: 'Dismiss',
+      mandatoryTitle: 'Update Required to Continue',
+      mandatoryDesc: 'Your Android app is {count} updates behind. Please update now to continue using InsuMinder safely.',
+      updateAvailableStatus: 'Update available: v{version}',
+      behindBadge: '{count} updates behind'
     },
     time: {
       justNow: 'Just now',
@@ -702,7 +707,8 @@ export const translations = {
       whatsNewBtn: 'מה חדש בגרסה זו',
       checkForUpdatesBtn: 'בדוק עדכונים',
       checkingForUpdates: 'בודק עדכונים...',
-      latestVersionNotice: 'הנך משתמש בגרסה העדכנית ביותר של InsuMinder.'
+      latestVersionNotice: 'הנך משתמש בגרסה העדכנית ביותר של InsuMinder.',
+      updateNowBtn: 'עדכן לגרסה v{version}'
     },
     modals: {
       deleteConfigTitle: 'מחיקת הגדרת טלגרם?',
@@ -861,7 +867,11 @@ export const translations = {
       updateLater: 'מאוחר יותר',
       updating: 'מעדכן...',
       upToDate: 'InsuMinder מעודכנת לגרסה האחרונה',
-      dismiss: 'סגור'
+      dismiss: 'סגור',
+      mandatoryTitle: 'נדרש עדכון כדי להמשיך',
+      mandatoryDesc: 'האפליקציה שלך בפיגור של {count} עדכונים. יש לעדכן כעת כדי להמשיך להשתמש ב-InsuMinder בבטחה.',
+      updateAvailableStatus: 'עדכון זמין: v{version}',
+      behindBadge: 'פיגור של {count} עדכונים'
     },
     time: {
       justNow: 'ממש עכשיו',
@@ -1160,7 +1170,8 @@ export const translations = {
       whatsNewBtn: 'Что нового в этой версии',
       checkForUpdatesBtn: 'Проверить обновления',
       checkingForUpdates: 'Проверка обновлений...',
-      latestVersionNotice: 'Вы используете самую актуальную версию InsuMinder.'
+      latestVersionNotice: 'Вы используете самую актуальную версию InsuMinder.',
+      updateNowBtn: 'Обновить до v{version}'
     },
     modals: {
       deleteConfigTitle: 'Удалить конфигурацию Telegram?',
@@ -1319,7 +1330,11 @@ export const translations = {
       updateLater: 'Позже',
       updating: 'Обновление...',
       upToDate: 'InsuMinder обновлено до актуальной версии',
-      dismiss: 'Закрыть'
+      dismiss: 'Закрыть',
+      mandatoryTitle: 'Для продолжения требуется обновление',
+      mandatoryDesc: 'Ваше приложение отстает на {count} обновл. Пожалуйста, обновите сейчас для безопасной работы InsuMinder.',
+      updateAvailableStatus: 'Доступно обновление: v{version}',
+      behindBadge: 'Отставание на {count} обновл.'
     },
     time: {
       justNow: 'Только что',

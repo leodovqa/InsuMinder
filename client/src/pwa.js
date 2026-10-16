@@ -270,17 +270,21 @@ export function downloadAndroidApk() {
   }, 30000);
 }
 
+export function isAndroidApp() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    (window.navigator.userAgent && window.navigator.userAgent.includes('InsuMinder-Android')) ||
+    (typeof window.location !== 'undefined' && new URLSearchParams(window.location.search).get('app') === 'android')
+  );
+}
+
 export function isStandaloneApp() {
   if (typeof window === 'undefined') return false;
   const isDisplayStandalone = Boolean(
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
     window.navigator.standalone === true
   );
-  const isAndroidNativeApp = Boolean(
-    (window.navigator.userAgent && window.navigator.userAgent.includes('InsuMinder-Android')) ||
-    (typeof window.location !== 'undefined' && new URLSearchParams(window.location.search).get('app') === 'android')
-  );
-  return isDisplayStandalone || isAndroidNativeApp;
+  return isDisplayStandalone || isAndroidApp();
 }
 
 export async function checkIsAppInstalled() {
@@ -361,6 +365,56 @@ function notifyUpdateListeners(info) {
   });
 }
 
+export function recordPostponedUpdate(version) {
+  if (typeof window === 'undefined' || !version) return;
+  try {
+    const raw = localStorage.getItem('insuminder_postponed_versions');
+    const list = raw ? JSON.parse(raw) : [];
+    if (!list.includes(version)) {
+      list.push(version);
+      localStorage.setItem('insuminder_postponed_versions', JSON.stringify(list));
+    }
+  } catch (e) {
+    void e;
+  }
+}
+
+export function getPostponedUpdatesCount() {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const raw = localStorage.getItem('insuminder_postponed_versions');
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function clearPostponedUpdates() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('insuminder_postponed_versions');
+  } catch (e) {
+    void e;
+  }
+}
+
+export function calculateVersionsBehind(currentVersion, remoteVersion, versionHistory = []) {
+  if (!currentVersion || !remoteVersion || currentVersion === remoteVersion) {
+    return 0;
+  }
+  let behindFromHistory = 0;
+  if (Array.isArray(versionHistory) && versionHistory.length > 0) {
+    const currentIdx = versionHistory.indexOf(currentVersion);
+    const remoteIdx = versionHistory.indexOf(remoteVersion);
+    if (currentIdx !== -1 && remoteIdx !== -1 && remoteIdx > currentIdx) {
+      behindFromHistory = remoteIdx - currentIdx;
+    }
+  }
+  const postponedCount = getPostponedUpdatesCount();
+  return Math.max(behindFromHistory, postponedCount);
+}
+
 // Fetch version metadata and check if an update is available
 export async function checkForAppUpdate() {
   if (typeof window === 'undefined') return null;
@@ -382,10 +436,14 @@ export async function checkForAppUpdate() {
     }
 
     if (remoteVer !== currentVer) {
+      const versionsBehind = calculateVersionsBehind(currentVer, remoteVer, data.versionHistory || []);
+      const isMandatory = isAndroidApp() && versionsBehind >= 3;
       const info = {
         updateAvailable: true,
         currentVersion: currentVer,
         newVersion: remoteVer,
+        versionsBehind,
+        isMandatory,
         buildTime: data.buildTime,
         changes: data.changes || {}
       };
@@ -437,6 +495,7 @@ export async function applyAppUpdate(newVersion = null) {
   if (newVersion) {
     setStoredAppVersion(newVersion);
   }
+  clearPostponedUpdates();
 
   if (waitingWorker) {
     waitingWorker.postMessage({ type: 'SKIP_WAITING' });

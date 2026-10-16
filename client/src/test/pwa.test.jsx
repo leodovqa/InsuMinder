@@ -271,5 +271,60 @@ describe('PWA Installation Detection & Persistence Tests', () => {
     expect(pwa.APP_CURRENT_CHANGELOG.he.length).toBeGreaterThan(0);
     expect(pwa.APP_CURRENT_CHANGELOG.ru.length).toBeGreaterThan(0);
   });
+
+  it('calculates versionsBehind from versionHistory and postponed updates', () => {
+    localStorage.clear();
+    const history = ['1.0.0', '1.0.1', '1.0.2', '1.1.0'];
+    expect(pwa.calculateVersionsBehind('1.0.0', '1.1.0', history)).toBe(3);
+    expect(pwa.calculateVersionsBehind('1.0.2', '1.1.0', history)).toBe(1);
+    expect(pwa.calculateVersionsBehind('1.1.0', '1.1.0', history)).toBe(0);
+
+    pwa.recordPostponedUpdate('1.0.1');
+    pwa.recordPostponedUpdate('1.0.2');
+    expect(pwa.getPostponedUpdatesCount()).toBe(2);
+
+    pwa.clearPostponedUpdates();
+    expect(pwa.getPostponedUpdatesCount()).toBe(0);
+  });
+
+  it('marks update as mandatory ONLY on Android when >= 3 updates behind', async () => {
+    localStorage.setItem('insuminder_app_version', '1.0.0');
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        version: '1.3.0',
+        versionHistory: ['1.0.0', '1.1.0', '1.2.0', '1.3.0'],
+        changes: { en: ['Big update'] }
+      })
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+
+    // Web environment: isAndroidApp() returns false
+    const webUpdate = await pwa.checkForAppUpdate();
+    expect(webUpdate.versionsBehind).toBe(3);
+    expect(webUpdate.isMandatory).toBe(false);
+
+    // Android environment: simulate Android native user agent
+    const originalNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { ...originalNavigator, userAgent: 'Mozilla/5.0 InsuMinder-Android/1.0.0' },
+      configurable: true,
+      writable: true
+    });
+
+    try {
+      const androidUpdate = await pwa.checkForAppUpdate();
+      expect(androidUpdate.isMandatory).toBe(true);
+    } finally {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: originalNavigator,
+        configurable: true,
+        writable: true
+      });
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 

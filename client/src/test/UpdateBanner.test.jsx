@@ -111,5 +111,32 @@ describe('UpdateBanner Component', () => {
       expect(applySpy).toHaveBeenCalledWith('1.1.0');
     });
   });
+
+  it('renders blocking overlay without dismiss or Later button when update is mandatory (>= 3 updates behind on Android)', () => {
+    const mandatoryUpdate = {
+      updateAvailable: true,
+      currentVersion: '1.0.0',
+      newVersion: '1.3.0',
+      versionsBehind: 3,
+      isMandatory: true,
+      changes: {
+        en: ['Mandatory security fix']
+      }
+    };
+
+    vi.spyOn(pwaModule, 'subscribeToAppUpdates').mockImplementation((cb) => {
+      cb(mandatoryUpdate);
+      return () => {};
+    });
+    vi.spyOn(pwaModule, 'checkForAppUpdate').mockResolvedValue(mandatoryUpdate);
+
+    renderWithProviders(<UpdateBanner />);
+
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByText('Update Required to Continue')).toBeInTheDocument();
+    expect(screen.getByText(/Your Android app is 3 updates behind/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Later/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Dismiss/i })).not.toBeInTheDocument();
+  });
 });
 

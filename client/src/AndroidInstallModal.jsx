@@ -50,7 +50,7 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
           </div>
           <button
             type="button"
-            className="modal-close-btn"
+            className="android-modal-close-btn"
             onClick={onClose}
             aria-label={t('common.close')}
           >
@@ -123,7 +123,7 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
           </a>
           <button
             type="button"
-            className="cancel-btn android-modal-gotit-btn"
+            className="android-modal-gotit-btn"
             onClick={onClose}
           >
             {t('androidModal.closeBtn')}

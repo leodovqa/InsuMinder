@@ -6633,6 +6633,29 @@
   border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
 }
 
+.android-modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-muted, #94a3b8);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-h, #ffffff);
+  }
+}
+
 .android-modal-icon-badge {
   display: flex;
   align-items: center;
@@ -6793,17 +6816,69 @@
 .android-modal-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 20px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
   border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
 }
 
 .android-direct-download-btn {
+  flex: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  font-size: 14px;
+  font-weight: 600;
   text-decoration: none;
+  white-space: nowrap;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff !important;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  transition: all 0.2s ease;
+  border: none;
+
+  &:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+  }
+}
+
+.android-modal-gotit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background-color: var(--code-bg, #0f172a);
+  color: var(--text-h, #ffffff);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-h, #ffffff);
+  }
+}
+
+@media (max-width: 480px) {
+  .android-modal-footer {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+  .android-direct-download-btn,
+  .android-modal-gotit-btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
 }
 
 /* Light mode overrides for Android Install Modal */
@@ -6846,8 +6921,29 @@
   color: #475569;
 }
 
+[data-theme="light"] .android-modal-close-btn {
+  color: #64748b;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    color: #0f172a;
+  }
+}
+
 [data-theme="light"] .android-modal-footer {
   border-top-color: #f1f5f9;
+}
+
+[data-theme="light"] .android-modal-gotit-btn {
+  background-color: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
+
+  &:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
 }
 
 /* ========================================================
@@ -7127,9 +7223,9 @@
 }
 
 .about-app-logo-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(2, 132, 199, 0.1) 100%);
   border: 1px solid rgba(14, 165, 233, 0.3);
   display: flex;
@@ -7140,31 +7236,37 @@
 }
 
 .about-logo-symbol {
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1;
 }
 
 .about-app-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .about-app-name-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  line-height: 1;
 }
 
-.about-app-name {
-  font-size: 17px;
-  font-weight: 700;
+.about-app-version-label {
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-h);
+  line-height: 1;
 }
 
 .about-app-version-pill {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 7px;
+  line-height: 1;
   border-radius: 999px;
   background-color: rgba(14, 165, 233, 0.15);
   border: 1px solid rgba(14, 165, 233, 0.3);
@@ -7172,7 +7274,8 @@
   font-size: 11px;
   font-weight: 700;
   font-family: var(--font-mono, monospace);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+  box-sizing: border-box;
 }
 
 .about-app-status-row {
@@ -7372,6 +7475,201 @@
 [data-theme="light"] .about-whats-new-item {
   color: #334155;
 }
+
+.about-inline-feedback {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: fadeIn 0.2s ease-out;
+
+  &.success {
+    background-color: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+  }
+}
+
+.about-inline-feedback .feedback-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+[data-theme="light"] .about-inline-feedback.success {
+  background-color: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.25);
+  color: #15803d;
+}
+
+.about-status-dot.update-available {
+  background-color: #0ea5e9;
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.6);
+  animation: pulse-update-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-update-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.8;
+  }
+}
+
+.about-status-urgent-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  margin-inline-start: 6px;
+}
+
+.btn-apply-update-highlight {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
+
+  &:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  }
+}
+
+/* Mandatory Update Blocking Overlay (Android only when >= 3 updates behind) */
+.update-blocking-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background-color: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.update-blocking-modal {
+  max-width: 480px;
+  width: 100%;
+  background: var(--bg-card, #1e293b);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  border-radius: 20px;
+  padding: 28px 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px rgba(239, 68, 68, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  animation: modal-enter 0.25s ease-out;
+}
+
+.update-blocking-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-blocking-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.update-blocking-header-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.update-blocking-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.update-blocking-version-pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: rgba(14, 165, 233, 0.15);
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  color: #38bdf8;
+  font-family: var(--font-mono, monospace);
+}
+
+.update-blocking-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text, #cbd5e1);
+}
+
+.update-blocking-body {
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+.update-blocking-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.btn-blocking-update {
+  width: 100%;
+  justify-content: center;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.5);
+  }
+}
+
+/* Light Theme Overrides for Mandatory Update */
+[data-theme="light"] .update-blocking-overlay {
+  background-color: rgba(241, 245, 249, 0.94);
+}
+
+[data-theme="light"] .update-blocking-modal {
+  background: #ffffff;
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 24px rgba(239, 68, 68, 0.15);
+}
+
+[data-theme="light"] .update-blocking-desc {
+  color: #334155;
+}
+
+[data-theme="light"] .update-blocking-body {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
 
 
 

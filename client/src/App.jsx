@@ -33,6 +33,8 @@ import {
   subscribeToInstallPrompt,
   downloadAndroidApk,
   checkForAppUpdate,
+  applyAppUpdate,
+  subscribeToAppUpdates,
   ANDROID_PACKAGE_INFO,
   APP_CURRENT_CHANGELOG
 } from './pwa';
@@ -350,22 +352,53 @@ function AppContent() {
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [availableUpdate, setAvailableUpdate] = useState(null);
+  const [updateCheckFeedback, setUpdateCheckFeedback] = useState(null);
+
+  useEffect(() => {
+    const unsub = subscribeToAppUpdates((info) => {
+      if (info && info.updateAvailable) {
+        setAvailableUpdate(info);
+      } else {
+        setAvailableUpdate(null);
+      }
+    });
+    return unsub;
+  }, []);
 
   const handleManualUpdateCheck = async () => {
     setIsCheckingUpdate(true);
+    setUpdateCheckFeedback(null);
+    const startTime = Date.now();
     try {
       const update = await checkForAppUpdate();
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 750) {
+        await new Promise((r) => setTimeout(r, 750 - elapsed));
+      }
+
       if (!update) {
+        setAvailableUpdate(null);
+        setUpdateCheckFeedback('upToDate');
         setNotification({
           type: 'success',
           message: t('settings.latestVersionNotice')
         });
+        setTimeout(() => {
+          setUpdateCheckFeedback((curr) => (curr === 'upToDate' ? null : curr));
+        }, 5000);
+      } else {
+        setAvailableUpdate(update);
       }
     } catch {
+      setUpdateCheckFeedback('upToDate');
       setNotification({
         type: 'info',
         message: t('settings.latestVersionNotice')
       });
+      setTimeout(() => {
+        setUpdateCheckFeedback((curr) => (curr === 'upToDate' ? null : curr));
+      }, 5000);
     } finally {
       setIsCheckingUpdate(false);
     }
@@ -3195,28 +3228,52 @@ function AppContent() {
               </div>
               <div className="about-app-details">
                 <div className="about-app-name-row">
-                  <span className="about-app-name">InsuMinder</span>
+                  <span className="about-app-version-label">{t('settings.appVersionLabel')}</span>
                   <span className="about-app-version-pill">v{ANDROID_PACKAGE_INFO.version}</span>
                 </div>
                 <div className="about-app-status-row">
-                  <span className="about-status-dot" aria-hidden="true"></span>
-                  <span className="about-status-text">{t('settings.appUpToDateBadge')}</span>
+                  <span className={`about-status-dot ${availableUpdate ? 'update-available' : ''}`} aria-hidden="true"></span>
+                  <span className="about-status-text">
+                    {availableUpdate
+                      ? t('appUpdate.updateAvailableStatus', { version: availableUpdate.newVersion })
+                      : t('settings.appUpToDateBadge')}
+                  </span>
+                  {availableUpdate?.isMandatory && (
+                    <span className="about-status-urgent-pill">
+                      {t('appUpdate.behindBadge', { count: availableUpdate.versionsBehind || 3 })}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="about-app-actions">
-              <button
-                type="button"
-                className="btn-check-updates"
-                onClick={handleManualUpdateCheck}
-                disabled={isCheckingUpdate}
-              >
-                <span className="btn-icon" aria-hidden="true">
-                  {isCheckingUpdate ? '⏳' : '🔄'}
-                </span>
-                {isCheckingUpdate ? t('settings.checkingForUpdates') : t('settings.checkForUpdatesBtn')}
-              </button>
+              {availableUpdate ? (
+                <button
+                  type="button"
+                  className="btn-check-updates btn-apply-update-highlight"
+                  onClick={() => applyAppUpdate(availableUpdate.newVersion)}
+                >
+                  <span className="btn-icon" aria-hidden="true">🚀</span>
+                  {t('settings.updateNowBtn', { version: availableUpdate.newVersion })}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-check-updates"
+                  onClick={handleManualUpdateCheck}
+                  disabled={isCheckingUpdate}
+                >
+                  <span className="btn-icon" aria-hidden="true">
+                    {isCheckingUpdate ? '⏳' : updateCheckFeedback === 'upToDate' ? '✅' : '🔄'}
+                  </span>
+                  {isCheckingUpdate
+                    ? t('settings.checkingForUpdates')
+                    : updateCheckFeedback === 'upToDate'
+                      ? t('settings.appUpToDateBadge')
+                      : t('settings.checkForUpdatesBtn')}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -3229,6 +3286,13 @@ function AppContent() {
                 <span className="expand-arrow" aria-hidden="true">{showWhatsNew ? '▲' : '▼'}</span>
               </button>
             </div>
+
+            {updateCheckFeedback === 'upToDate' && (
+              <div className="about-inline-feedback success" role="status">
+                <span className="feedback-icon" aria-hidden="true">✅</span>
+                <span>{t('settings.latestVersionNotice')}</span>
+              </div>
+            )}
 
             {showWhatsNew && (
               <div className="about-whats-new-box">

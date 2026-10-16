@@ -1512,7 +1512,8 @@ describe('App Component - Home & Logs UI Tests', () => {
       const checkUpdatesBtn = screen.getByRole('button', { name: /Check for Updates/i });
       fireEvent.click(checkUpdatesBtn);
 
-      expect(await screen.findByText('You are on the latest version of InsuMinder.')).toBeInTheDocument();
+      const feedbackElements = await screen.findAllByText('You are on the latest version of InsuMinder.');
+      expect(feedbackElements.length).toBeGreaterThanOrEqual(1);
     });
   });
 });
