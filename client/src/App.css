@@ -226,6 +226,7 @@ body.is-android-apk .nav-drawer {
 /* Modals & Overlays in Native Android APK: Safely clear camera notch and gesture insets */
 body.is-android-apk .modal-overlay,
 body.is-android-apk .auth-modal-backdrop,
+body.is-android-apk .update-modal-overlay,
 body.is-android-apk .update-blocking-overlay {
   padding-top: calc(env(safe-area-inset-top, 0px) + 36px);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
@@ -235,6 +236,7 @@ body.is-android-apk .update-blocking-overlay {
 @media (max-width: 480px) {
   body.is-android-apk .modal-overlay,
   body.is-android-apk .auth-modal-backdrop,
+  body.is-android-apk .update-modal-overlay,
   body.is-android-apk .update-blocking-overlay {
     padding-top: calc(env(safe-area-inset-top, 0px) + 32px);
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
@@ -244,6 +246,7 @@ body.is-android-apk .update-blocking-overlay {
 body.is-android-apk .modal-card,
 body.is-android-apk .auth-modal-container,
 body.is-android-apk .android-install-modal-card,
+body.is-android-apk .update-modal-card,
 body.is-android-apk .update-blocking-modal {
   max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 64px);
   overflow-y: auto;
@@ -871,17 +874,19 @@ body.is-android-apk .app-update-banner + .app-header {
   gap: 20px;
 }
 
-/* Telegram Not Configured Notice */
+/* Telegram Not Configured Notice (Stacked Centered Layout) */
 .telegram-alert-card {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
-  padding: 13px 16px;
+  padding: 14px 16px;
   background-color: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: 14px;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   transition: background-color 0.2s, border-color 0.2s;
   box-sizing: border-box;
@@ -893,18 +898,21 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .telegram-alert-icon {
-  font-size: 18px;
-  flex-shrink: 0;
+  font-size: 22px;
+  line-height: 1;
+  margin: 0 auto;
 }
 
 .telegram-alert-content {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
+  justify-content: center;
+  gap: 3px;
   font-size: 13.5px;
   line-height: 1.4;
   color: var(--text-h);
+  text-align: center;
 }
 
 .telegram-alert-text {
@@ -7457,58 +7465,78 @@ body.is-android-apk .app-update-banner + .app-header {
 
 
 /* ========================================================
-   In-App Live Update Notification Banner
+   In-App Android Live Update Notification Modal
    ======================================================== */
-.app-update-banner {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(2, 132, 199, 0.12) 100%);
-  border-bottom: 1px solid rgba(14, 165, 233, 0.35);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 12px 16px;
-  position: relative;
-  z-index: 100;
-  animation: slideDownUpdateBanner 0.25s ease-out;
+.update-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background-color: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 20px) max(16px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  animation: fadeInOverlay 0.2s ease-out;
 }
 
-@keyframes slideDownUpdateBanner {
+@keyframes fadeInOverlay {
   from {
     opacity: 0;
-    transform: translateY(-8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-.update-banner-container {
-  max-width: 900px;
-  margin: 0 auto;
+.update-modal-card {
+  max-width: 460px;
+  width: 100%;
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 24px rgba(14, 165, 233, 0.15);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+  box-sizing: border-box;
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 48px);
+  overflow-y: auto;
+  animation: modal-enter 0.25s ease-out;
 }
 
-.update-banner-header {
+.update-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.update-badge-wrapper {
+.update-modal-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+}
+
+.update-modal-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.update-modal-titles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.update-rocket-icon {
+.update-modal-title {
+  margin: 0;
   font-size: 1.15rem;
-}
-
-.update-title {
-  font-size: 0.95rem;
   font-weight: 700;
   color: #38bdf8;
 }
@@ -7527,12 +7555,15 @@ body.is-android-apk .app-update-banner + .app-header {
   background: transparent;
   border: none;
   color: #94a3b8;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   line-height: 1;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .update-close-btn:hover {
@@ -7540,15 +7571,24 @@ body.is-android-apk .app-update-banner + .app-header {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.update-banner-body {
-  padding: 2px 0;
+.update-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.update-modal-changelog {
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .update-whats-new-label {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #cbd5e1;
-  margin: 0 0 6px 0;
+  margin: 0 0 8px 0;
 }
 
 .update-changes-list {
@@ -7557,51 +7597,57 @@ body.is-android-apk .app-update-banner + .app-header {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .update-change-item {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 0.82rem;
+  gap: 8px;
+  font-size: 0.85rem;
   color: #94a3b8;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .update-bullet {
   color: #38bdf8;
   font-weight: 700;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   flex-shrink: 0;
 }
 
-.update-banner-actions {
+.update-modal-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 2px;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+  width: 100%;
 }
 
 .btn-update-now {
   background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
   color: #ffffff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 0.85rem;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 3px 10px rgba(14, 165, 233, 0.35);
   transition: all 0.15s ease;
+  min-width: 130px;
+  text-align: center;
 }
 
 .btn-update-now:hover:not(:disabled) {
   background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
   transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(14, 165, 233, 0.45);
 }
 
 .btn-update-now:disabled {
@@ -7612,24 +7658,30 @@ body.is-android-apk .app-update-banner + .app-header {
 .btn-update-later {
   background: rgba(255, 255, 255, 0.06);
   color: #94a3b8;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 7px 14px;
-  font-size: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s ease;
+  min-width: 110px;
+  text-align: center;
 }
 
 .btn-update-later:hover:not(:disabled) {
   color: #e2e8f0;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .update-spinner {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #ffffff;
   border-radius: 50%;
@@ -7642,13 +7694,18 @@ body.is-android-apk .app-update-banner + .app-header {
   }
 }
 
-/* Light Mode Overrides for Update Banner */
-[data-theme="light"] .app-update-banner {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(2, 132, 199, 0.08) 100%);
-  border-bottom-color: rgba(14, 165, 233, 0.25);
+/* Light Mode Overrides for Update Modal */
+[data-theme="light"] .update-modal-overlay {
+  background-color: rgba(15, 23, 42, 0.65);
 }
 
-[data-theme="light"] .update-title {
+[data-theme="light"] .update-modal-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.18), 0 0 24px rgba(14, 165, 233, 0.12);
+}
+
+[data-theme="light"] .update-modal-title {
   color: #0284c7;
 }
 
@@ -7664,7 +7721,12 @@ body.is-android-apk .app-update-banner + .app-header {
 
 [data-theme="light"] .update-close-btn:hover {
   color: #0f172a;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .update-modal-changelog {
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 [data-theme="light"] .update-whats-new-label {
@@ -7817,19 +7879,24 @@ body.is-android-apk .app-update-banner + .app-header {
   margin-top: 18px;
 }
 
-.btn-check-updates {
+.btn-check-updates,
+.btn-whats-new-toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.btn-check-updates {
   background-color: var(--code-bg, #0f172a);
   color: var(--text-h);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13.5px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
     background-color: var(--accent-bg, rgba(14, 165, 233, 0.1));
@@ -7844,24 +7911,29 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .btn-whats-new-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 14px;
   background-color: transparent;
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13.5px;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
 
   &:hover {
     background-color: var(--code-bg, #0f172a);
     color: var(--text-h);
     border-color: rgba(255, 255, 255, 0.25);
   }
+}
+
+.btn-check-updates .btn-icon,
+.btn-whats-new-toggle .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  min-width: 18px;
+  font-size: 15px;
+  flex-shrink: 0;
+  text-align: center;
+  line-height: 1;
 }
 
 .expand-arrow {

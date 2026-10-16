@@ -19,7 +19,7 @@ describe('Web Push & Multi-Channel Reminder Integration Tests', () => {
         endpoint: 'https://fcm.googleapis.com/fcm/send/test-sub-1',
         keys: {
           p256dh: 'BNACDjD1nn2PsLMW8wXHd24MFshk1rHd72u-_NC28fa9nepN7SJTsBmAGaI1ooxPvTv-lOYuQrkxE2z7iVwUJHs',
-          auth: 'OgxOXBOxQ9xAWgVbeDkyRe3pYeGYPvLW8n04TrFK3tY'
+          auth: 'mock_auth_token_secret_xyz123'
         }
       };
 
@@ -108,7 +108,7 @@ describe('Web Push & Multi-Channel Reminder Integration Tests', () => {
       const testSub = {
         endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/test-expired',
         p256dh: 'BNACDjD1nn2PsLMW8wXHd24MFshk1rHd72u-_NC28fa9nepN7SJTsBmAGaI1ooxPvTv-lOYuQrkxE2z7iVwUJHs',
-        auth: 'OgxOXBOxQ9xAWgVbeDkyRe3pYeGYPvLW8n04TrFK3tY'
+        auth: 'mock_auth_token_secret_xyz123'
       };
 
       try {
@@ -132,7 +132,7 @@ describe('Web Push & Multi-Channel Reminder Integration Tests', () => {
       const testSub = {
         endpoint: 'https://fcm.googleapis.com/fcm/send/test-success',
         p256dh: 'BNACDjD1nn2PsLMW8wXHd24MFshk1rHd72u-_NC28fa9nepN7SJTsBmAGaI1ooxPvTv-lOYuQrkxE2z7iVwUJHs',
-        auth: 'OgxOXBOxQ9xAWgVbeDkyRe3pYeGYPvLW8n04TrFK3tY'
+        auth: 'mock_auth_token_secret_xyz123'
       };
 
       let capturedHeaders = null;
@@ -170,7 +170,7 @@ describe('Web Push & Multi-Channel Reminder Integration Tests', () => {
             endpoint: expiredEndpoint,
             keys: {
               p256dh: 'BNACDjD1nn2PsLMW8wXHd24MFshk1rHd72u-_NC28fa9nepN7SJTsBmAGaI1ooxPvTv-lOYuQrkxE2z7iVwUJHs',
-              auth: 'OgxOXBOxQ9xAWgVbeDkyRe3pYeGYPvLW8n04TrFK3tY'
+              auth: 'mock_auth_token_secret_xyz123'
             }
           },
           'Expired UA',

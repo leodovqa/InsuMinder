@@ -34,4 +34,14 @@ These rules outline the guidelines for developing the web-based application.
    - Every user-facing UI feature, card, modal, dialog, form input, button, and navigation element must work and look polished across both visual themes: modern sleek Dark mode and modern clean Light mode.
    - All elements must adhere to the application's color and design system (`client/src/index.css` and `client/src/App.css`), maintaining high contrast, clear readability, and proper type aesthetics. Dark-specific hardcoded backgrounds or white texts must never leak unreadable contrast into Light mode, and Dark mode must remain completely unbroken.
    - Parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm --prefix client run check:theme`. Commits or PRs with missing theme variable definitions, broken contrast rules, or unstyled light-mode elements will fail.
+9. **Unified Application Versioning & Parity Rule**:
+   - Whenever an update, bugfix, or release is prepared, the application version must be synchronized with 100% parity across all project manifests, configurations, and API endpoints according to Semantic Versioning (`MAJOR.MINOR.PATCH`):
+     - `android/app/build.gradle` (`versionName` and incremented `versionCode`)
+     - `client/public/version.json` (`version`, `versionCode`, and `versionHistory`)
+     - Root `package.json`, `client/package.json`, and `server/package.json`
+     - `client/src/pwa.js` (`ANDROID_PACKAGE_INFO.version` and `APP_CURRENT_CHANGELOG`)
+     - `functions/api/download/android.js` and `client/functions/api/download/android.js` (`version`)
+     - `server/src/index.js` (`version`)
+   - Never release with mismatched or stale version strings across files.
+   - Version parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm run check:version` (`node scripts/check-version.js`). Commits or PRs with mismatched versions or unrecorded version history will fail.
 

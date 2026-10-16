@@ -443,6 +443,63 @@ describe('Authentication & User Experience Tests', () => {
       });
     });
 
+    it('triggers AndroidBridge.signInWithGoogle when clicked inside native Android app container', async () => {
+      const mockBridge = {
+        signInWithGoogle: vi.fn(),
+        isNativeAndroid: vi.fn().mockReturnValue(true)
+      };
+      window.AndroidBridge = mockBridge;
+
+      render(<AuthModal isOpen={true} initialMode="login" onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+      const googleBtn = screen.getByRole('button', { name: /Continue with Google/i });
+      fireEvent.click(googleBtn);
+
+      expect(mockBridge.signInWithGoogle).toHaveBeenCalledTimes(1);
+      delete window.AndroidBridge;
+    });
+
+    it('completes login when native callback window.__onNativeGoogleSignIn receives an ID token', async () => {
+      const onSuccessMock = vi.fn();
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          success: true,
+          token: 'native-jwt-token',
+          user: { id: 99, email: 'native.android@example.com', name: 'Android User' }
+        })
+      });
+
+      render(<AuthModal isOpen={true} initialMode="login" onClose={vi.fn()} onSuccess={onSuccessMock} />);
+
+      expect(typeof window.__onNativeGoogleSignIn).toBe('function');
+
+      await act(async () => {
+        window.__onNativeGoogleSignIn('mock-native-id-token');
+      });
+
+      await waitFor(() => {
+        expect(onSuccessMock).toHaveBeenCalledWith(expect.objectContaining({ email: 'native.android@example.com' }));
+      });
+    });
+
+    it('handles cancellation and error notifications from native Android container', async () => {
+      render(<AuthModal isOpen={true} initialMode="login" onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+      expect(typeof window.__onNativeGoogleSignInError).toBe('function');
+
+      // 1. User dismissed native sheet -> CANCELLED should not show error banner
+      act(() => {
+        window.__onNativeGoogleSignInError('CANCELLED');
+      });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+      // 2. Real error -> displays error banner
+      act(() => {
+        window.__onNativeGoogleSignInError('Google Play Services unavailable on this device');
+      });
+      expect(screen.getByText(/Google Play Services unavailable on this device/i)).toBeInTheDocument();
+    });
+
     it('does not close AuthModal on backdrop click, only when X button is clicked', () => {
       const onCloseMock = vi.fn();
       render(<AuthModal isOpen={true} initialMode="login" onClose={onCloseMock} onSuccess={vi.fn()} />);

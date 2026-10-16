@@ -1,9 +1,38 @@
 // functions/api/_webpush.js - RFC 8291 & RFC 8292 Zero-Dependency Web Push Dispatcher
 // Works 100% identically across Cloudflare Pages Functions and modern Node.js runtimes
 
-export const VAPID_PUBLIC_KEY = 'BNACDjD1nn2PsLMW8wXHd24MFshk1rHd72u-_NC28fa9nepN7SJTsBmAGaI1ooxPvTv-lOYuQrkxE2z7iVwUJHs';
-export const VAPID_PRIVATE_KEY = 'OgxOXBOxQ9xAWgVbeDkyRe3pYeGYPvLW8n04TrFK3tY';
+let cachedWebCryptoKeys = null;
+
+export async function resolveVapidKeys(env) {
+  const pub = env?.VAPID_PUBLIC_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PUBLIC_KEY);
+  const priv = env?.VAPID_PRIVATE_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PRIVATE_KEY);
+  const sub = env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || 'mailto:support@insuminder.com';
+
+  if (pub && priv) {
+    return { publicKey: pub, privateKey: priv, subject: sub };
+  }
+
+  if (!cachedWebCryptoKeys) {
+    const keyPair = await crypto.subtle.generateKey(
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      true,
+      ['sign', 'verify']
+    );
+    const pubRaw = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+    const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+    const pubB64 = uint8ArrayToBase64Url(new Uint8Array(pubRaw));
+    cachedWebCryptoKeys = {
+      publicKey: pubB64,
+      privateKey: privJwk.d,
+      subject: sub
+    };
+  }
+  return cachedWebCryptoKeys;
+}
+
 export const VAPID_SUBJECT = 'mailto:support@insuminder.com';
+export const VAPID_PUBLIC_KEY = (typeof process !== 'undefined' && process.env?.VAPID_PUBLIC_KEY) || '';
+export const VAPID_PRIVATE_KEY = (typeof process !== 'undefined' && process.env?.VAPID_PRIVATE_KEY) || '';
 
 function base64UrlToUint8Array(base64Url) {
   const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);
@@ -225,9 +254,16 @@ export async function sendWebPush(subscription, payload, options = {}) {
   }
 
   const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const subject = options.subject || VAPID_SUBJECT;
-  const privateKey = options.privateKey || VAPID_PRIVATE_KEY;
-  const publicKey = options.publicKey || VAPID_PUBLIC_KEY;
+  let subject = options.subject || options.env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || VAPID_SUBJECT;
+  let privateKey = options.privateKey || options.env?.VAPID_PRIVATE_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PRIVATE_KEY) || VAPID_PRIVATE_KEY;
+  let publicKey = options.publicKey || options.env?.VAPID_PUBLIC_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PUBLIC_KEY) || VAPID_PUBLIC_KEY;
+
+  if (!privateKey || !publicKey) {
+    const resolved = await resolveVapidKeys(options.env);
+    privateKey = privateKey || resolved.privateKey;
+    publicKey = publicKey || resolved.publicKey;
+    subject = subject || resolved.subject;
+  }
 
   try {
     const authHeader = await createVapidHeader(endpoint, subject, privateKey, publicKey);

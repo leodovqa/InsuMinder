@@ -43,6 +43,12 @@ export const authService = {
 
   setSession(token, user) {
     if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem('insuminder_update_dismissed_version');
+      window.dispatchEvent(new CustomEvent('insuminder_update_reset_dismiss'));
+    } catch {
+      // ignore storage/event errors
+    }
     if (token) {
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
     }
@@ -123,6 +129,12 @@ export const authService = {
 
   clearSession() {
     if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem('insuminder_update_dismissed_version');
+      window.dispatchEvent(new CustomEvent('insuminder_update_reset_dismiss'));
+    } catch {
+      // ignore storage/event errors
+    }
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
     localStorage.removeItem(CONTEXT_STORAGE_KEY);

@@ -130,6 +130,23 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     handleGoogleCredentialResponseRef.current = handleGoogleCredentialResponse;
   });
 
+  // Native Android Google Sign-In Bridge listener
+  useEffect(() => {
+    window.__onNativeGoogleSignIn = (credential) => {
+      handleGoogleCredentialResponseRef.current?.({ credential });
+    };
+    window.__onNativeGoogleSignInError = (errorMsg) => {
+      setIsSubmitting(false);
+      if (errorMsg && errorMsg !== 'CANCELLED') {
+        setError(errorMsg);
+      }
+    };
+    return () => {
+      delete window.__onNativeGoogleSignIn;
+      delete window.__onNativeGoogleSignInError;
+    };
+  }, []);
+
   const renderedModeRef = useRef(null);
 
   // Render Google Identity Services button if available & configured (only re-render on mode change)
@@ -348,6 +365,18 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
   // 4. Handle Google Sign-In Click
   const handleGoogleSignIn = async () => {
     setError(null);
+
+    // If running in native Android container with AndroidBridge, use native 1-Tap Google Sign-In
+    if (typeof window !== 'undefined' && window.AndroidBridge?.signInWithGoogle) {
+      setIsSubmitting(true);
+      try {
+        window.AndroidBridge.signInWithGoogle(googleClientId);
+      } catch {
+        setIsSubmitting(false);
+        setError('Failed to launch native Google Sign-In.');
+      }
+      return;
+    }
 
     // If Google Identity Services is available and Client ID is configured, trigger Google prompt
     if (typeof window !== 'undefined' && window.google?.accounts?.id && googleClientId) {
@@ -687,7 +716,7 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
           <div className="auth-form-container">
             {/* Google Authentication Section */}
             <div className="google-auth-section">
-              {googleClientId && gisAvailable ? (
+              {googleClientId && gisAvailable && !(typeof window !== 'undefined' && window.AndroidBridge?.signInWithGoogle) ? (
                 <div ref={googleBtnRef} className="google-gis-btn-container" />
               ) : (
                 <button

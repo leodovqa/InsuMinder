@@ -277,6 +277,18 @@ Explain changes in 1–2 sentences before writing code.
   - The `main` branch is protected with required status checks:
     - `Automated Tests`
     - `JS Compilation & Build` (includes Vite build + Cloudflare Pages functions build)
-    - `Lint & Parity Check` (includes ESLint, i18n translation parity, theme parity, and functions directory parity)
+    - `Lint & Parity Check` (includes ESLint, i18n translation parity, theme parity, version parity, and functions directory parity)
   - GitHub strictly locks and disables the **Merge pull request** button until all status checks pass 100% green.
-  - No broken, unverified, or failing code can be merged into `main` or deployed live to production.
+  - No broken, unverified, or failing code can be merged into `main` or deployed live to production.
+
+---
+
+## Native Android App Package & Google Sign-In Bridge
+
+- **Source of Truth**: `android/` directory containing Gradle wrapper and `app/` module.
+- **Components**:
+  - `MainActivity.java`: Custom Tabs / TWA launcher routing into `WebContainerActivity`.
+  - `WebContainerActivity.java`: Native hardware-accelerated container with `AndroidBridge` JavascriptInterface.
+  - Native Google Sign-In: Integrates `com.google.android.gms:play-services-auth` via `mGoogleSignInClient.getSignInIntent()`. Returns ID token internally to WebView via `window.__onNativeGoogleSignIn`, bypassing browser redirects and popup blockers.
+  - Adaptive Density Icons: High-res launcher icons across `mipmap-mdpi` through `mipmap-xxxhdpi` with `@color/primary` background.
+  - Signing Scheme: Signed with v1, v2, and v3 schemes for verified installation across Android 9–15.

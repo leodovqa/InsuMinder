@@ -1,7 +1,7 @@
 {
   "name": "client",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "check:i18n": "node scripts/check-i18n.js",
     "check:theme": "node scripts/check-theme.js",
+    "check:version": "node ../scripts/check-version.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"
