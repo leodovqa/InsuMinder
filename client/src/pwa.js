@@ -230,7 +230,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.1.0',
+  version: '1.2.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -239,35 +239,29 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Native Android APK app support with seamless in-app live updates',
-    'Interactive Update notification with "What\'s New" highlights',
-    'Enhanced clinical reminder delivery and offline reliability'
+    'Native 1-Tap Google Sign-In with Play Services integration inside Android APK',
+    'High-resolution adaptive brand launcher icons across all Android devices',
+    'Google Play Protect guided installation flow & enhanced security verification'
   ],
   he: [
-    'תמיכה מלאה באפליקציית אנדרואיד (.APK) מקורית עם עדכונים חיים באפליקציה',
-    'התראת עדכון אינטראקטיבית עם פירוט תמציתי של מה שהשתנה',
-    'מסירת תזכורות קליניות משופרת ואמינות מלאה במצב לא מקוון'
+    'התחברות ישירה ומהירה בלחיצה אחת עם Google בתוך אפליקציית אנדרואיד',
+    'אייקון אפליקציה אדפטיבי וחד באיכות גבוהה לכל מכשירי אנדרואיד',
+    'הנחיות התקנה ברורות למעקף חסימת Google Play Protect ואבטחה מוגברת'
   ],
   ru: [
-    'Нативная поддержка приложения Android (.APK) с живыми обновлениями',
-    'Интерактивное уведомление об обновлении со списком изменений',
-    'Улучшенная доставка клинических напоминаний и офлайн-режим'
+    'Нативный вход через Google в 1 касание внутри Android-приложения',
+    'Четкие адаптивные иконки высокого разрешения для всех устройств Android',
+    'Понятные инструкции по установке при предупреждении Google Play Protect'
   ]
 };
 
 export function downloadAndroidApk() {
-  if (typeof document === 'undefined') return;
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = ANDROID_PACKAGE_INFO.downloadUrl;
-  document.body.appendChild(iframe);
-  setTimeout(() => {
-    try {
-      document.body.removeChild(iframe);
-    } catch (e) {
-      void e;
-    }
-  }, 30000);
+  if (typeof window === 'undefined') return;
+  try {
+    window.location.href = ANDROID_PACKAGE_INFO.downloadUrl;
+  } catch {
+    window.open(ANDROID_PACKAGE_INFO.releaseUrl, '_blank');
+  }
 }
 
 export function isAndroidApp() {
@@ -496,6 +490,16 @@ export async function applyAppUpdate(newVersion = null) {
     setStoredAppVersion(newVersion);
   }
   clearPostponedUpdates();
+  try {
+    sessionStorage.removeItem('insuminder_update_dismissed_version');
+  } catch (e) {
+    void e;
+  }
+
+  if (isAndroidApp()) {
+    downloadAndroidApk();
+    return;
+  }
 
   if (waitingWorker) {
     waitingWorker.postMessage({ type: 'SKIP_WAITING' });

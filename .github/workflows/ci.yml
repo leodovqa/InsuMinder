@@ -37,6 +37,9 @@ jobs:
       - name: Check Theme (Dark & Light) Consistency & Parity
         run: npm --prefix client run check:theme
 
+      - name: Check Application Version Synchronization & Parity
+        run: node scripts/check-version.js
+
       - name: Check Cloudflare Functions Parity
         run: git diff --no-index --exit-code functions/ client/functions/
 

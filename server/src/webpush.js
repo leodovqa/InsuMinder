@@ -1,8 +1,35 @@
-// server/src/webpush.js - Node.js CommonJS adapter for Web Push
+const crypto = require('crypto');
 
-const VAPID_PUBLIC_KEY = 'BNACDjD1nn2PsLMW8wXHd24MFshk1rHd72u-_NC28fa9nepN7SJTsBmAGaI1ooxPvTv-lOYuQrkxE2z7iVwUJHs';
-const VAPID_PRIVATE_KEY = 'OgxOXBOxQ9xAWgVbeDkyRe3pYeGYPvLW8n04TrFK3tY';
-const VAPID_SUBJECT = 'mailto:support@insuminder.com';
+// Dynamic / environment VAPID key resolution to prevent secret leakage
+function resolveVapidKeys() {
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    return {
+      publicKey: process.env.VAPID_PUBLIC_KEY,
+      privateKey: process.env.VAPID_PRIVATE_KEY,
+      subject: process.env.VAPID_SUBJECT || 'mailto:support@insuminder.com'
+    };
+  }
+  const ec = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const privJwk = ec.privateKey.export({ format: 'jwk' });
+  const pubJwk = ec.publicKey.export({ format: 'jwk' });
+  const x = Buffer.from(pubJwk.x, 'base64');
+  const y = Buffer.from(pubJwk.y, 'base64');
+  const uncompressed = Buffer.concat([Buffer.from([0x04]), x, y])
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  return {
+    publicKey: uncompressed,
+    privateKey: privJwk.d,
+    subject: process.env.VAPID_SUBJECT || 'mailto:support@insuminder.com'
+  };
+}
+
+const _vapid = resolveVapidKeys();
+const VAPID_PUBLIC_KEY = _vapid.publicKey;
+const VAPID_PRIVATE_KEY = _vapid.privateKey;
+const VAPID_SUBJECT = _vapid.subject;
 
 function base64UrlToUint8Array(base64Url) {
   const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);

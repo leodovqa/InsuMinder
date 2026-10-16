@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import UpdateBanner from '../UpdateBanner';
 import { LanguageProvider } from '../i18n';
 import * as pwaModule from '../pwa';
@@ -16,9 +16,28 @@ describe('UpdateBanner Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
-  it('does not render when no update is available', () => {
+  it('does not render on Web even when update is available', () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(false);
+    const mockUpdate = {
+      updateAvailable: true,
+      currentVersion: '1.0.0',
+      newVersion: '1.1.0'
+    };
+    vi.spyOn(pwaModule, 'subscribeToAppUpdates').mockImplementation((cb) => {
+      cb(mockUpdate);
+      return () => {};
+    });
+    vi.spyOn(pwaModule, 'checkForAppUpdate').mockResolvedValue(mockUpdate);
+
+    const { container } = renderWithProviders(<UpdateBanner />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('does not render on Android when no update is available', () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
     vi.spyOn(pwaModule, 'subscribeToAppUpdates').mockImplementation((cb) => {
       cb({ updateAvailable: false });
       return () => {};
@@ -29,11 +48,14 @@ describe('UpdateBanner Component', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders update title, version, and what changed list when update is available', () => {
+  it('renders centered update modal with title, version, changelog, and centered buttons on Android', () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
     const mockUpdate = {
       updateAvailable: true,
       currentVersion: '1.0.0',
-      newVersion: '1.1.0',
+      newVersion: '1.2.0',
+      versionsBehind: 1,
+      isMandatory: false,
       changes: {
         en: [
           'Native Android APK live in-app updates',
@@ -50,20 +72,78 @@ describe('UpdateBanner Component', () => {
 
     renderWithProviders(<UpdateBanner />);
 
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('New Update Available')).toBeInTheDocument();
-    expect(screen.getByText('v1.1.0')).toBeInTheDocument();
+    expect(screen.getByText('v1.2.0')).toBeInTheDocument();
     expect(screen.getByText("What's new:")).toBeInTheDocument();
     expect(screen.getByText('Native Android APK live in-app updates')).toBeInTheDocument();
     expect(screen.getByText('Interactive update notification with changelog')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Update Now/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Later/i })).toBeInTheDocument();
+
+    const updateBtn = screen.getByRole('button', { name: /Update Now/i });
+    const laterBtn = screen.getByRole('button', { name: /Later/i });
+    expect(updateBtn).toBeInTheDocument();
+    expect(laterBtn).toBeInTheDocument();
+
+    // Verify action container has centered styling class
+    const actionsContainer = updateBtn.closest('.update-modal-actions');
+    expect(actionsContainer).toBeInTheDocument();
   });
 
-  it('dismisses banner when Later or Close button is clicked', () => {
+  it('dismisses modal to sessionStorage when Later button is clicked and does NOT pop up again in the same session', () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
     const mockUpdate = {
       updateAvailable: true,
       currentVersion: '1.0.0',
-      newVersion: '1.1.0',
+      newVersion: '1.2.0',
+      versionsBehind: 1,
+      isMandatory: false,
+      changes: {
+        en: ['Speed improvements']
+      }
+    };
+
+    let pushCallback = null;
+    vi.spyOn(pwaModule, 'subscribeToAppUpdates').mockImplementation((cb) => {
+      pushCallback = cb;
+      cb(mockUpdate);
+      return () => {};
+    });
+    vi.spyOn(pwaModule, 'checkForAppUpdate').mockResolvedValue(mockUpdate);
+
+    const { rerender } = renderWithProviders(<UpdateBanner />);
+    expect(screen.getByText('New Update Available')).toBeInTheDocument();
+
+    const laterBtn = screen.getByRole('button', { name: /Later/i });
+    fireEvent.click(laterBtn);
+
+    // Modal is now dismissed
+    expect(screen.queryByText('New Update Available')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('insuminder_update_dismissed_version')).toBe('1.2.0');
+
+    // Simulate tab visibility change / backgrounding and re-polling in same session
+    if (pushCallback) {
+      act(() => {
+        pushCallback(mockUpdate);
+      });
+    }
+    rerender(
+      <LanguageProvider>
+        <UpdateBanner />
+      </LanguageProvider>
+    );
+
+    // Must NOT reappear while in same session (not killed / no re-login)
+    expect(screen.queryByText('New Update Available')).not.toBeInTheDocument();
+  });
+
+  it('re-opens dismissed update modal after new/re-login event is fired', async () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
+    const mockUpdate = {
+      updateAvailable: true,
+      currentVersion: '1.0.0',
+      newVersion: '1.2.0',
+      versionsBehind: 1,
+      isMandatory: false,
       changes: {
         en: ['Speed improvements']
       }
@@ -80,17 +160,29 @@ describe('UpdateBanner Component', () => {
 
     const laterBtn = screen.getByRole('button', { name: /Later/i });
     fireEvent.click(laterBtn);
-
     expect(screen.queryByText('New Update Available')).not.toBeInTheDocument();
+
+    // Trigger re-login event
+    sessionStorage.removeItem('insuminder_update_dismissed_version');
+    act(() => {
+      window.dispatchEvent(new CustomEvent('insuminder_update_reset_dismiss'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('New Update Available')).toBeInTheDocument();
+    });
   });
 
   it('invokes applyAppUpdate when Update Now button is clicked', async () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
     const applySpy = vi.spyOn(pwaModule, 'applyAppUpdate').mockResolvedValue(undefined);
 
     const mockUpdate = {
       updateAvailable: true,
       currentVersion: '1.0.0',
-      newVersion: '1.1.0',
+      newVersion: '1.2.0',
+      versionsBehind: 1,
+      isMandatory: false,
       changes: {
         en: ['Speed improvements']
       }
@@ -108,11 +200,12 @@ describe('UpdateBanner Component', () => {
     fireEvent.click(updateBtn);
 
     await waitFor(() => {
-      expect(applySpy).toHaveBeenCalledWith('1.1.0');
+      expect(applySpy).toHaveBeenCalledWith('1.2.0');
     });
   });
 
-  it('renders blocking overlay without dismiss or Later button when update is mandatory (>= 3 updates behind on Android)', () => {
+  it('renders mandatory blocking modal without dismiss or Later button when update is >= 3 updates behind', () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
     const mandatoryUpdate = {
       updateAvailable: true,
       currentVersion: '1.0.0',
@@ -137,6 +230,13 @@ describe('UpdateBanner Component', () => {
     expect(screen.getByText(/Your Android app is 3 updates behind/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Later/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Dismiss/i })).not.toBeInTheDocument();
+
+    const updateBtn = screen.getByRole('button', { name: /Update Now/i });
+    expect(updateBtn).toBeInTheDocument();
+
+    // Verify clicking backdrop does not dismiss
+    const overlay = screen.getByRole('alertdialog');
+    fireEvent.click(overlay);
+    expect(screen.getByText('Update Required to Continue')).toBeInTheDocument();
   });
 });
-

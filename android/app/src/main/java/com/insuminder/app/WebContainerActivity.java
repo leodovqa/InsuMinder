@@ -22,8 +22,16 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.JavascriptInterface;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
 
 /**
  * WebContainerActivity
@@ -33,8 +41,13 @@ import android.widget.RelativeLayout;
  */
 public class WebContainerActivity extends Activity {
 
+    public static final int RC_GOOGLE_SIGN_IN = 9001;
+    public static final String DEFAULT_WEB_CLIENT_ID = "49202391060-u2o79b29r36940t0ep9p8b7g6prm9d2q.apps.googleusercontent.com";
+
     private WebView mWebView;
     private ProgressBar mProgressBar;
+    private GoogleSignInClient mGoogleSignInClient;
+    private String mCurrentClientId = "";
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -99,6 +112,9 @@ public class WebContainerActivity extends Activity {
 
         // Hardware Acceleration
         mWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+        // Native Android Bridge for 1-Tap Google Sign-In and Android container detection
+        mWebView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
 
         // Enable Service Worker for offline app shell support
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -194,11 +210,101 @@ public class WebContainerActivity extends Activity {
             }
         });
 
+        // Delegate file downloads (such as APK updates) to the Android system download manager / browser
+        mWebView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+            try {
+                Intent downloadIntent = new Intent(Intent.ACTION_VIEW);
+                downloadIntent.setData(Uri.parse(url));
+                startActivity(downloadIntent);
+            } catch (Exception e) {
+                // Ignore if unable to launch intent
+            }
+        });
+
         Uri targetUri = getIntent() != null && getIntent().getData() != null
                 ? getIntent().getData()
                 : Uri.parse(MainActivity.DEFAULT_URL);
 
         mWebView.loadUrl(targetUri.toString());
+    }
+
+    private synchronized void setupGoogleSignIn(String webClientId) {
+        String clientId = (webClientId != null && !webClientId.trim().isEmpty())
+                ? webClientId.trim()
+                : DEFAULT_WEB_CLIENT_ID;
+
+        if (mGoogleSignInClient == null || !clientId.equals(mCurrentClientId)) {
+            mCurrentClientId = clientId;
+            GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestIdToken(clientId)
+                    .requestEmail()
+                    .build();
+            mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
+        }
+    }
+
+    public class AndroidBridge {
+        @JavascriptInterface
+        public boolean isNativeAndroid() {
+            return true;
+        }
+
+        @JavascriptInterface
+        public void signInWithGoogle() {
+            signInWithGoogle(null);
+        }
+
+        @JavascriptInterface
+        public void signInWithGoogle(String webClientId) {
+            runOnUiThread(() -> {
+                try {
+                    setupGoogleSignIn(webClientId);
+                    if (mGoogleSignInClient != null) {
+                        mGoogleSignInClient.signOut().addOnCompleteListener(task -> {
+                            Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+                            startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN);
+                        });
+                    }
+                } catch (Exception e) {
+                    notifyGoogleSignInError(e.getMessage() != null ? e.getMessage() : "Failed to initialize Google Sign-In");
+                }
+            });
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RC_GOOGLE_SIGN_IN) {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            try {
+                GoogleSignInAccount account = task.getResult(ApiException.class);
+                if (account != null && account.getIdToken() != null) {
+                    notifyGoogleSignInSuccess(account.getIdToken());
+                } else {
+                    notifyGoogleSignInError("No ID token returned by Google Play Services");
+                }
+            } catch (ApiException e) {
+                if (e.getStatusCode() == GoogleSignInStatusCodes.SIGN_IN_CANCELLED) {
+                    notifyGoogleSignInError("CANCELLED");
+                } else {
+                    String errorMsg = e.getMessage() != null ? e.getMessage() : "Google Sign-In failed (" + e.getStatusCode() + ")";
+                    notifyGoogleSignInError(errorMsg);
+                }
+            }
+        }
+    }
+
+    private void notifyGoogleSignInSuccess(String idToken) {
+        if (mWebView == null || idToken == null) return;
+        final String safeToken = idToken.replace("\\", "\\\\").replace("'", "\\'");
+        runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeGoogleSignIn && window.__onNativeGoogleSignIn('" + safeToken + "');", null));
+    }
+
+    private void notifyGoogleSignInError(String errorMsg) {
+        if (mWebView == null) return;
+        final String safeError = errorMsg != null ? errorMsg.replace("\\", "\\\\").replace("'", "\\'") : "Authentication failed";
+        runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeGoogleSignInError && window.__onNativeGoogleSignInError('" + safeError + "');", null));
     }
 
     @Override
