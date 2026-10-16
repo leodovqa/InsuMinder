@@ -178,7 +178,12 @@ export default function NotificationSettings({
               className={`scope-pill-btn ${activeScope === 'personal' ? 'active' : ''}`}
               onClick={() => setActiveScope('personal')}
             >
-              <span className="scope-pill-icon" role="img" aria-hidden="true">👤</span>
+              <span className="scope-pill-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
               <span className="scope-pill-label">{t('notificationSettings.scopePersonal')}</span>
             </button>
             <button
@@ -188,7 +193,14 @@ export default function NotificationSettings({
               className={`scope-pill-btn ${activeScope === 'shared' ? 'active' : ''}`}
               onClick={() => setActiveScope('shared')}
             >
-              <span className="scope-pill-icon" role="img" aria-hidden="true">👥</span>
+              <span className="scope-pill-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </span>
               <span className="scope-pill-label">{t('notificationSettings.scopeShared')}</span>
             </button>
           </div>
@@ -232,24 +244,22 @@ export default function NotificationSettings({
                 </div>
 
                 <div className="notification-card-content">
-                  <div className="notification-card-header-row">
-                    <h3 className="notification-card-title">
-                      {t(`notificationSettings.${item.titleKey}`)}
-                    </h3>
-                    <span
-                      className={`notification-status-badge ${isEnabled ? 'badge-active' : 'badge-disabled'}`}
-                    >
-                      {isEnabled
-                        ? t('notificationSettings.activeStatus')
-                        : t('notificationSettings.disabledStatus')}
-                    </span>
-                  </div>
+                  <h3 className="notification-card-title">
+                    {t(`notificationSettings.${item.titleKey}`)}
+                  </h3>
                   <p className="notification-card-description">
                     {t(`notificationSettings.${item.descKey}`)}
                   </p>
                 </div>
 
                 <div className="notification-card-action">
+                  <span
+                    className={`notification-status-badge ${isEnabled ? 'badge-active' : 'badge-disabled'}`}
+                  >
+                    {isEnabled
+                      ? t('notificationSettings.activeStatus')
+                      : t('notificationSettings.disabledStatus')}
+                  </span>
                   <button
                     type="button"
                     role="switch"

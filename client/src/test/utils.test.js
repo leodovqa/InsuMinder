@@ -608,7 +608,7 @@ describe('Utility Functions & Helpers', () => {
       expect(res.pillClass).toBe('disabled');
       expect(res.badgeClass).toBe('badge-disabled');
       expect(res.icon).toBe('🔕');
-      expect(res.label).toBe('Disabled in settings');
+      expect(res.label).toBe('Disabled');
       expect(res.isDisabled).toBe(true);
 
       // In shared context where basal is enabled
@@ -630,7 +630,7 @@ describe('Utility Functions & Helpers', () => {
     it('returns all true defaults when input is null or empty', () => {
       const prefs = getEffectiveNotificationPreferences(null);
       expect(prefs).toEqual({
-        personal: { rem10m: true, rem2h: true, rem3h: true, basal: true },
+        personal: { rem10m: true, rem2h: true, rem3h: true, basal: true, telegram: true },
         shared: { rem10m: true, rem2h: true, rem3h: true, basal: true }
       });
     });
@@ -679,7 +679,7 @@ describe('Utility Functions & Helpers', () => {
       expect(rem10m.icon).toBe('🔕');
       expect(rem10m.pillClass).toBe('disabled');
       expect(rem10m.badgeClass).toBe('badge-disabled');
-      expect(rem10m.label).toBe('Disabled in settings');
+      expect(rem10m.label).toBe('Disabled');
       expect(rem10m.isDisabled).toBe(true);
 
       const rem2h = getReminderStatus(log, '2h', true, 'en', prefs, 'personal');

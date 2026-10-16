@@ -1023,6 +1023,99 @@ describe('App Component - Home & Logs UI Tests', () => {
         expect(toggledBody).toEqual({ isActive: false });
       });
     });
+
+    it('renders master Telegram Notifications toggle switch, collapses card and hides home alert when turned OFF, and restores intact when turned ON', async () => {
+      window.history.pushState({}, '', '/?page=settings');
+      let profileUpdatedBody = null;
+
+      const mockConfigs = [
+        { id: 1, name: 'Family Group', botToken: 'bot12345:TOKEN', chatId: '-100123', isDefault: true, isActive: true },
+        { id: 2, name: 'Backup Bot', botToken: 'bot67890:TOKEN', chatId: '-100456', isDefault: false, isActive: false }
+      ];
+
+      globalThis.fetch = vi.fn().mockImplementation((url, options) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: mockLogs }) });
+        }
+        if (url === '/api/settings') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, settings: {} }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: mockConfigs }) });
+        }
+        if (url === '/api/auth/profile' && options && options.method === 'PUT') {
+          profileUpdatedBody = JSON.parse(options.body);
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: { ...mockUser, notificationPreferences: profileUpdatedBody.notificationPreferences }
+            })
+          });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      // 1. In Settings: Telegram card is initially expanded (ON)
+      await waitFor(() => {
+        expect(screen.getByText('Telegram Notifications')).toBeInTheDocument();
+        expect(screen.getByText('Configure your Telegram bot to receive injection reminders')).toBeInTheDocument();
+        expect(screen.getByText('Family Group')).toBeInTheDocument();
+        expect(screen.getByText('Backup Bot')).toBeInTheDocument();
+      });
+
+      const masterToggle = screen.getByRole('switch', { name: /Telegram notifications: Active/i });
+      expect(masterToggle).toBeInTheDocument();
+      expect(masterToggle).toHaveAttribute('aria-checked', 'true');
+
+      // 2. Click master toggle to turn OFF
+      fireEvent.click(masterToggle);
+
+      // Card collapses: Subtitle, form, and saved configs list are hidden
+      await waitFor(() => {
+        expect(screen.queryByText('Configure your Telegram bot to receive injection reminders')).not.toBeInTheDocument();
+        expect(screen.queryByText('Family Group')).not.toBeInTheDocument();
+        expect(screen.queryByText('Backup Bot')).not.toBeInTheDocument();
+      });
+
+      // Master switch shows Paused / OFF
+      expect(masterToggle).toHaveAttribute('aria-checked', 'false');
+      expect(masterToggle).toHaveAttribute('aria-label', 'Telegram notifications: Paused');
+
+      // Verify profile sync occurred
+      expect(profileUpdatedBody?.notificationPreferences?.personal?.telegram).toBe(false);
+
+      // 3. Navigate to Home tab: verify Telegram unconfigured alert is NEVER displayed
+      const homeNavBtn = screen.getByRole('button', { name: 'Back to Home' });
+      fireEvent.click(homeNavBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Telegram not configured/i)).not.toBeInTheDocument();
+      });
+
+      // 4. Return to Settings and toggle back ON
+      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
+      fireEvent.click(settingsNavBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText('Telegram Notifications')).toBeInTheDocument();
+      });
+
+      const updatedMasterToggle = screen.getByRole('switch', { name: /Telegram notifications/i });
+      fireEvent.click(updatedMasterToggle);
+
+      // Verify card re-expands and all saved configs and defaults are 100% intact
+      await waitFor(() => {
+        expect(screen.getByText('Configure your Telegram bot to receive injection reminders')).toBeInTheDocument();
+        expect(screen.getByText('Family Group')).toBeInTheDocument();
+        expect(screen.getByText('Backup Bot')).toBeInTheDocument();
+      });
+      expect(updatedMasterToggle).toHaveAttribute('aria-checked', 'true');
+    });
   });
 
   describe('Basal Insulin & 24h Time Schedule UI', () => {
@@ -1397,9 +1490,9 @@ describe('App Component - Home & Logs UI Tests', () => {
       await screen.findByText('Daily Injections');
 
       // Check the latest reminder pill for 2h reminder
-      const disabledBadge = await screen.findByRole('button', { name: /2-Hour Reminder: Disabled in settings/i });
+      const disabledBadge = await screen.findByRole('button', { name: /2-Hour Reminder: Disabled/i });
       expect(disabledBadge).toBeInTheDocument();
-      expect(disabledBadge.textContent).toContain('Disabled in settings');
+      expect(disabledBadge.textContent).toContain('Disabled');
 
       // Click the disabled pill to open modal
       fireEvent.click(disabledBadge);
@@ -1510,10 +1603,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.2\.0/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.3\.0/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.2.0')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.3.0')).toBeInTheDocument();
 
       // 3. Navigate to Settings Tab
       const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
@@ -1521,14 +1614,14 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.2.0')).toBeInTheDocument();
+      expect(screen.getByText('v1.3.0')).toBeInTheDocument();
       expect(screen.getByText('Up to Date')).toBeInTheDocument();
 
       // Verify "What's New in this Version" button and expandable highlights
       const whatsNewBtn = screen.getByRole('button', { name: /What's New in this Version/i });
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Native 1-Tap Google Sign-In/i)).toBeInTheDocument();
+      expect(screen.getByText(/Master ON\/OFF switch for Telegram Notifications/i)).toBeInTheDocument();
 
       // Verify "Check for Updates" button
       const checkUpdatesBtn = screen.getByRole('button', { name: /Check for Updates/i });

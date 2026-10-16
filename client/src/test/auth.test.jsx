@@ -498,6 +498,12 @@ describe('Authentication & User Experience Tests', () => {
         window.__onNativeGoogleSignInError('Google Play Services unavailable on this device');
       });
       expect(screen.getByText(/Google Play Services unavailable on this device/i)).toBeInTheDocument();
+
+      // 3. Status 10 (DEVELOPER_ERROR) -> translated to helpful configuration message
+      act(() => {
+        window.__onNativeGoogleSignInError('10: ');
+      });
+      expect(screen.getByText(/Google Sign-In configuration error \(Developer Error 10\)/i)).toBeInTheDocument();
     });
 
     it('does not close AuthModal on backdrop click, only when X button is clicked', () => {

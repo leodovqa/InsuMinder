@@ -284,6 +284,9 @@ async function dispatchMultiChannelReminder({
   const shouldSendPush = isPushConfigured && pushEnabled;
 
   if (!shouldSendTelegram && !shouldSendPush) {
+    if (telegramEnabled === false) {
+      return { ok: false, disabled: true, error: 'Disabled in notification settings.' };
+    }
     if (!isTelegramConfigured && !isPushConfigured) {
       return { ok: false, unconfigured: true, error: 'Telegram is not configured. Go to Settings to set up your destination.' };
     }

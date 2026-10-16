@@ -230,7 +230,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.2.0',
+  version: '1.3.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -239,19 +239,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Native 1-Tap Google Sign-In with Play Services integration inside Android APK',
-    'High-resolution adaptive brand launcher icons across all Android devices',
-    'Google Play Protect guided installation flow & enhanced security verification'
+    'Master ON/OFF switch for Telegram Notifications with smooth card collapse and full state preservation',
+    'Automatic suppression of home screen unconfigured Telegram warning banner when Telegram is disabled',
+    'Support for Web Push and in-app notifications without mandatory Telegram bot configuration'
   ],
   he: [
-    'התחברות ישירה ומהירה בלחיצה אחת עם Google בתוך אפליקציית אנדרואיד',
-    'אייקון אפליקציה אדפטיבי וחד באיכות גבוהה לכל מכשירי אנדרואיד',
-    'הנחיות התקנה ברורות למעקף חסימת Google Play Protect ואבטחה מוגברת'
+    'מתג הפעלה וכיבוי ראשי להתראות טלגרם בהגדרות עם צמצום מהיר ושמירת נתונים מלאה',
+    'הסתרת התראת הגדרת טלגרם במסך הבית באופן אוטומטי כאשר התראות טלגרם מושבתות',
+    'תמיכה מלאה בהתראות דפדפן והתראות פנימיות ללא צורך בהגדרת בוט טלגרם'
   ],
   ru: [
-    'Нативный вход через Google в 1 касание внутри Android-приложения',
-    'Четкие адаптивные иконки высокого разрешения для всех устройств Android',
-    'Понятные инструкции по установке при предупреждении Google Play Protect'
+    'Главный переключатель уведомлений Telegram в Настройках с мгновенным сворачиванием и сохранением всех данных',
+    'Автоматическое скрытие предупреждения о настройке Telegram на главном экране при отключенных уведомлениях',
+    'Поддержка Web Push и уведомлений в приложении без обязательной настройки Telegram-бота'
   ]
 };
 

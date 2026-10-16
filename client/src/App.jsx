@@ -535,6 +535,7 @@ function AppContent() {
         (localStorage.getItem('insuminder_telegram_bot_token') && localStorage.getItem('insuminder_telegram_chat_id')) ||
         (telegramBotToken.trim() && telegramChatId.trim())
       );
+  const isTelegramNotificationsEnabled = notificationPreferences?.personal?.telegram !== false;
   const latest10m = getReminderStatus(latestBolusLog, '10m', isTelegramConfigured, language, notificationPreferences, activeContext);
   const latest2h = getReminderStatus(latestBolusLog, '2h', isTelegramConfigured, language, notificationPreferences, activeContext);
   const latest3h = getReminderStatus(latestBolusLog, '3h', isTelegramConfigured, language, notificationPreferences, activeContext);
@@ -1176,6 +1177,22 @@ function AppContent() {
     }
   };
 
+  const handleToggleTelegramNotifications = async () => {
+    const nextVal = !isTelegramNotificationsEnabled;
+    const nextPrefs = {
+      ...notificationPreferences,
+      personal: {
+        ...(notificationPreferences?.personal || {}),
+        telegram: nextVal
+      }
+    };
+    await handleUpdateNotificationPreferences(nextPrefs);
+    setNotification({
+      type: 'success',
+      message: nextVal ? t('settings.telegramToggleSuccessOn') : t('settings.telegramToggleSuccessOff')
+    });
+  };
+
   const handleOpenDeleteModal = (config) => {
     setDeleteModalConfig(config);
   };
@@ -1725,8 +1742,8 @@ function AppContent() {
               </div>
             )}
 
-            {/* Telegram Configuration Notice Banner (Only when logged in) */}
-            {isLoggedIn && !isTelegramConfigured && (
+            {/* Telegram Configuration Notice Banner (Only when logged in and Telegram notifications are enabled) */}
+            {isLoggedIn && isTelegramNotificationsEnabled && !isTelegramConfigured && (
               <div
                 className="telegram-alert-card"
                 onClick={() => setActiveTab('settings')}
@@ -1757,7 +1774,12 @@ function AppContent() {
                     aria-checked={activeContext === 'personal'}
                     role="radio"
                   >
-                    <span className="context-icon">👤</span>
+                    <span className="context-icon" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </span>
                     <span>{t('home.myData')}</span>
                   </button>
                   <button
@@ -1772,7 +1794,14 @@ function AppContent() {
                     aria-checked={activeContext === 'shared'}
                     role="radio"
                   >
-                    <span className="context-icon">👥</span>
+                    <span className="context-icon" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                    </span>
                     <span>
                       {t('home.sharedData')}
                       {shareStatus.sharedGroups[0] ? ` (${shareStatus.sharedGroups[0].ownerName || shareStatus.sharedGroups[0].ownerEmail})` : ''}
@@ -2726,21 +2755,40 @@ function AppContent() {
             </div>
 
             {/* 3. Telegram Notifications Card */}
-            <div className="settings-card">
-              <div className="card-header">
-                <div className="card-icon-wrapper telegram-icon-wrapper">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
+            <div className={`settings-card telegram-settings-card ${!isTelegramNotificationsEnabled ? 'is-collapsed' : ''}`}>
+              <div className={`card-header telegram-card-header ${!isTelegramNotificationsEnabled ? 'is-collapsed' : ''}`}>
+                <div className="telegram-card-header-left">
+                  <div className="card-icon-wrapper telegram-icon-wrapper">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  </div>
+                  <div className="card-header-text">
+                    <h2 className="card-title">{t('settings.telegramTitle')}</h2>
+                    {isTelegramNotificationsEnabled && (
+                      <p className="card-subtitle">{t('settings.telegramSubtitle')}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="card-header-text">
-                  <h2 className="card-title">{t('settings.telegramTitle')}</h2>
-                  <p className="card-subtitle">{t('settings.telegramSubtitle')}</p>
+                <div className="telegram-card-header-actions">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isTelegramNotificationsEnabled}
+                    aria-label={isTelegramNotificationsEnabled ? t('settings.telegramToggleActive') : t('settings.telegramToggleInactive')}
+                    title={isTelegramNotificationsEnabled ? t('settings.telegramToggleActive') : t('settings.telegramToggleInactive')}
+                    className={`toggle-switch config-toggle-switch telegram-master-toggle ${isTelegramNotificationsEnabled ? 'checked' : ''}`}
+                    onClick={handleToggleTelegramNotifications}
+                  >
+                    <span className="toggle-switch-handle" />
+                  </button>
                 </div>
               </div>
 
-              {!isLoggedIn ? (
+              {isTelegramNotificationsEnabled && (
+                <>
+                  {!isLoggedIn ? (
                 <div className="auth-locked-settings-notice">
                   <p className="auth-locked-text">
                     {t('settings.telegramAuthNotice')}
@@ -2930,7 +2978,7 @@ function AppContent() {
                               onClick={() => handleOpenDeleteModal(cfg)}
                               aria-label={hasCustom ? t('settings.deleteConfigName', { name: cfg.name }) : t('settings.deleteConfigForChat', { chatId: cfg.chatId })}
                             >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="3 6 5 6 21 6" />
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                               </svg>
@@ -2944,7 +2992,9 @@ function AppContent() {
               </div>
             </>
           )}
-        </div>
+        </>
+      )}
+    </div>
 
         {/* 3. Caregiver & Family Shared Access Card */}
         <div className="settings-card shared-access-card">

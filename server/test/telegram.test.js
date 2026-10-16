@@ -643,6 +643,52 @@ describe('Telegram Notification Integration Tests', () => {
       assert.strictEqual(log.status_10m_sent, 0);
       assert.match(log.error_10m, /Telegram is not configured/i);
     });
+
+    it('scheduler skips sending telegram reminder when master telegram toggle is OFF (telegram: false in userPrefs)', async () => {
+      const userMasterOff = 888;
+      const recentTime = new Date().toISOString();
+      const prefs = JSON.stringify({
+        personal: { rem10m: true, rem2h: true, rem3h: true, basal: true, telegram: false }
+      });
+
+      // Insert user with telegram explicitly disabled in notification_preferences
+      await new Promise((resolve, reject) => {
+        db.db.run(
+          "INSERT OR REPLACE INTO users (id, email, notification_preferences, basal_time) VALUES (?, ?, ?, ?)",
+          [userMasterOff, 'master_off@test.org', prefs, '20:00'],
+          (err) => (err ? reject(err) : resolve())
+        );
+      });
+
+      // Add active telegram config for user 888
+      await new Promise((resolve, reject) => {
+        db.db.run(
+          "INSERT INTO telegram_configs (user_id, name, bot_token, chat_id, is_default, is_active) VALUES (?, ?, ?, ?, 1, 1)",
+          [userMasterOff, 'Active Bot', '123456:FAKE', '888123'],
+          (err) => (err ? reject(err) : resolve())
+        );
+      });
+
+      const logId = await new Promise((resolve, reject) => {
+        db.db.run(
+          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent) VALUES (?, ?, ?, ?, ?, 0, 0, 0)",
+          [userMasterOff, recentTime, recentTime, recentTime, recentTime],
+          function(err) {
+            if (err) return reject(err);
+            resolve(this.lastID);
+          }
+        );
+      });
+
+      await scheduler.checkAndDispatchNotifications();
+
+      const log = await new Promise((resolve, reject) => {
+        db.db.get("SELECT * FROM injection_logs WHERE id = ?", [logId], (err, row) => (err ? reject(err) : resolve(row)));
+      });
+
+      assert.strictEqual(log.status_10m_sent, 0);
+      assert.strictEqual(log.error_10m, 'Disabled in notification settings.');
+    });
   });
 });
 

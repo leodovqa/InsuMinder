@@ -384,7 +384,8 @@ export const DEFAULT_NOTIFICATION_PREFERENCES = {
     rem10m: true,
     rem2h: true,
     rem3h: true,
-    basal: true
+    basal: true,
+    telegram: true
   },
   shared: {
     rem10m: true,
@@ -411,7 +412,8 @@ export const getEffectiveNotificationPreferences = (userPrefs) => {
       rem10m: parsed.personal?.rem10m !== false,
       rem2h: parsed.personal?.rem2h !== false,
       rem3h: parsed.personal?.rem3h !== false,
-      basal: parsed.personal?.basal !== false
+      basal: parsed.personal?.basal !== false,
+      telegram: parsed.personal?.telegram !== false
     },
     shared: {
       rem10m: parsed.shared?.rem10m !== false,
@@ -494,8 +496,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
     return {
       type,
       status: 'disabled',
-      label: translate('status.disabledInSettings', {}, lang),
-      pillLabel: translate('status.disabledInSettings', {}, lang),
+      label: translate('status.disabled', {}, lang),
+      pillLabel: translate('status.disabled', {}, lang),
       icon: '🔕',
       badgeClass: 'badge-disabled',
       pillClass: 'disabled',
@@ -595,8 +597,8 @@ export const getBasalReminderStatus = (
     return {
       type: 'basal',
       status: 'disabled',
-      label: translate('status.disabledInSettings', {}, lang),
-      pillLabel: translate('status.disabledInSettings', {}, lang),
+      label: translate('status.disabled', {}, lang),
+      pillLabel: translate('status.disabled', {}, lang),
       icon: '🔕',
       badgeClass: 'badge-disabled',
       pillClass: 'disabled',

@@ -76,6 +76,10 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Direct URL Deep Linking:** Direct navigation via query parameters (e.g. `/?page=logs`, `/?page=settings`, `/?page=profile`).
 
 ### 5. Multi-Destination Telegram Reminders
+- **Master ON/OFF Switch & Dynamic Card Collapse:** A dedicated master toggle in the Telegram Notifications settings header allows turning Telegram reminders completely on or off. When OFF, the card collapses neatly to show only the Telegram icon, title, and the toggle switch in the OFF state, eliminating clutter for users relying on Web Push or in-app alerts.
+- **Complete State & Destination Preservation:** Toggling Telegram OFF preserves all existing bot tokens, chat IDs, custom names, default configuration selections, and individual active/paused states intact without data loss. When toggled back ON, all configurations and selections are immediately restored.
+- **Smart Home Alert Suppression:** When the Telegram master toggle is turned OFF, the home screen "Telegram not configured" alert banner is automatically suppressed, respecting the user's choice to use alternative reminder channels.
+- **Backend Dispatch Suppression:** When Telegram is turned OFF in preferences, both the local Node scheduler and Cloudflare edge workers suppress Telegram reminder transmissions, marking notifications as disabled in settings rather than reporting unconfigured errors.
 - **Multi-Bot Configuration:** Save multiple Telegram bot tokens and chat IDs with custom names (e.g., "Personal Bot", "Family Channel").
 - **Default Selector:** Toggle which configuration is active with instant default switching.
 - **Destination Active / Inactive Switch:** Granular toggle switch on each saved Telegram destination allowing users to pause or resume reminders for specific bots without deleting credentials.

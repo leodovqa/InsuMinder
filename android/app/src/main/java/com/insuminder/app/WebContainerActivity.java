@@ -31,6 +31,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
 import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.CommonStatusCodes;
 import com.google.android.gms.tasks.Task;
 
 /**
@@ -291,8 +292,13 @@ public class WebContainerActivity extends Activity {
             } catch (ApiException e) {
                 if (e.getStatusCode() == GoogleSignInStatusCodes.SIGN_IN_CANCELLED) {
                     notifyGoogleSignInError("CANCELLED");
+                } else if (e.getStatusCode() == CommonStatusCodes.DEVELOPER_ERROR) {
+                    notifyGoogleSignInError("Google Sign-In configuration error (Developer Error 10). Android SHA-1 certificate fingerprint needs to be registered in Google Cloud Console.");
                 } else {
-                    String errorMsg = e.getMessage() != null ? e.getMessage() : "Google Sign-In failed (" + e.getStatusCode() + ")";
+                    String rawMsg = e.getMessage();
+                    String errorMsg = (rawMsg != null && !rawMsg.trim().equals(e.getStatusCode() + ":") && !rawMsg.trim().isEmpty())
+                            ? rawMsg
+                            : "Google Sign-In failed (Status code: " + e.getStatusCode() + ")";
                     notifyGoogleSignInError(errorMsg);
                 }
             }
