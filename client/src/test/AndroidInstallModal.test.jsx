@@ -37,7 +37,7 @@ describe('AndroidInstallModal Component', () => {
 
     expect(screen.getByText(/Download the APK/i)).toBeInTheDocument();
     expect(screen.getByText(/Open and Tap Install/i)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 4, name: /Allow from this source/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 4, name: /Allow Installation/i })).toBeInTheDocument();
 
     // Guarantee
     expect(screen.getByText(/Genuine, Safe & Automatic In-App Updates/i)).toBeInTheDocument();

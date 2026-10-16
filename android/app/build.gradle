@@ -22,6 +22,8 @@ android {
             storePassword System.getenv("KEYSTORE_PASSWORD") ?: "insuminder"
             keyAlias System.getenv("KEY_ALIAS") ?: "insuminder"
             keyPassword System.getenv("KEY_PASSWORD") ?: "insuminder"
+            v1SigningEnabled true
+            v2SigningEnabled true
         }
     }
 
