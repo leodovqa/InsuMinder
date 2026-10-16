@@ -1576,21 +1576,44 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .latest-reminder-pill {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
   border-radius: 10px;
   font-size: 12.5px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   box-sizing: border-box;
   text-align: start;
   white-space: nowrap;
 }
 
 [dir="rtl"] .latest-reminder-pill {
-  text-align: right;
+  justify-content: flex-start;
+  text-align: start;
+}
+
+.latest-reminder-pill .pill-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.latest-reminder-pill .pill-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[dir="rtl"] .latest-reminder-pill .pill-text {
+  text-align: start;
 }
 
 .latest-reminder-pill.pending {
@@ -3494,8 +3517,7 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 /* Reminder badge / pill buttons - preserve identical size, pill background and shape */
-.reminder-badge-btn,
-.latest-reminder-pill-btn {
+.reminder-badge-btn {
   margin: 0;
   font-family: inherit;
   font-size: inherit;
@@ -3510,11 +3532,24 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .latest-reminder-pill-btn {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  text-decoration: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   text-align: start;
+  transition: opacity 0.15s ease, transform 0.1s ease;
 }
 
 [dir="rtl"] .latest-reminder-pill-btn {
-  text-align: right;
+  justify-content: flex-start;
+  text-align: start;
 }
 
 .log-status-pill-btn {

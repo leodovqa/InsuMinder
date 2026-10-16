@@ -631,12 +631,13 @@ function AppContent() {
         const currentCtx = authService.getActiveContext();
         const currentOwner = authService.getActiveOwnerId();
         if (currentCtx === 'shared' && currentOwner) {
-          const match = (res.sharedGroups || []).some(g => g.ownerId === currentOwner);
-          if (!match && res.sharedGroups && res.sharedGroups.length > 0) {
-            authService.setActiveContext('shared', res.sharedGroups[0].ownerId);
+          const groups = Array.isArray(res.sharedGroups) ? res.sharedGroups : [];
+          const match = groups.some(g => g.ownerId === currentOwner);
+          if (!match && groups.length > 0) {
+            authService.setActiveContext('shared', groups[0].ownerId);
             setActiveContext('shared');
-            setActiveOwnerId(res.sharedGroups[0].ownerId);
-          } else if (!match) {
+            setActiveOwnerId(groups[0].ownerId);
+          } else if (!match && groups.length === 0) {
             authService.setActiveContext('personal');
             setActiveContext('personal');
             setActiveOwnerId(null);
@@ -666,10 +667,24 @@ function AppContent() {
             }
           }
           if (currUser.language && ['en', 'he', 'ru'].includes(currUser.language)) {
-            setLanguage(currUser.language);
+            try {
+              const localLang = localStorage.getItem('insuminder_language');
+              if (!localLang) {
+                setLanguage(currUser.language);
+              }
+            } catch {
+              setLanguage(currUser.language);
+            }
           }
           if (currUser.theme && ['dark', 'light'].includes(currUser.theme)) {
-            setTheme(currUser.theme);
+            try {
+              const localTheme = localStorage.getItem('insuminder_theme');
+              if (!localTheme) {
+                setTheme(currUser.theme);
+              }
+            } catch {
+              setTheme(currUser.theme);
+            }
           }
           fetchShareStatus();
         } else {
@@ -680,7 +695,8 @@ function AppContent() {
         }
       });
     }
-  }, [setLanguage, setTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Set APK body class ONLY when running inside native Android container
   useEffect(() => {
@@ -1056,6 +1072,7 @@ function AppContent() {
 
   const handleSelectLanguage = (langCode) => {
     setLanguage(langCode);
+    setUser(prev => (prev ? { ...prev, language: langCode } : prev));
     if (isLoggedIn) {
       authService.updateLanguage(langCode).catch((err) => {
         console.error('Failed to sync language to profile:', err);
@@ -2650,6 +2667,17 @@ function AppContent() {
           preferences={notificationPreferences}
           onUpdatePreferences={handleUpdateNotificationPreferences}
           onDownloadApk={handleDownloadAndroidApk}
+          initialScope={activeContext}
+          onScopeChange={(scope) => {
+            if (scope === 'shared') {
+              const targetOwner = shareStatus.sharedGroups[0]?.ownerId || activeOwnerId;
+              if (targetOwner) {
+                handleSwitchContext('shared', targetOwner);
+              }
+            } else {
+              handleSwitchContext('personal');
+            }
+          }}
         />
       )}
 

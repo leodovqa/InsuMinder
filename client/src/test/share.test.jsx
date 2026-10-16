@@ -379,6 +379,102 @@ describe('Caregiver & Family Shared Access Tests', () => {
       expect(screen.queryByRole('heading', { name: /What does .*Viewing.* mean\?/i })).not.toBeInTheDocument();
       expect(authService.getActiveContext()).toBe('personal');
     });
+
+    it('preserves shared activeContext and settings when changing language in settings', async () => {
+      authService.setSession('test-token', { id: 2, email: 'caregiver@med.com' });
+      authService.setActiveContext('shared', 1);
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url.includes('/api/auth/me')) {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: { id: 2, email: 'caregiver@med.com', name: 'Caregiver', language: 'en' }
+            })
+          });
+        }
+        if (url.includes('/api/auth/profile')) {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: { id: 2, email: 'caregiver@med.com', name: 'Caregiver' }
+            })
+          });
+        }
+        if (url.includes('/api/share/status')) {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              shareCode: 'INSU-CARER',
+              members: [],
+              sharedGroups: [{ ownerId: 1, ownerEmail: 'patient@home.com', ownerName: 'Patient' }]
+            })
+          });
+        }
+        if (url.includes('/api/logs')) {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        }
+        if (url.includes('/api/telegram-configs')) {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('radio', { name: /Shared Data/i })).toBeInTheDocument();
+      });
+
+      // Verify Shared Data is active
+      const sharedBtn = screen.getByRole('radio', { name: /Shared Data/i });
+      expect(sharedBtn).toHaveClass('active');
+      expect(authService.getActiveContext()).toBe('shared');
+
+      // Navigate to Settings tab
+      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
+      fireEvent.click(settingsNavBtn);
+
+      // Switch language to Russian
+      const ruBtn = await screen.findByRole('button', { name: /Русский/i });
+      fireEvent.click(ruBtn);
+
+      // Context must remain strictly 'shared'
+      expect(authService.getActiveContext()).toBe('shared');
+
+      // Navigate to Notification Settings tab
+      const notifNavBtn = await screen.findByRole('button', { name: /Настройки напоминаний/i, hidden: true });
+      fireEvent.click(notifNavBtn);
+
+      // Verify scope tabs in Notification Settings open on 'shared'
+      await waitFor(() => {
+        const sharedScopeTab = screen.getByRole('tab', { name: /Общие данные/i });
+        expect(sharedScopeTab).toHaveClass('active');
+        expect(sharedScopeTab).toHaveAttribute('aria-selected', 'true');
+      });
+
+      // Switch back to Settings and change to Hebrew
+      const settingsNavRu = screen.getByRole('button', { name: /Настройки приложения/i, hidden: true });
+      fireEvent.click(settingsNavRu);
+
+      const heBtn = await screen.findByRole('button', { name: /עברית/i });
+      fireEvent.click(heBtn);
+
+      // Context must still remain strictly 'shared'
+      expect(authService.getActiveContext()).toBe('shared');
+
+      // Navigate to Home tab in Hebrew via header back button
+      const backBtn = screen.getByRole('button', { name: /חזרה לדף הבית/i });
+      fireEvent.click(backBtn);
+
+      // Shared Data in Hebrew must remain active
+      await waitFor(() => {
+        const sharedBtnHe = screen.getByRole('radio', { name: /נתונים משותפים/i });
+        expect(sharedBtnHe).toHaveClass('active');
+        expect(sharedBtnHe).toHaveAttribute('aria-checked', 'true');
+      });
+      expect(authService.getActiveContext()).toBe('shared');
+    });
   });
 });
 
