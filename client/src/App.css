@@ -7249,6 +7249,15 @@ body.is-android-apk .nav-drawer {
   }
 }
 
+.download-btn-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .android-modal-gotit-btn {
   height: 44px;
   min-height: 44px;
