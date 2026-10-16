@@ -6556,11 +6556,57 @@
   background-color: var(--accent-bg);
   color: var(--text-h);
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .nav-item.nav-install-app-btn:hover {
   background-color: rgba(2, 132, 199, 0.25);
   border-color: var(--accent);
+}
+
+.nav-item.nav-install-app-btn .nav-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.nav-item.nav-install-app-btn .nav-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.nav-apk-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  padding: 2px 6px;
+  border-radius: 6px;
+  background-color: rgba(14, 165, 233, 0.2);
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  color: #38bdf8;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+[data-theme="light"] .nav-apk-pill {
+  background-color: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.3);
+  color: #0284c7;
 }
 
 /* Home Page Android App Installation Banner */

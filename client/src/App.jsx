@@ -1538,6 +1538,7 @@ function AppContent() {
             >
               <span className="nav-icon" role="img" aria-label="android-install">📲</span>
               <span className="nav-label">{t('settings.installAndroidApp')}</span>
+              <span className="nav-apk-pill" dir="ltr">APK</span>
             </button>
           )}
 
