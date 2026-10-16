@@ -116,7 +116,7 @@ export const translations = {
       noInjectionsLoggedYet: 'No injections logged yet',
       liveClockTitle: 'Current Local Time',
       installAppBannerTitle: 'Download InsuMinder for Android',
-      installAppBannerSubtitle: 'Download the clean, verified Android app (.APK). Features and updates deploy automatically inside the app!',
+      installAppBannerSubtitle: 'Download the clean, verified Android app (APK). Features and updates deploy automatically inside the app!',
       installAppBannerBtn: 'Download APK',
       dismissBanner: 'Dismiss'
     },
@@ -1052,7 +1052,7 @@ export const translations = {
       noInjectionsLoggedYet: 'Инъекций пока не зафиксировано',
       liveClockTitle: 'Текущее местное время',
       installAppBannerTitle: 'Скачать InsuMinder для Android',
-      installAppBannerSubtitle: 'Скачайте чистое, проверенное приложение для Android (.APK). Все обновления загружаются автоматически прямо в приложении!',
+      installAppBannerSubtitle: 'Скачайте чистое, проверенное приложение для Android (APK). Все обновления загружаются автоматически прямо в приложении!',
       installAppBannerBtn: 'Скачать APK',
       dismissBanner: 'Скрыть'
     },

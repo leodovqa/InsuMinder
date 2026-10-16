@@ -1435,7 +1435,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // 1. Mainpage bottom banner
       expect(await screen.findByText('Download InsuMinder for Android')).toBeInTheDocument();
-      expect(screen.getByText(/Download the clean, verified Android app \(\.APK\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/Download the clean, verified Android app/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Download APK/i })).toBeInTheDocument();
 
       // 2. Sidebar Navigation Drawer button
