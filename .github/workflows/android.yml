@@ -28,8 +28,11 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK Licenses
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n" > "$ANDROID_HOME/licenses/android-sdk-license"
+          printf "84831b9409646a5780e442d80c055840ca044d44\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
 
       - name: Grant Execute Permission to Gradlew
         run: chmod +x android/gradlew
