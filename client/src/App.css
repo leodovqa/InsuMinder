@@ -1204,11 +1204,17 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .reminder-badge {
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  line-height: 1.3;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .badge-upcoming {
@@ -2459,6 +2465,37 @@ body.is-android-apk .app-update-banner + .app-header {
   color: #0ea5e9;
 }
 
+/* Telegram Settings Card Header with Master Toggle */
+.settings-card.telegram-settings-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.telegram-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.telegram-card-header.is-collapsed {
+  margin-bottom: 0;
+}
+
+.telegram-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.telegram-card-header-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .share-icon-wrapper {
   background-color: rgba(14, 165, 233, 0.15);
   color: #0ea5e9;
@@ -3060,7 +3097,7 @@ body.is-android-apk .app-update-banner + .app-header {
 
 .config-radio-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   flex: 1;
   min-width: 0;
@@ -3068,11 +3105,11 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .config-radio {
-  margin-top: 3px;
+  margin: 0;
   accent-color: #0284c7;
   cursor: pointer;
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 
@@ -3202,9 +3239,11 @@ body.is-android-apk .app-update-banner + .app-header {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background-color: transparent;
-  color: var(--text);
+  color: var(--text-muted, #94a3b8);
   border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
@@ -3454,11 +3493,9 @@ body.is-android-apk .app-update-banner + .app-header {
   border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
-/* Reminder badge / pill buttons - preserve identical size and shape */
+/* Reminder badge / pill buttons - preserve identical size, pill background and shape */
 .reminder-badge-btn,
 .latest-reminder-pill-btn {
-  background: none;
-  border: none;
   margin: 0;
   font-family: inherit;
   font-size: inherit;
@@ -3466,6 +3503,9 @@ body.is-android-apk .app-update-banner + .app-header {
   appearance: none;
   -webkit-appearance: none;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: opacity 0.15s ease, transform 0.1s ease;
 }
 
@@ -3478,8 +3518,6 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .log-status-pill-btn {
-  background: none;
-  border: none;
   margin: 0;
   font-family: inherit;
   font-size: 10.5px;
@@ -3487,6 +3525,11 @@ body.is-android-apk .app-update-banner + .app-header {
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
@@ -4533,6 +4576,7 @@ body.is-android-apk .app-update-banner + .app-header {
 .context-switch-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 8px 18px;
   border-radius: 9999px;
@@ -4557,7 +4601,11 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .context-icon {
-  font-size: 14px;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .shared-context-notice {
@@ -4601,7 +4649,7 @@ body.is-android-apk .app-update-banner + .app-header {
 
 /* Settings: Shared Access Card */
 .shared-access-card {
-  margin-top: 24px;
+  margin: 0;
 }
 
 .shared-access-content {
@@ -5727,6 +5775,24 @@ body.is-android-apk .app-update-banner + .app-header {
   border-color: #cbd5e1;
 }
 
+[data-theme="light"] .badge-upcoming {
+  background-color: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+  border-color: rgba(2, 132, 199, 0.3);
+}
+
+[data-theme="light"] .badge-sent {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="light"] .badge-failed {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
 /* 5. TimePicker24h Modal & Popover */
 [data-theme="light"] .clock-picker-popover {
   background-color: #ffffff;
@@ -5974,7 +6040,11 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .scope-pill-icon {
-  font-size: 14px;
+  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .notification-scope-caption-row {
@@ -6118,11 +6188,16 @@ body.is-android-apk .app-update-banner + .app-header {
 }
 
 .notification-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 10.5px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 9999px;
-  line-height: 1.25;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .notification-status-badge.badge-active {
@@ -6152,7 +6227,11 @@ body.is-android-apk .app-update-banner + .app-header {
 .notification-card-action {
   flex-shrink: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 58px;
 }
 
 /* iOS-Style Toggle Switch */
@@ -6857,7 +6936,7 @@ body.is-android-apk .app-update-banner + .app-header {
 
 /* Settings tab PWA card */
 .pwa-install-settings-card {
-  margin-top: 20px;
+  margin: 0;
 }
 
 .android-icon-wrapper {
@@ -7776,7 +7855,7 @@ body.is-android-apk .app-update-banner + .app-header {
 
 /* About InsuMinder Settings Card */
 .about-app-card {
-  margin-top: 20px;
+  margin: 0;
 }
 
 .about-icon-wrapper {

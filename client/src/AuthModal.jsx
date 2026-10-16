@@ -138,7 +138,12 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     window.__onNativeGoogleSignInError = (errorMsg) => {
       setIsSubmitting(false);
       if (errorMsg && errorMsg !== 'CANCELLED') {
-        setError(errorMsg);
+        const trimmed = errorMsg.trim();
+        if (trimmed === '10:' || trimmed === '10' || trimmed.startsWith('10:')) {
+          setError('Google Sign-In configuration error (Developer Error 10). Android SHA-1 certificate fingerprint needs to be registered in Google Cloud Console.');
+        } else {
+          setError(errorMsg);
+        }
       }
     };
     return () => {

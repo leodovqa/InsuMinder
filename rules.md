@@ -4,10 +4,18 @@
 These rules outline the guidelines for developing the web-based application.
 
 ## Rules
-1. **Clarification**: If you are unsure about something, you must say it before doing anything.
-2. **Error Reporting**: If there was a mistake, error, or something you couldn't test, you must report it. Explain what couldn't happen and why.
-3. **Explain Decisions**: When you make a decision, explain why you did it and how. Avoid overcomplicating things when no needed. If you are unsure, ask before proceeding.
-4. **Research**: When researching, provide the source of your data and avoid making assumptions. Always use real data from the code.
+1. **Mandatory UI Standards ([UI_STANDARDS.md](file:///d:/Github/InsuMinder/UI_STANDARDS.md))**:
+   - The UI standard file (`UI_STANDARDS.md`) is the **#1 mandatory rule** when starting or doing any work on UI code (creating new components, updating, or removing elements).
+   - Every element (buttons, labels, pills, badges, inputs, icon containers) must be centered both vertically and horizontally by default. If an element is side-aligned (left or right), it must ALWAYS remain centered vertically.
+   - Spacing between sections and cards must ALWAYS be uniform and controlled solely by layout containers (`gap: 22px`). Ad-hoc margins on cards are strictly prohibited.
+   - Icon sizes must strictly follow the standard scale (`22px` card headers, `18px` buttons/controls, `16px` pills/badges) and be perfectly centered.
+   - All elements must support RTL (Hebrew) and LTR (English/Russian) bidirectional design with logical properties and mirrored alignment.
+   - Reused element families (such as notification scheduled status badges: Sent, Not Sent, Disabled in settings, Upcoming) must share identical pill styling, padding, font metrics, and `white-space: nowrap`.
+   - Zero guesswork: never assume a visual deviation. If you think of an improvement, you must ask and receive explicit user approval first.
+2. **Clarification**: If you are unsure about something, you must say it before doing anything.
+3. **Error Reporting**: If there was a mistake, error, or something you couldn't test, you must report it. Explain what couldn't happen and why.
+4. **Explain Decisions**: When you make a decision, explain why you did it and how. Avoid overcomplicating things when not needed. If you are unsure, ask before proceeding.
+5. **Research**: When researching, provide the source of your data and avoid making assumptions. Always use real data from the code.
 
 ## Communication Rules
 1. Use English for all communications.
@@ -44,4 +52,9 @@ These rules outline the guidelines for developing the web-based application.
      - `server/src/index.js` (`version`)
    - Never release with mismatched or stale version strings across files.
    - Version parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm run check:version` (`node scripts/check-version.js`). Commits or PRs with mismatched versions or unrecorded version history will fail.
+10. **State Preservation & Localization Decoupling Rule**:
+    - Changing the interface language / localization MUST NEVER alter, reset, branch, reload, or discard any user configuration, active session state, or displayed data.
+    - Switching language must strictly and exclusively swap the localized UI dictionary and text direction (`ltr`/`rtl`).
+    - The active data context (`personal` vs `shared`), selected caregiver group, notification preferences, telegram configs, input states, and reminder cards must remain 100% identical before and after switching languages.
+    - Always verify this state preservation before committing any changes to settings, profile handling, or user persistence.
 

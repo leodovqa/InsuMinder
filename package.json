@@ -1,6 +1,6 @@
 {
   "name": "insuminder",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "scripts": {
     "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"node server/src/index.js\" \"npm run dev --prefix client\"",
     "build": "npm --prefix client run build",

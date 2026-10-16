@@ -187,7 +187,8 @@ Core API Endpoints
       "rem10m": true,
       "rem2h": true,
       "rem3h": true,
-      "basal": true
+      "basal": true,
+      "telegram": true
     },
     "shared": {
       "rem10m": true,
@@ -197,13 +198,25 @@ Core API Endpoints
     }
   }
   ```
-- **Scopes**:
-  - `personal`: Controls notifications triggered for the user's own injections (`My Data`).
+- **Scopes & Channels**:
+  - `personal`: Controls notifications triggered for the user's own injections (`My Data`). Includes `telegram` master toggle allowing users to globally disable Telegram notifications.
   - `shared`: Controls notifications received for injections logged by connected family members (`Shared Data`).
+- **Telegram Master Switch & Dynamic Collapse**:
+  - Header toggle in `App.jsx` Settings allows turning Telegram notifications completely on or off.
+  - When OFF: Collapses the card to show solely the Telegram icon, "Telegram Notifications" title, and toggle switch in OFF state.
+  - State preservation: All existing configurations, bot tokens, chat IDs, default configuration selection, and individual active/inactive states remain completely intact without data loss.
+  - Home alert suppression: When Telegram notifications are OFF, the home screen "Telegram not configured" alert banner is automatically hidden.
 - **Backend Verification**:
-  - `server/src/scheduler.js`: Resolves user notification preferences before dispatching 10m, 2h, 3h, or basal reminders. If disabled (`=== false`), records status as `"Disabled in notification settings."` and skips delivery.
+  - `server/src/scheduler.js`: Resolves user notification preferences before dispatching 10m, 2h, 3h, or basal reminders. If interval or `telegram === false`, skips delivery and records status as `"Disabled in notification settings."`.
   - `functions/api/_telegram.js`: Cloudflare Pages dispatcher verifies preferences and marks logs accordingly.
-- **Frontend Presentation**:
+- **Frontend Presentation & Mandatory UI Standards**:
+  - All UI elements must strictly comply with [`UI_STANDARDS.md`](file:///d:/Github/InsuMinder/UI_STANDARDS.md) as the **#1 Frontend Rule**:
+    - Default vertical and horizontal centering on buttons, labels, pills, badges, inputs, and icon containers.
+    - Uniform section and card spacing controlled solely by layout containers (`gap: 22px`), with zero ad-hoc margins.
+    - Standardized icon scale (`22px` card headers, `18px` buttons/controls, `16px` pills).
+    - Full bidirectional RTL (Hebrew) and LTR (English/Russian) symmetry.
+    - Reused component family visual parity (badges, pills, status indicators).
+    - Zero guesswork: explicit user approval required for any proposed design changes.
   - `NotificationSettings.jsx`: Interactive toggle cards for both scopes with segmented pill navigation and accessible keyboard controls.
   - Disabled reminders display a neutral `"Disabled in settings"` badge in injection logs and dashboard status cards.
   - Reminder modal details provide a direct shortcut button (**"🔔 Open Notification Settings"**) for quick configuration.
@@ -291,4 +304,19 @@ Explain changes in 1–2 sentences before writing code.
   - `WebContainerActivity.java`: Native hardware-accelerated container with `AndroidBridge` JavascriptInterface.
   - Native Google Sign-In: Integrates `com.google.android.gms:play-services-auth` via `mGoogleSignInClient.getSignInIntent()`. Returns ID token internally to WebView via `window.__onNativeGoogleSignIn`, bypassing browser redirects and popup blockers.
   - Adaptive Density Icons: High-res launcher icons across `mipmap-mdpi` through `mipmap-xxxhdpi` with `@color/primary` background.
-  - Signing Scheme: Signed with v1, v2, and v3 schemes for verified installation across Android 9–15.
+  - Signing Scheme: Signed with v1, v2, and v3 schemes for verified installation across Android 9–15.
+
+---
+
+## State Preservation & Localization Decoupling Standards
+
+- **Core Rule**: Changing the application language (`en`, `he`, `ru`) is strictly a presentation-layer string dictionary and text-direction (`dir="rtl"` vs `dir="ltr"`) update.
+- **Strict Prohibition**:
+  - Never reload, reset, or branch user settings or active data context based on language.
+  - Never query or restore "what data/settings was previously active under this language".
+  - Switching languages must preserve:
+    1. Active data context (`personal` vs `shared`) and active owner ID.
+    2. All notification preferences (Telegram toggle, reminder checkboxes, basal schedule).
+    3. Active form inputs, page tab navigation, and opened modal dialogues.
+- **Pre-Work Verification**: Whenever working on user profile handling, settings persistence, or language selection, verify that toggling between English, Hebrew, and Russian maintains 100% state continuity without resetting to default or previous values.
+
