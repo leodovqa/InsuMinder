@@ -236,7 +236,15 @@ export const translations = {
       basalTime: 'Basal Insulin Time',
       basalTimeDesc: 'Scheduled daily time when nighttime Basal option becomes available',
       basalTimeSaved: 'Basal insulin time saved successfully!',
-      save: 'Save'
+      save: 'Save',
+      aboutCardTitle: 'About InsuMinder',
+      aboutCardSubtitle: 'App version, release highlights, and system status',
+      appVersionLabel: 'Version',
+      appUpToDateBadge: 'Up to Date',
+      whatsNewBtn: "What's New in this Version",
+      checkForUpdatesBtn: 'Check for Updates',
+      checkingForUpdates: 'Checking for updates...',
+      latestVersionNotice: 'You are on the latest version of InsuMinder.'
     },
     modals: {
       deleteConfigTitle: 'Delete Telegram Configuration?',
@@ -385,6 +393,17 @@ export const translations = {
       guaranteeTitle: 'Genuine, Safe & Automatic In-App Updates',
       guaranteeDesc: 'Zero ads, zero trackers, and minimal permissions. Future app improvements update live inside the app—no need to reinstall the APK for regular updates!',
       closeBtn: 'Got It'
+    },
+    appUpdate: {
+      title: 'New Update Available',
+      badge: 'Update Ready',
+      versionLabel: 'Version',
+      whatsNew: "What's new:",
+      updateNow: 'Update Now',
+      updateLater: 'Later',
+      updating: 'Updating...',
+      upToDate: 'InsuMinder is up to date',
+      dismiss: 'Dismiss'
     },
     time: {
       justNow: 'Just now',
@@ -675,7 +694,15 @@ export const translations = {
       basalTime: 'שעת אינסולין בזאלי',
       basalTimeDesc: 'שעה מתוזמנת שבה מופיעה אפשרות הבזאלי הלילי',
       basalTimeSaved: 'שעת האינסולין הבזאלי נשמרה בהצלחה!',
-      save: 'שמירה'
+      save: 'שמירה',
+      aboutCardTitle: 'אודות InsuMinder',
+      aboutCardSubtitle: 'פרטי גרסה, חידושים וסטטוס המערכת',
+      appVersionLabel: 'גרסה',
+      appUpToDateBadge: 'מעודכן לגרסה האחרונה',
+      whatsNewBtn: 'מה חדש בגרסה זו',
+      checkForUpdatesBtn: 'בדוק עדכונים',
+      checkingForUpdates: 'בודק עדכונים...',
+      latestVersionNotice: 'הנך משתמש בגרסה העדכנית ביותר של InsuMinder.'
     },
     modals: {
       deleteConfigTitle: 'מחיקת הגדרת טלגרם?',
@@ -824,6 +851,17 @@ export const translations = {
       guaranteeTitle: 'אפליקציה מקורית, בטוחה ומתעדכנת אוטומטית',
       guaranteeDesc: 'ללא פרסומות, ללא מעקבים וללא הרשאות מיותרות. עדכונים ושיפורים עתידיים מופעלים מיידית בתוך האפליקציה ללא צורך בהתקנה מחדש!',
       closeBtn: 'הבנתי'
+    },
+    appUpdate: {
+      title: 'עדכון חדש זמין',
+      badge: 'עדכון מוכן',
+      versionLabel: 'גרסה',
+      whatsNew: 'מה חדש בעדכון זה:',
+      updateNow: 'עדכן עכשיו',
+      updateLater: 'מאוחר יותר',
+      updating: 'מעדכן...',
+      upToDate: 'InsuMinder מעודכנת לגרסה האחרונה',
+      dismiss: 'סגור'
     },
     time: {
       justNow: 'ממש עכשיו',
@@ -1114,7 +1152,15 @@ export const translations = {
       basalTime: 'Время базального инсулина',
       basalTimeDesc: 'Время суток, когда становится доступна кнопка базального инсулина',
       basalTimeSaved: 'Время базального инсулина успешно сохранено!',
-      save: 'Сохранить'
+      save: 'Сохранить',
+      aboutCardTitle: 'О приложении InsuMinder',
+      aboutCardSubtitle: 'Сведения о версии, изменениях и статусе системы',
+      appVersionLabel: 'Версия',
+      appUpToDateBadge: 'Актуальная версия',
+      whatsNewBtn: 'Что нового в этой версии',
+      checkForUpdatesBtn: 'Проверить обновления',
+      checkingForUpdates: 'Проверка обновлений...',
+      latestVersionNotice: 'Вы используете самую актуальную версию InsuMinder.'
     },
     modals: {
       deleteConfigTitle: 'Удалить конфигурацию Telegram?',
@@ -1263,6 +1309,17 @@ export const translations = {
       guaranteeTitle: 'Оригинальное, безопасное приложение с автообновлением',
       guaranteeDesc: 'Без рекламы, без трекеров и лишних разрешений. Будущие обновления подгружаются автоматически прямо в приложении без повторной загрузки APK!',
       closeBtn: 'Понятно'
+    },
+    appUpdate: {
+      title: 'Доступно новое обновление',
+      badge: 'Обновление готово',
+      versionLabel: 'Версия',
+      whatsNew: 'Что нового:',
+      updateNow: 'Обновить сейчас',
+      updateLater: 'Позже',
+      updating: 'Обновление...',
+      upToDate: 'InsuMinder обновлено до актуальной версии',
+      dismiss: 'Закрыть'
     },
     time: {
       justNow: 'Только что',

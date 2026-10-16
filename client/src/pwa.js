@@ -40,6 +40,7 @@ export async function registerServiceWorker() {
   }
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    initServiceWorkerUpdateWatcher(reg);
     return reg;
   } catch (err) {
     console.warn('[PWA] Service Worker registration failed:', err);
@@ -229,21 +230,44 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.0.0',
+  version: '1.1.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
   releaseUrl: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk'
 };
 
+export const APP_CURRENT_CHANGELOG = {
+  en: [
+    'Native Android APK app support with seamless in-app live updates',
+    'Interactive Update notification with "What\'s New" highlights',
+    'Enhanced clinical reminder delivery and offline reliability'
+  ],
+  he: [
+    'תמיכה מלאה באפליקציית אנדרואיד (.APK) מקורית עם עדכונים חיים באפליקציה',
+    'התראת עדכון אינטראקטיבית עם פירוט תמציתי של מה שהשתנה',
+    'מסירת תזכורות קליניות משופרת ואמינות מלאה במצב לא מקוון'
+  ],
+  ru: [
+    'Нативная поддержка приложения Android (.APK) с живыми обновлениями',
+    'Интерактивное уведомление об обновлении со списком изменений',
+    'Улучшенная доставка клинических напоминаний и офлайн-режим'
+  ]
+};
+
 export function downloadAndroidApk() {
   if (typeof document === 'undefined') return;
-  const link = document.createElement('a');
-  link.href = ANDROID_PACKAGE_INFO.downloadUrl;
-  link.setAttribute('download', ANDROID_PACKAGE_INFO.fileName);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = ANDROID_PACKAGE_INFO.downloadUrl;
+  document.body.appendChild(iframe);
+  setTimeout(() => {
+    try {
+      document.body.removeChild(iframe);
+    } catch (e) {
+      void e;
+    }
+  }, 30000);
 }
 
 export function isStandaloneApp() {
@@ -290,6 +314,145 @@ export function markAppInstalled(installed = true) {
     }
   } catch (e) {
     void e;
+  }
+}
+
+// In-App Updates Management
+let updateListeners = new Set();
+let pendingUpdateInfo = null;
+let waitingWorker = null;
+
+export const DEFAULT_APP_VERSION = '1.0.0';
+
+export function getStoredAppVersion() {
+  if (typeof window === 'undefined') return DEFAULT_APP_VERSION;
+  try {
+    return localStorage.getItem('insuminder_app_version') || DEFAULT_APP_VERSION;
+  } catch {
+    return DEFAULT_APP_VERSION;
+  }
+}
+
+export function setStoredAppVersion(version) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('insuminder_app_version', version);
+  } catch (e) {
+    void e;
+  }
+}
+
+export function subscribeToAppUpdates(callback) {
+  updateListeners.add(callback);
+  if (pendingUpdateInfo) {
+    callback(pendingUpdateInfo);
+  }
+  return () => updateListeners.delete(callback);
+}
+
+function notifyUpdateListeners(info) {
+  pendingUpdateInfo = info;
+  updateListeners.forEach((fn) => {
+    try {
+      fn(info);
+    } catch (e) {
+      console.warn('[PWA] Update listener error:', e);
+    }
+  });
+}
+
+// Fetch version metadata and check if an update is available
+export async function checkForAppUpdate() {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const currentVer = getStoredAppVersion();
+    const res = await fetch(`/version.json?_t=${Date.now()}`, {
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const remoteVer = data.version || currentVer;
+
+    // First run initialization: if no stored version, store remoteVer
+    if (!localStorage.getItem('insuminder_app_version')) {
+      setStoredAppVersion(remoteVer);
+      return null;
+    }
+
+    if (remoteVer !== currentVer) {
+      const info = {
+        updateAvailable: true,
+        currentVersion: currentVer,
+        newVersion: remoteVer,
+        buildTime: data.buildTime,
+        changes: data.changes || {}
+      };
+      notifyUpdateListeners(info);
+      return info;
+    }
+  } catch {
+    // Offline or network error - silently return null
+    return null;
+  }
+  return null;
+}
+
+// Hook Service Worker lifecycle to detect updates
+export function initServiceWorkerUpdateWatcher(registration) {
+  if (!registration || typeof window === 'undefined') return;
+
+  // 1. If a worker is already waiting, trigger update immediately
+  if (registration.waiting) {
+    waitingWorker = registration.waiting;
+    checkForAppUpdate();
+  }
+
+  // 2. Listen for newly installing worker transitioning to waiting
+  registration.addEventListener('updatefound', () => {
+    const installingWorker = registration.installing;
+    if (!installingWorker) return;
+
+    installingWorker.addEventListener('statechange', () => {
+      if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        waitingWorker = installingWorker;
+        checkForAppUpdate();
+      }
+    });
+  });
+
+  // 3. When controller changes (after SKIP_WAITING), reload window
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+}
+
+// Trigger update activation
+export async function applyAppUpdate(newVersion = null) {
+  if (newVersion) {
+    setStoredAppVersion(newVersion);
+  }
+
+  if (waitingWorker) {
+    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+  } else {
+    // If not waiting on SW, clear runtime caches and reload
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      } catch (e) {
+        void e;
+      }
+    }
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
   }
 }
 

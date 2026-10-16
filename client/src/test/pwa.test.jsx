@@ -200,5 +200,76 @@ describe('PWA Installation Detection & Persistence Tests', () => {
       });
     }
   });
+
+  it('manages stored app version in localStorage', () => {
+    localStorage.clear();
+    expect(pwa.getStoredAppVersion()).toBe('1.0.0');
+
+    pwa.setStoredAppVersion('1.1.0');
+    expect(pwa.getStoredAppVersion()).toBe('1.1.0');
+  });
+
+  it('detects available app update when remote version differs from stored version', async () => {
+    localStorage.setItem('insuminder_app_version', '1.0.0');
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        version: '1.1.0',
+        buildTime: '2026-10-16T15:00:00Z',
+        changes: { en: ['New APK live updates', 'Update banner'] }
+      })
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+
+    try {
+      let receivedUpdate = null;
+      const unsub = pwa.subscribeToAppUpdates((info) => {
+        receivedUpdate = info;
+      });
+
+      const updateInfo = await pwa.checkForAppUpdate();
+      expect(updateInfo).not.toBeNull();
+      expect(updateInfo.updateAvailable).toBe(true);
+      expect(updateInfo.currentVersion).toBe('1.0.0');
+      expect(updateInfo.newVersion).toBe('1.1.0');
+      expect(receivedUpdate).toEqual(updateInfo);
+
+      unsub();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('applyAppUpdate updates stored version and triggers reload', async () => {
+    const originalReload = window.location.reload;
+    const reloadMock = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, reload: reloadMock },
+      configurable: true,
+      writable: true
+    });
+
+    try {
+      await pwa.applyAppUpdate('1.2.0');
+      expect(pwa.getStoredAppVersion()).toBe('1.2.0');
+      expect(reloadMock).toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, 'location', {
+        value: { ...window.location, reload: originalReload },
+        configurable: true,
+        writable: true
+      });
+    }
+  });
+
+  it('exports valid ANDROID_PACKAGE_INFO and APP_CURRENT_CHANGELOG with 3-language parity', () => {
+    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.1.0');
+    expect(pwa.ANDROID_PACKAGE_INFO.fileName).toBe('InsuMinder.apk');
+    expect(pwa.APP_CURRENT_CHANGELOG.en.length).toBeGreaterThan(0);
+    expect(pwa.APP_CURRENT_CHANGELOG.he.length).toBeGreaterThan(0);
+    expect(pwa.APP_CURRENT_CHANGELOG.ru.length).toBeGreaterThan(0);
+  });
 });
 

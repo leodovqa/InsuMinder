@@ -14,7 +14,6 @@ const PRECACHE_ASSETS = [
 
 // 1. Install Event: Cache Core Shell
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(PRECACHE_ASSETS).catch((err) => {
@@ -22,6 +21,13 @@ self.addEventListener('install', (event) => {
       });
     })
   );
+});
+
+// Listen for manual user confirmation to activate pending updates
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // 2. Activate Event: Clean Old Caches & Take Control

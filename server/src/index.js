@@ -1083,17 +1083,34 @@ app.post('/api/push/test', optionalAuth, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 // Android APK Download Endpoint
-app.get('/api/download/android', (req, res) => {
+app.get('/api/download/android', async (req, res) => {
   const releaseApkUrl = 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk';
   if (req.query.info === 'true') {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '1.0.0',
+      version: '1.1.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk'
     });
   }
+
+  try {
+    const apkRes = await fetch(releaseApkUrl, { redirect: 'follow' });
+    if (apkRes.ok && apkRes.body) {
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="InsuMinder.apk"');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      const length = apkRes.headers.get('content-length');
+      if (length) res.setHeader('Content-Length', length);
+
+      const { Readable } = await import('node:stream');
+      return Readable.fromWeb(apkRes.body).pipe(res);
+    }
+  } catch (err) {
+    console.warn('[Download] Direct streaming failed, falling back to redirect:', err);
+  }
+
   return res.redirect(302, releaseApkUrl);
 });
 

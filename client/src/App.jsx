@@ -24,13 +24,17 @@ import Profile from './Profile';
 import NotificationSettings from './NotificationSettings';
 import TimePicker24h from './TimePicker24h';
 import AndroidInstallModal from './AndroidInstallModal';
+import UpdateBanner from './UpdateBanner';
 import { authService } from './authService';
 import {
   isStandaloneApp,
   checkIsAppInstalled,
   markAppInstalled,
   subscribeToInstallPrompt,
-  downloadAndroidApk
+  downloadAndroidApk,
+  checkForAppUpdate,
+  ANDROID_PACKAGE_INFO,
+  APP_CURRENT_CHANGELOG
 } from './pwa';
 import { LanguageProvider, useTranslation } from './i18n';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
@@ -341,6 +345,29 @@ function AppContent() {
       localStorage.setItem('insuminder_home_pwa_dismissed', 'true');
     } catch (e) {
       void e;
+    }
+  };
+
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+
+  const handleManualUpdateCheck = async () => {
+    setIsCheckingUpdate(true);
+    try {
+      const update = await checkForAppUpdate();
+      if (!update) {
+        setNotification({
+          type: 'success',
+          message: t('settings.latestVersionNotice')
+        });
+      }
+    } catch {
+      setNotification({
+        type: 'info',
+        message: t('settings.latestVersionNotice')
+      });
+    } finally {
+      setIsCheckingUpdate(false);
     }
   };
 
@@ -1291,6 +1318,9 @@ function AppContent() {
 
   return (
     <div className="App">
+      {/* Live In-App Update Banner */}
+      <UpdateBanner />
+
       {/* Generic Top Header: 1. Hamburger (Left), 2. Title (Center), 3. Back Button (Right, subpages only) */}
       <header className="app-header">
         <div className="header-left">
@@ -1554,6 +1584,9 @@ function AppContent() {
               {isLoggedIn ? t('nav.signOut') : t('nav.logIn')}
             </span>
           </button>
+          <div className="nav-version-footer">
+            <span className="nav-version-text">InsuMinder v{ANDROID_PACKAGE_INFO.version}</span>
+          </div>
         </div>
       </aside>
 
@@ -3138,6 +3171,82 @@ function AppContent() {
             </div>
           </div>
         )}
+
+        {/* About InsuMinder Card */}
+        <div className="settings-card about-app-card">
+          <div className="card-header">
+            <div className="card-icon-wrapper about-icon-wrapper">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            <div className="card-header-text">
+              <h2 className="card-title">{t('settings.aboutCardTitle')}</h2>
+              <p className="card-subtitle">{t('settings.aboutCardSubtitle')}</p>
+            </div>
+          </div>
+
+          <div className="about-app-body">
+            <div className="about-app-brand-row">
+              <div className="about-app-logo-badge">
+                <span className="about-logo-symbol" role="img" aria-label="InsuMinder logo">💉</span>
+              </div>
+              <div className="about-app-details">
+                <div className="about-app-name-row">
+                  <span className="about-app-name">InsuMinder</span>
+                  <span className="about-app-version-pill">v{ANDROID_PACKAGE_INFO.version}</span>
+                </div>
+                <div className="about-app-status-row">
+                  <span className="about-status-dot" aria-hidden="true"></span>
+                  <span className="about-status-text">{t('settings.appUpToDateBadge')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="about-app-actions">
+              <button
+                type="button"
+                className="btn-check-updates"
+                onClick={handleManualUpdateCheck}
+                disabled={isCheckingUpdate}
+              >
+                <span className="btn-icon" aria-hidden="true">
+                  {isCheckingUpdate ? '⏳' : '🔄'}
+                </span>
+                {isCheckingUpdate ? t('settings.checkingForUpdates') : t('settings.checkForUpdatesBtn')}
+              </button>
+
+              <button
+                type="button"
+                className="btn-whats-new-toggle"
+                onClick={() => setShowWhatsNew((prev) => !prev)}
+                aria-expanded={showWhatsNew}
+              >
+                <span className="btn-icon" aria-hidden="true">✨</span>
+                {t('settings.whatsNewBtn')}
+                <span className="expand-arrow" aria-hidden="true">{showWhatsNew ? '▲' : '▼'}</span>
+              </button>
+            </div>
+
+            {showWhatsNew && (
+              <div className="about-whats-new-box">
+                <h4 className="about-whats-new-title">
+                  {t('appUpdate.whatsNew')} (v{ANDROID_PACKAGE_INFO.version})
+                </h4>
+                <ul className="about-whats-new-list">
+                  {((APP_CURRENT_CHANGELOG && APP_CURRENT_CHANGELOG[language]) || (APP_CURRENT_CHANGELOG && APP_CURRENT_CHANGELOG.en) || []).map((item, idx) => (
+                    <li key={idx} className="about-whats-new-item">
+                      <span className="whats-new-bullet">✓</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   )}
@@ -3538,7 +3647,7 @@ function AppContent() {
       {/* Application Footer */}
       <footer className="app-footer">
         <p className="footer-copyright">
-          &copy; {new Date().getFullYear()} Dovgans
+          &copy; {new Date().getFullYear()} Dovgans &bull; InsuMinder v{ANDROID_PACKAGE_INFO.version}
         </p>
       </footer>
     </div>

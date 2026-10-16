@@ -8,7 +8,7 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '1.0.0',
+      version: '1.1.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk'
     }), {
@@ -20,6 +20,24 @@ export async function onRequestGet(context) {
     });
   }
 
+  try {
+    const apkRes = await fetch(releaseApkUrl, { redirect: 'follow' });
+    if (apkRes.ok && apkRes.body) {
+      const headers = new Headers();
+      headers.set('Content-Type', 'application/vnd.android.package-archive');
+      headers.set('Content-Disposition', 'attachment; filename="InsuMinder.apk"');
+      headers.set('Cache-Control', 'public, max-age=3600');
+      const length = apkRes.headers.get('content-length');
+      if (length) headers.set('Content-Length', length);
+
+      return new Response(apkRes.body, {
+        status: 200,
+        headers
+      });
+    }
+  } catch (err) {
+    console.warn('[Download] Direct streaming failed, falling back to redirect:', err);
+  }
+
   return Response.redirect(releaseApkUrl, 302);
 }
-
