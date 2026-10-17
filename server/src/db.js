@@ -36,6 +36,7 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN basal_time TEXT DEFAULT '20:00'", () => {});
       db.run("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'", () => {});
       db.run("ALTER TABLE users ADD COLUMN notification_preferences TEXT", () => {});
+      db.run("ALTER TABLE users ADD COLUMN privacy_accepted_at TIMESTAMP", () => {});
     });
 
   // Verification codes table
@@ -164,7 +165,7 @@ function generateShareCode() {
   return code;
 }
 
-function createUser({ email, password_hash, google_id, auth_provider = 'email', name, first_name, last_name, phone, avatar, is_verified = 0, share_code }, callback) {
+function createUser({ email, password_hash, google_id, auth_provider = 'email', name, first_name, last_name, phone, avatar, is_verified = 0, share_code, privacy_accepted_at }, callback) {
   const cleanEmail = String(email).trim().toLowerCase();
   const code = share_code || generateShareCode();
   const cleanFirst = first_name ? String(first_name).trim() : null;
@@ -172,11 +173,12 @@ function createUser({ email, password_hash, google_id, auth_provider = 'email', 
   const cleanPhone = phone ? String(phone).trim() : null;
   const fullName = name || [cleanFirst, cleanLast].filter(Boolean).join(' ') || '';
   const provider = auth_provider || (google_id ? 'google' : 'email');
+  const privacyAcceptedAt = privacy_accepted_at || null;
 
   const stmt = db.prepare(
-    "INSERT INTO users (email, password_hash, google_id, auth_provider, name, first_name, last_name, phone, avatar, is_verified, share_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO users (email, password_hash, google_id, auth_provider, name, first_name, last_name, phone, avatar, is_verified, share_code, privacy_accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   );
-  stmt.run(cleanEmail, password_hash || null, google_id || null, provider, fullName, cleanFirst, cleanLast, cleanPhone, avatar || '', is_verified ? 1 : 0, code, function(err) {
+  stmt.run(cleanEmail, password_hash || null, google_id || null, provider, fullName, cleanFirst, cleanLast, cleanPhone, avatar || '', is_verified ? 1 : 0, code, privacyAcceptedAt, function(err) {
     if (err) return callback(err);
     callback(null, {
       id: this.lastID,
@@ -188,7 +190,8 @@ function createUser({ email, password_hash, google_id, auth_provider = 'email', 
       avatar: avatar || '',
       is_verified: Boolean(is_verified),
       share_code: code,
-      auth_provider: provider
+      auth_provider: provider,
+      privacy_accepted_at: privacyAcceptedAt
     });
   });
   stmt.finalize();
@@ -201,7 +204,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, theme, notification_preferences, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, theme, notification_preferences, privacy_accepted_at, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -276,6 +279,10 @@ function updateUser(id, updates, callback) {
   if (updates.notification_preferences !== undefined) {
     fields.push("notification_preferences = ?");
     values.push(typeof updates.notification_preferences === 'object' ? JSON.stringify(updates.notification_preferences) : updates.notification_preferences);
+  }
+  if (updates.privacy_accepted_at !== undefined) {
+    fields.push("privacy_accepted_at = ?");
+    values.push(updates.privacy_accepted_at);
   }
 
   if (fields.length === 0) return callback(null);

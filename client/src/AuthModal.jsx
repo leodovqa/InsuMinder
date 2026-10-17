@@ -5,6 +5,7 @@ import { authService } from './authService';
 import { detectCountry } from './countryCallingCodes';
 import { useTranslation } from './i18n';
 import useLockBodyScroll from './useLockBodyScroll';
+import PrivacyModal from './PrivacyModal';
 
 export default function AuthModal({ isOpen, initialMode = 'login', shareCode = null, onClose, onSuccess }) {
   const { t } = useTranslation();
@@ -17,6 +18,8 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [pendingJoinedGroup, setPendingJoinedGroup] = useState(null);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [devCode, setDevCode] = useState(null);
@@ -33,6 +36,8 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
     setLastName('');
     setPhone('');
     setPendingJoinedGroup(null);
+    setPrivacyAccepted(false);
+    setIsPrivacyModalOpen(false);
     setDevCode(null);
     setError(null);
     setIsSubmitting(false);
@@ -224,6 +229,10 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
   // 1. Handle Registration (Step 1: Email + Password)
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    if (!privacyAccepted) {
+      setError(t('auth.privacyRequiredAlert'));
+      return;
+    }
     setError(null);
     setIsSubmitting(true);
 
@@ -322,7 +331,8 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
         firstName: cleanFirst,
         lastName: cleanLast,
         phone: cleanPhone,
-        shareCode
+        shareCode,
+        privacyAccepted: true
       });
 
       if (res.success && res.user) {
@@ -801,11 +811,41 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                 />
               </div>
 
+              {mode === 'register' && (
+                <div className="auth-privacy-group">
+                  <label htmlFor="auth-privacy-checkbox" className="auth-privacy-label">
+                    <input
+                      id="auth-privacy-checkbox"
+                      type="checkbox"
+                      checked={privacyAccepted}
+                      onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                      disabled={isSubmitting}
+                      className="auth-privacy-checkbox"
+                      required
+                    />
+                    <span className="auth-privacy-text">
+                      {t('auth.privacyConsentLabel')}{' '}
+                      <button
+                        type="button"
+                        className="auth-privacy-link-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsPrivacyModalOpen(true);
+                        }}
+                      >
+                        {t('auth.reviewPrivacyPolicy')}
+                      </button>
+                    </span>
+                  </label>
+                </div>
+              )}
+
               <div className="auth-modal-actions">
                 <button
                   type="submit"
                   className="primary-btn auth-submit-btn"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (mode === 'register' && !privacyAccepted)}
                 >
                   {isSubmitting
                     ? t('auth.pleaseWait')
@@ -850,6 +890,13 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
           </div>
         )}
       </div>
+
+      {/* In-App Privacy Agreement Modal */}
+      <PrivacyModal
+        isOpen={isPrivacyModalOpen}
+        requireConsent={false}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
     </div>
   );
 }

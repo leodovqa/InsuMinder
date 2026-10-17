@@ -176,9 +176,10 @@ export const authService = {
     return await res.json();
   },
 
-  async completeRegistration({ email, code, firstName, lastName, phone, shareCode }) {
+  async completeRegistration({ email, code, firstName, lastName, phone, shareCode, privacyAccepted }) {
     const payload = { email, code, firstName, lastName, phone };
     if (shareCode) payload.shareCode = shareCode;
+    if (privacyAccepted) payload.privacyAccepted = true;
     const res = await fetch('/api/auth/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -192,6 +193,25 @@ export const authService = {
       }
     }
     return data;
+  },
+
+  async acceptPrivacy() {
+    const token = this.getToken();
+    if (!token) return null;
+    try {
+      const res = await fetch('/api/auth/privacy-accept', {
+        method: 'POST',
+        headers: this.getAuthHeaders()
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        this.setSession(token, data.user);
+        return data.user;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   },
 
   async verify(email, code, shareCode = null, extra = {}) {
