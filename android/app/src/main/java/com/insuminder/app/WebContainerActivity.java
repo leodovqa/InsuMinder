@@ -7,14 +7,19 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.AlarmManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -61,6 +66,7 @@ public class WebContainerActivity extends Activity {
     private ProgressBar mProgressBar;
     private GoogleSignInClient mGoogleSignInClient;
     private String mCurrentClientId = "";
+    private Runnable mPendingNotificationAfterPermission = null;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -269,6 +275,12 @@ public class WebContainerActivity extends Activity {
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        notifyNotificationPermissionResult(hasNotificationPermission());
+    }
+
     private Uri resolveTargetUri(Uri rawUri) {
         if (rawUri == null) {
             return Uri.parse(MainActivity.DEFAULT_URL);
@@ -315,6 +327,10 @@ public class WebContainerActivity extends Activity {
     }
 
     public boolean hasNotificationPermission() {
+        NotificationManagerCompat managerCompat = NotificationManagerCompat.from(this);
+        if (!managerCompat.areNotificationsEnabled()) {
+            return false;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
         }
@@ -322,14 +338,41 @@ public class WebContainerActivity extends Activity {
     }
 
     public void requestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (!hasNotificationPermission()) {
-                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, RC_POST_NOTIFICATIONS);
-            } else {
-                notifyNotificationPermissionResult(true);
-            }
-        } else {
+        if (hasNotificationPermission()) {
             notifyNotificationPermissionResult(true);
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, RC_POST_NOTIFICATIONS);
+                return;
+            }
+        }
+
+        openAppNotificationSettings();
+    }
+
+    public void openAppNotificationSettings() {
+        try {
+            Intent intent = new Intent();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+            } else {
+                intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.fromParts("package", getPackageName(), null));
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            try {
+                Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                fallback.setData(Uri.fromParts("package", getPackageName(), null));
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(fallback);
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -337,8 +380,13 @@ public class WebContainerActivity extends Activity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == RC_POST_NOTIFICATIONS) {
-            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED && NotificationManagerCompat.from(this).areNotificationsEnabled();
             notifyNotificationPermissionResult(granted);
+            if (granted && mPendingNotificationAfterPermission != null) {
+                Runnable action = mPendingNotificationAfterPermission;
+                mPendingNotificationAfterPermission = null;
+                action.run();
+            }
         }
     }
 
@@ -349,6 +397,7 @@ public class WebContainerActivity extends Activity {
 
     public void showNativeNotification(String title, String body, String tag, String targetUrl) {
         if (!hasNotificationPermission()) {
+            mPendingNotificationAfterPermission = () -> showNativeNotification(title, body, tag, targetUrl);
             requestNotificationPermission();
             return;
         }
@@ -383,7 +432,7 @@ public class WebContainerActivity extends Activity {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, requestCode, intent, flags);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_stat_insuminder)
                 .setContentTitle(title != null && !title.trim().isEmpty() ? title : "InsuMinder")
                 .setContentText(body != null ? body : "")
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(body != null ? body : ""))
@@ -393,15 +442,76 @@ public class WebContainerActivity extends Activity {
                 .setContentIntent(pendingIntent)
                 .setColor(Color.parseColor("#0ea5e9"));
 
+        try {
+            Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher_foreground);
+            if (largeIcon != null) {
+                builder.setLargeIcon(largeIcon);
+            }
+        } catch (Exception ignored) {
+        }
+
         if (destination.contains("action=basal")) {
-            builder.addAction(R.mipmap.ic_launcher, "💉 Log Basal", pendingIntent);
+            builder.addAction(R.drawable.ic_stat_insuminder, "💉 Log Basal", pendingIntent);
         }
 
         NotificationManagerCompat managerCompat = NotificationManagerCompat.from(this);
         try {
             managerCompat.notify(tag != null ? tag : "insuminder_reminder", requestCode, builder.build());
-        } catch (SecurityException se) {
-            // Ignored if notification permission revoked
+        } catch (Exception e) {
+            Log.e("InsuMinder", "Failed to post notification", e);
+        }
+    }
+
+    public void scheduleNativeReminder(String reminderId, String title, String body, long triggerAtMillis, String targetUrl) {
+        if (reminderId == null || triggerAtMillis <= System.currentTimeMillis()) return;
+        try {
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (alarmManager == null) return;
+
+            Intent intent = new Intent(this, ReminderReceiver.class);
+            intent.setAction(ReminderReceiver.ACTION_REMINDER);
+            intent.putExtra(ReminderReceiver.EXTRA_REMINDER_ID, reminderId);
+            intent.putExtra(ReminderReceiver.EXTRA_TITLE, title);
+            intent.putExtra(ReminderReceiver.EXTRA_BODY, body);
+            intent.putExtra(ReminderReceiver.EXTRA_TARGET_URL, targetUrl);
+
+            int requestCode = Math.abs(reminderId.hashCode());
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, requestCode, intent, flags);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+            } else {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+            }
+        } catch (Exception e) {
+            Log.e("InsuMinder", "scheduleNativeReminder failed: " + e.getMessage());
+        }
+    }
+
+    public void cancelNativeReminder(String reminderId) {
+        if (reminderId == null) return;
+        try {
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (alarmManager == null) return;
+
+            Intent intent = new Intent(this, ReminderReceiver.class);
+            intent.setAction(ReminderReceiver.ACTION_REMINDER);
+            int requestCode = Math.abs(reminderId.hashCode());
+            int flags = PendingIntent.FLAG_NO_CREATE;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, requestCode, intent, flags);
+            if (pendingIntent != null) {
+                alarmManager.cancel(pendingIntent);
+                pendingIntent.cancel();
+            }
+        } catch (Exception e) {
+            Log.e("InsuMinder", "cancelNativeReminder failed: " + e.getMessage());
         }
     }
 
@@ -437,8 +547,23 @@ public class WebContainerActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void openNotificationSettings() {
+            runOnUiThread(() -> WebContainerActivity.this.openAppNotificationSettings());
+        }
+
+        @JavascriptInterface
         public void postNativeNotification(String title, String body, String tag, String targetUrl) {
             runOnUiThread(() -> showNativeNotification(title, body, tag, targetUrl));
+        }
+
+        @JavascriptInterface
+        public void scheduleNativeReminder(String reminderId, String title, String body, long triggerAtMillis, String targetUrl) {
+            runOnUiThread(() -> WebContainerActivity.this.scheduleNativeReminder(reminderId, title, body, triggerAtMillis, targetUrl));
+        }
+
+        @JavascriptInterface
+        public void cancelNativeReminder(String reminderId) {
+            runOnUiThread(() -> WebContainerActivity.this.cancelNativeReminder(reminderId));
         }
 
         @JavascriptInterface

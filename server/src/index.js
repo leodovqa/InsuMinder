@@ -573,6 +573,23 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out successfully.' });
 });
 
+// 8. Delete Account & Personal Data (Permanent Deletion)
+const handleAccountDeletion = (req, res) => {
+  const userId = req.user.id;
+  db.deleteUser(userId, (err) => {
+    if (err) {
+      return res.status(500).json({ success: false, error: err.message || 'Failed to delete account.' });
+    }
+    res.json({
+      success: true,
+      message: 'Account and associated data deleted successfully.'
+    });
+  });
+};
+
+app.delete('/api/auth/account', requireAuth, handleAccountDeletion);
+app.delete('/api/auth/me', requireAuth, handleAccountDeletion);
+
 /* =========================================================================
    USER-SCOPED DATA ENDPOINTS
    ========================================================================= */
@@ -1135,7 +1152,7 @@ app.get('/api/download/android', async (req, res) => {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '1.7.0',
+      version: '1.8.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',

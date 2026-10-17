@@ -1610,18 +1610,18 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.7\.0/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.8\.0/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.7.0')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.8.0')).toBeInTheDocument();
 
-      // 3. Navigate to Settings Tab
-      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
-      fireEvent.click(settingsNavBtn);
+      // 3. Navigate to About & Info Tab
+      const aboutNavBtn = screen.getByRole('button', { name: /About & Info/i, hidden: true });
+      fireEvent.click(aboutNavBtn);
 
       // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.7.0')).toBeInTheDocument();
+      expect(screen.getByText('v1.8.0')).toBeInTheDocument();
 
       // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
       expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
@@ -1632,19 +1632,19 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Medical Privacy Agreement/i)).toBeInTheDocument();
+      expect(screen.getByText(/Device push notifications overhaul/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
       window.history.pushState({}, '', '/?app=android');
       render(<App />);
 
-      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
-      fireEvent.click(settingsNavBtn);
+      const aboutNavBtn = screen.getByRole('button', { name: /About & Info/i, hidden: true });
+      fireEvent.click(aboutNavBtn);
 
       // Verify About InsuMinder card on Android
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.7.0')).toBeInTheDocument();
+      expect(screen.getByText('v1.8.0')).toBeInTheDocument();
 
       // Android version MUST show "Up to Date" status and "Check for Updates" button
       expect(screen.getByText('Up to Date')).toBeInTheDocument();

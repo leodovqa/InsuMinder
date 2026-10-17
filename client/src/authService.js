@@ -197,21 +197,56 @@ export const authService = {
 
   async acceptPrivacy() {
     const token = this.getToken();
-    if (!token) return null;
+    const currentUser = this.getCurrentUser();
+    const nowIso = new Date().toISOString();
+
+    let optimisticUser = null;
+    if (currentUser) {
+      optimisticUser = {
+        ...currentUser,
+        privacyAcceptedAt: currentUser.privacyAcceptedAt || nowIso
+      };
+      if (token) {
+        this.setSession(token, optimisticUser);
+      }
+    }
+
+    if (!token) {
+      return optimisticUser;
+    }
+
     try {
+      // 1. Primary endpoint
       const res = await fetch('/api/auth/privacy-accept', {
         method: 'POST',
         headers: this.getAuthHeaders()
       });
-      const data = await res.json();
-      if (data.success && data.user) {
-        this.setSession(token, data.user);
-        return data.user;
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data && data.success && data.user) {
+          this.setSession(token, data.user);
+          return data.user;
+        }
       }
-      return null;
-    } catch {
-      return null;
+
+      // 2. Fallback to /api/auth/profile
+      const fallbackRes = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ privacyAccepted: true })
+      });
+      if (fallbackRes.ok) {
+        const fallbackData = await fallbackRes.json().catch(() => null);
+        if (fallbackData && fallbackData.success && fallbackData.user) {
+          this.setSession(token, fallbackData.user);
+          return fallbackData.user;
+        }
+      }
+    } catch (err) {
+      console.warn('Network error while recording privacy acceptance on server:', err);
     }
+
+    return optimisticUser;
   },
 
   async verify(email, code, shareCode = null, extra = {}) {
@@ -315,6 +350,22 @@ export const authService = {
       // Ignore network errors on logout
     } finally {
       this.clearSession();
+    }
+  },
+
+  async deleteAccount() {
+    try {
+      const res = await fetch('/api/auth/account', {
+        method: 'DELETE',
+        headers: this.getAuthHeaders()
+      });
+      const data = await res.json().catch(() => ({ success: false, error: 'Failed to parse response' }));
+      if (data && data.success) {
+        this.clearSession();
+      }
+      return data;
+    } catch (err) {
+      return { success: false, error: err.message || 'Failed to delete account' };
     }
   },
 

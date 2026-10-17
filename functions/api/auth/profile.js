@@ -1,21 +1,42 @@
 import { ensureTablesExist } from '../_telegram.js';
 import { getAuthUser } from '../_auth.js';
 
+const corsHeaders = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*'
+};
+
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, PUT, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-auth-token, x-active-context, x-active-owner-id'
+    }
+  });
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
-  const db = env.DB;
+
+  if (request.method === 'OPTIONS') {
+    return onRequestOptions();
+  }
 
   if (request.method !== 'PUT' && request.method !== 'POST') {
     return new Response(JSON.stringify({ success: false, error: 'Method not allowed.' }), {
       status: 405,
-      headers: { 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
   }
+
+  const db = env.DB;
 
   if (!db) {
     return new Response(JSON.stringify({ success: false, error: 'Database binding (DB) is missing.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
   }
 
@@ -26,7 +47,7 @@ export async function onRequest(context) {
     if (!authUser || !authUser.userId) {
       return new Response(JSON.stringify({ success: false, error: 'Authentication required. Please sign in.' }), {
         status: 401,
-        headers: { 'Content-Type': 'application/json' }
+        headers: corsHeaders
       });
     }
 
@@ -102,7 +123,7 @@ export async function onRequest(context) {
         }
       }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: corsHeaders
       });
     }
 
@@ -116,7 +137,7 @@ export async function onRequest(context) {
         error: 'First name and last name are required.'
       }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        headers: corsHeaders
       });
     }
 
@@ -183,13 +204,12 @@ export async function onRequest(context) {
       }
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
   } catch (err) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Failed to update profile.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
   }
 }
-

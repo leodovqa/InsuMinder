@@ -1120,6 +1120,29 @@ function deletePushSubscription(endpoint, cb) {
   });
 }
 
+function deleteUser(userId, callback) {
+  getUserById(userId, (err, user) => {
+    if (err) return callback(err);
+    const email = user ? user.email : null;
+
+    db.serialize(() => {
+      db.run("DELETE FROM injection_logs WHERE user_id = ?", [userId]);
+      db.run("DELETE FROM telegram_configs WHERE user_id = ?", [userId]);
+      db.run("DELETE FROM push_subscriptions WHERE user_id = ?", [userId]);
+      db.run("DELETE FROM basal_reminders WHERE user_id = ?", [userId]);
+      db.run("DELETE FROM shared_members WHERE owner_id = ? OR member_id = ?", [userId, userId]);
+      db.run("DELETE FROM share_invites WHERE owner_id = ?", [userId]);
+      if (email) {
+        db.run("DELETE FROM verification_codes WHERE email = ?", [email]);
+      }
+      db.run("DELETE FROM users WHERE id = ?", [userId], function(delErr) {
+        if (delErr) return callback(delErr);
+        callback(null, { deleted: true, changes: this.changes });
+      });
+    });
+  });
+}
+
 module.exports = {
   db,
   createUser,
@@ -1127,6 +1150,7 @@ module.exports = {
   getUserById,
   getUserByGoogleId,
   updateUser,
+  deleteUser,
   createVerificationCode,
   getLatestVerificationCode,
   consumeVerificationCode,

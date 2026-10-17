@@ -1,6 +1,22 @@
 import { ensureTablesExist } from '../_telegram.js';
 import { getAuthUser } from '../_auth.js';
 
+const corsHeaders = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*'
+};
+
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-auth-token, x-active-context, x-active-owner-id'
+    }
+  });
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const db = env.DB;
@@ -8,7 +24,7 @@ export async function onRequestPost(context) {
   if (!db) {
     return new Response(JSON.stringify({ success: false, error: 'Database binding (DB) is missing.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
   }
 
@@ -19,7 +35,7 @@ export async function onRequestPost(context) {
     if (!authUser || !authUser.userId) {
       return new Response(JSON.stringify({ success: false, error: 'Authentication required. Please sign in.' }), {
         status: 401,
-        headers: { 'Content-Type': 'application/json' }
+        headers: corsHeaders
       });
     }
 
@@ -62,13 +78,25 @@ export async function onRequestPost(context) {
       }
     }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
   } catch (err) {
     return new Response(JSON.stringify({ success: false, error: err.message || 'Failed to record privacy agreement acceptance.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: corsHeaders
     });
   }
 }
 
+export async function onRequest(context) {
+  if (context.request.method === 'OPTIONS') {
+    return onRequestOptions();
+  }
+  if (context.request.method === 'POST') {
+    return onRequestPost(context);
+  }
+  return new Response(JSON.stringify({ success: false, error: 'Method not allowed.' }), {
+    status: 405,
+    headers: corsHeaders
+  });
+}
