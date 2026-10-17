@@ -119,7 +119,7 @@ describe('Manual Injection Logging Integration Tests', () => {
   it('strictly blocks logging a 2nd basal injection on the same day', async () => {
     const fiveDaysAgo1 = new Date();
     fiveDaysAgo1.setDate(fiveDaysAgo1.getDate() - 5);
-    fiveDaysAgo1.setHours(20, 0, 0, 0);
+    fiveDaysAgo1.setHours(10, 0, 0, 0);
 
     const id1 = await insertManual(testUserId, 'basal', fiveDaysAgo1.toISOString());
     assert.ok(id1);
@@ -127,7 +127,7 @@ describe('Manual Injection Logging Integration Tests', () => {
     // Attempt second basal on same calendar date
     const fiveDaysAgo2 = new Date();
     fiveDaysAgo2.setDate(fiveDaysAgo2.getDate() - 5);
-    fiveDaysAgo2.setHours(22, 30, 0, 0);
+    fiveDaysAgo2.setHours(14, 30, 0, 0);
 
     await assert.rejects(
       async () => {
@@ -170,16 +170,16 @@ describe('Manual Injection Logging Integration Tests', () => {
     const fifteenDaysAgo = new Date();
     fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
 
-    // Insert 10 bolus doses at different hours/minutes
+    // Insert 10 bolus doses at different hours/minutes within daytime hours
     for (let i = 0; i < 10; i++) {
       const doseDate = new Date(fifteenDaysAgo);
-      doseDate.setHours(8 + i, 10, 0, 0);
+      doseDate.setHours(8 + Math.floor(i / 2), (i % 2) * 30, 0, 0);
       await insertManual(testUserId, 'bolus', doseDate.toISOString());
     }
 
     // Attempt 11th bolus
     const eleventhDose = new Date(fifteenDaysAgo);
-    eleventhDose.setHours(23, 0, 0, 0);
+    eleventhDose.setHours(14, 0, 0, 0);
 
     await assert.rejects(
       async () => {
