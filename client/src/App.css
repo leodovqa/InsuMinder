@@ -1429,9 +1429,14 @@ body.is-android-apk .app-update-banner + .app-header {
   background-color: var(--code-bg);
   color: var(--text-h);
   border: 1px solid var(--border);
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.18s ease;
 
   &:hover {
     background-color: var(--accent-bg);
@@ -3320,7 +3325,7 @@ html.modal-open {
   padding: 24px;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
-  text-align: left;
+  text-align: start;
   animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   max-height: calc(100vh - 40px);
   max-height: calc(100dvh - 40px);
@@ -5391,10 +5396,20 @@ html.modal-open {
 
 /* Modals & Forms in RTL */
 [dir="rtl"] .modal-content,
+[dir="rtl"] .modal-card,
 [dir="rtl"] .reminder-modal-content,
+[dir="rtl"] .modal-header,
+[dir="rtl"] .modal-title,
 [dir="rtl"] .modal-body,
 [dir="rtl"] .delete-modal-text,
 [dir="rtl"] .delete-modal-warning,
+[dir="rtl"] .delete-account-card,
+[dir="rtl"] .delete-account-warning-text,
+[dir="rtl"] .delete-consequences-box,
+[dir="rtl"] .delete-consequences-title,
+[dir="rtl"] .delete-consequences-list,
+[dir="rtl"] .delete-consequences-list li,
+[dir="rtl"] .delete-account-reregister-note,
 [dir="rtl"] .early-modal-text,
 [dir="rtl"] .early-modal-warning,
 [dir="rtl"] .modal-explanation-intro,
@@ -5408,8 +5423,13 @@ html.modal-open {
 [dir="rtl"] .auth-label,
 [dir="rtl"] .auth-input,
 [dir="rtl"] .input-validation-error,
-[dir="rtl"] .phone-validation-error {
+[dir="rtl"] .phone-validation-error,
+[dir="rtl"] .privacy-delete-account-section,
+[dir="rtl"] .privacy-delete-text-group,
+[dir="rtl"] .privacy-delete-title,
+[dir="rtl"] .privacy-delete-desc {
   text-align: right;
+  direction: rtl;
 }
 
 /* Phone input container remains LTR */
@@ -9559,6 +9579,7 @@ body.nav-drawer-open {
   box-sizing: border-box;
   animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  text-align: start;
 }
 
 .privacy-modal-header {
@@ -9568,6 +9589,7 @@ body.nav-drawer-open {
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--border);
   position: relative;
+  text-align: start;
 }
 
 .privacy-header-icon-wrapper {
@@ -9585,6 +9607,7 @@ body.nav-drawer-open {
 .privacy-header-text {
   flex: 1;
   min-width: 0;
+  text-align: start;
 }
 
 .privacy-modal-title {
@@ -9593,6 +9616,7 @@ body.nav-drawer-open {
   font-weight: 700;
   color: var(--text-h);
   line-height: 1.3;
+  text-align: start;
 }
 
 .privacy-modal-subtitle {
@@ -9601,6 +9625,7 @@ body.nav-drawer-open {
   color: var(--text);
   line-height: 1.4;
   opacity: 0.85;
+  text-align: start;
 }
 
 .privacy-close-btn {
@@ -9620,22 +9645,40 @@ body.nav-drawer-open {
   color: var(--text-h);
 }
 
+.privacy-mandatory-alert {
+  padding: 12px 24px 0;
+  box-sizing: border-box;
+  text-align: start;
+}
+
+.privacy-mandatory-alert p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.5;
+  opacity: 0.9;
+  text-align: start;
+}
+
 .privacy-highlight-box {
   background: rgba(59, 130, 246, 0.08);
   border-inline-start: 4px solid #3b82f6;
   padding: 12px 16px;
   margin: 16px 24px 8px;
   border-radius: 10px;
+  text-align: start;
 }
 
 .privacy-highlight-badge {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
   color: #3b82f6;
   font-weight: 600;
   font-size: 0.85rem;
   margin-bottom: 4px;
+  text-align: start;
 }
 
 .privacy-highlight-text {
@@ -9643,6 +9686,7 @@ body.nav-drawer-open {
   font-size: 0.84rem;
   color: var(--text-h);
   line-height: 1.45;
+  text-align: start;
 }
 
 .privacy-scroll-body {
@@ -9652,12 +9696,14 @@ body.nav-drawer-open {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  text-align: start;
 }
 
 .privacy-policy-section {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  text-align: start;
 }
 
 .privacy-section-title {
@@ -9665,6 +9711,7 @@ body.nav-drawer-open {
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--text-h);
+  text-align: start;
 }
 
 .privacy-section-body {
@@ -9673,33 +9720,162 @@ body.nav-drawer-open {
   color: var(--text);
   line-height: 1.5;
   opacity: 0.9;
+  text-align: start;
 }
 
 .privacy-modal-actions {
-  padding: 16px 24px;
+  padding: 12px 20px;
   border-top: 1px solid var(--border);
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: center;
   background-color: var(--bg);
+  box-sizing: border-box;
 }
 
 .privacy-consent-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  gap: 10px;
   width: 100%;
 }
 
 .privacy-accept-btn {
   flex: 1;
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  overflow: hidden;
+  transition: all 0.18s ease;
+}
+
+.privacy-accept-btn:active {
+  transform: scale(0.98);
 }
 
 .privacy-decline-btn {
-  flex: 0 0 auto;
+  flex: 1;
+  min-height: 38px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  overflow: hidden;
+  transition: all 0.18s ease;
+}
+
+.privacy-decline-btn:hover {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.privacy-decline-btn:active {
+  background-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+  transform: scale(0.98);
+  border-radius: 10px;
 }
 
 .privacy-close-action-btn {
   min-width: 120px;
+  min-height: 38px;
+  padding: 8px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  overflow: hidden;
+  transition: all 0.18s ease;
+}
+
+.privacy-close-action-btn:active {
+  transform: scale(0.98);
+}
+
+/* Privacy Decline Choice Modal Overlay */
+.privacy-decline-prompt-overlay {
+  z-index: 1300;
+}
+
+/* Delete Account & All Data Confirmation Modal Overlay */
+.delete-account-modal-overlay {
+  z-index: 1350;
+}
+
+/* Explicit Sided Directional Alignment: RTL (Hebrew) */
+[dir="rtl"] .privacy-modal-content,
+[dir="rtl"] .privacy-modal-header,
+[dir="rtl"] .privacy-header-text,
+[dir="rtl"] .privacy-modal-title,
+[dir="rtl"] .privacy-modal-subtitle,
+[dir="rtl"] .privacy-mandatory-alert,
+[dir="rtl"] .privacy-mandatory-alert p,
+[dir="rtl"] .privacy-highlight-box,
+[dir="rtl"] .privacy-highlight-badge,
+[dir="rtl"] .privacy-highlight-text,
+[dir="rtl"] .privacy-scroll-body,
+[dir="rtl"] .privacy-policy-section,
+[dir="rtl"] .privacy-section-title,
+[dir="rtl"] .privacy-section-body,
+[dir="rtl"] .auth-privacy-text {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .privacy-highlight-badge {
+  justify-content: flex-start;
+}
+
+/* Explicit Sided Directional Alignment: LTR (English & Russian) */
+[dir="ltr"] .privacy-modal-content,
+[dir="ltr"] .privacy-modal-header,
+[dir="ltr"] .privacy-header-text,
+[dir="ltr"] .privacy-modal-title,
+[dir="ltr"] .privacy-modal-subtitle,
+[dir="ltr"] .privacy-mandatory-alert,
+[dir="ltr"] .privacy-mandatory-alert p,
+[dir="ltr"] .privacy-highlight-box,
+[dir="ltr"] .privacy-highlight-badge,
+[dir="ltr"] .privacy-highlight-text,
+[dir="ltr"] .privacy-scroll-body,
+[dir="ltr"] .privacy-policy-section,
+[dir="ltr"] .privacy-section-title,
+[dir="ltr"] .privacy-section-body,
+[dir="ltr"] .auth-privacy-text {
+  text-align: left;
+  direction: ltr;
+}
+
+[dir="ltr"] .privacy-highlight-badge {
+  justify-content: flex-start;
 }
 
 /* Auth Registration Privacy Checkbox */
@@ -9811,6 +9987,220 @@ body.nav-drawer-open {
   border-color: #3b82f6;
 }
 
+/* Privacy Settings: Account Deletion Section */
+.privacy-delete-account-section {
+  width: 100%;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.privacy-delete-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: start;
+}
+
+.privacy-delete-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ef4444;
+  text-align: start;
+}
+
+.privacy-delete-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.45;
+  opacity: 0.85;
+  text-align: start;
+}
+
+.privacy-delete-account-btn {
+  align-self: flex-start;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 10px;
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.privacy-delete-account-btn:hover {
+  background-color: rgba(239, 68, 68, 0.22);
+  border-color: #ef4444;
+}
+
+/* Delete Account Confirmation Modal */
+.delete-account-card {
+  max-width: 480px;
+  width: 100%;
+  text-align: start;
+}
+
+.delete-account-alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  text-align: start;
+}
+
+.delete-account-warning-text {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #f87171;
+  line-height: 1.45;
+  font-weight: 500;
+  text-align: start;
+}
+
+.delete-consequences-box {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  text-align: start;
+}
+
+.delete-consequences-title {
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-h);
+  text-align: start;
+}
+
+.delete-consequences-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: start;
+}
+
+.delete-consequences-list li {
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: start;
+}
+
+.consequence-bullet {
+  color: #ef4444;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.delete-account-reregister-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-style: italic;
+  text-align: start;
+}
+
+/* Decline Choice Modal Card & Actions */
+.decline-choice-card {
+  max-width: 440px;
+  width: 100%;
+}
+
+.decline-choice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.decline-choice-btn {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  overflow: hidden;
+  transition: all 0.18s ease;
+}
+
+.decline-choice-btn:active {
+  transform: scale(0.985);
+}
+
+/* 1. Sign Out Only (Safe Default Action) */
+.decline-choice-signout-btn {
+  background-color: var(--code-bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+}
+
+.decline-choice-signout-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+/* 2. Delete Account & Data (Destructive Action) */
+.decline-choice-delete-btn {
+  background-color: #ef4444;
+  color: #ffffff;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+}
+
+.decline-choice-delete-btn:hover {
+  background-color: #dc2626;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+}
+
+/* 3. Cancel (Dismiss & Return to Policy) */
+.decline-choice-cancel-btn {
+  background-color: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.decline-choice-cancel-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-h);
+}
+
 /* Light Theme Parity Overrides */
 [data-theme="light"] .privacy-modal-backdrop {
   background-color: rgba(15, 23, 42, 0.45);
@@ -9894,6 +10284,62 @@ body.nav-drawer-open {
   background: #ecfdf5;
   color: #059669;
   border-color: #a7f3d0;
+}
+
+[data-theme="light"] .delete-consequences-box {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .delete-account-alert-banner {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+}
+
+[data-theme="light"] .delete-account-warning-text {
+  color: #dc2626;
+}
+
+[data-theme="light"] .privacy-decline-btn {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+[data-theme="light"] .privacy-decline-btn:hover {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+[data-theme="light"] .privacy-decline-btn:active {
+  background-color: #fecaca;
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+[data-theme="light"] .decline-choice-signout-btn {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+[data-theme="light"] .decline-choice-signout-btn:hover {
+  background-color: #e2e8f0;
+  border-color: #0284c7;
+  color: #0f172a;
+}
+
+[data-theme="light"] .decline-choice-cancel-btn {
+  background-color: transparent;
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .decline-choice-cancel-btn:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
 }
 
 

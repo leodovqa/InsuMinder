@@ -49,7 +49,7 @@ describe('NotificationSettings Web Push & PWA Integration', () => {
       </LanguageProvider>
     );
 
-    expect(screen.getByText('Device & Web Push Notifications')).toBeInTheDocument();
+    expect(screen.getByText('Device Push Notifications')).toBeInTheDocument();
     expect(screen.getByText(/Receive real-time alerts on your Android device or browser/i)).toBeInTheDocument();
     expect(screen.getByText('Not Subscribed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Enable Push on this Device/i })).toBeInTheDocument();
@@ -265,7 +265,7 @@ describe('PWA Installation Detection & Persistence Tests', () => {
   });
 
   it('exports valid ANDROID_PACKAGE_INFO and APP_CURRENT_CHANGELOG with 3-language parity', () => {
-    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.7.0');
+    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.8.0');
     expect(pwa.ANDROID_PACKAGE_INFO.fileName).toBe('InsuMinder.apk');
     expect(pwa.APP_CURRENT_CHANGELOG.en.length).toBeGreaterThan(0);
     expect(pwa.APP_CURRENT_CHANGELOG.he.length).toBeGreaterThan(0);

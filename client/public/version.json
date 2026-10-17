@@ -1,6 +1,6 @@
 {
-  "version": "1.7.0",
-  "versionCode": 9,
+  "version": "1.8.0",
+  "versionCode": 10,
   "versionHistory": [
     "1.0.0",
     "1.1.0",
@@ -9,21 +9,22 @@
     "1.4.0",
     "1.5.0",
     "1.6.0",
-    "1.7.0"
+    "1.7.0",
+    "1.8.0"
   ],
-  "buildTime": "2026-10-17T16:00:00Z",
+  "buildTime": "2026-10-17T17:00:00Z",
   "changes": {
     "en": [
-      "In-app Medical Privacy Agreement and informed consent for data protection",
-      "Dedicated Privacy Policy viewer and account-level consent tracking"
+      "Device push notifications overhaul with native Android notification drawer integration",
+      "Direct system notification settings shortcut and instant test notification dispatch on activation"
     ],
     "he": [
-      "הסכם פרטיות רפואית מובנה באפליקציה והסכמה מדעת לאבטחת נתונים",
-      "מציג מדיניות פרטיות ייעודי ומעקב הסכמה ברמת החשבון"
+      "שדרוג מקיף להתראות דחיפה במכשיר עם אינטגרציה ישירה למגש ההתראות באנדרואיד",
+      "קיצור ישיר להגדרות ההתראות במערכת ושליחה מיידית של התראת בדיקה בהפעלה"
     ],
     "ru": [
-      "Встроенное соглашение о медицинской конфиденциальности и защите данных",
-      "Встроенный просмотр политики конфиденциальности и учет согласия"
+      "Полное обновление push-уведомлений на устройстве с интеграцией в шторку Android",
+      "Прямой переход к настройкам уведомлений системы и мгновенная отправка тестового уведомления"
     ]
   }
 }

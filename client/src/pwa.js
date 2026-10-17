@@ -29,13 +29,29 @@ export function isPushSupported() {
 // Get current browser/Android permission state ('default' | 'granted' | 'denied' | 'unsupported')
 export function getNotificationPermission() {
   if (typeof window === 'undefined') return 'unsupported';
-  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.isNotificationPermissionGranted === 'function') {
-    return window.AndroidBridge.isNotificationPermissionGranted() ? 'granted' : 'default';
+  if (isAndroidApp()) {
+    if (window.AndroidBridge && typeof window.AndroidBridge.isNotificationPermissionGranted === 'function') {
+      return window.AndroidBridge.isNotificationPermissionGranted() ? 'granted' : 'denied';
+    }
+    return 'default';
   }
   if (!('Notification' in window)) {
-    return isAndroidApp() ? 'default' : 'unsupported';
+    return 'unsupported';
   }
   return Notification.permission;
+}
+
+// Open Android system notification settings if running in native app
+export function openDeviceNotificationSettings() {
+  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.openNotificationSettings === 'function') {
+    try {
+      window.AndroidBridge.openNotificationSettings();
+      return true;
+    } catch (e) {
+      console.warn('[PWA] Failed to open notification settings:', e);
+    }
+  }
+  return false;
 }
 
 // Register service worker
@@ -71,10 +87,25 @@ export async function getExistingPushSubscription() {
   }
 }
 
-// Subscribe to Web Push / Request Android Native Notification Permission
-export async function subscribeToPush(authHeader = null) {
-  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.requestNotificationPermission === 'function') {
-    window.AndroidBridge.requestNotificationPermission();
+// Subscribe to Push Notifications / Request Android Native Notification Permission
+export async function subscribeToPush(authHeader = null, lang = 'en') {
+  if (isAndroidApp()) {
+    if (window.AndroidBridge) {
+      const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
+      if (isGranted) {
+        if (typeof window.AndroidBridge.postNativeNotification === 'function') {
+          const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
+          const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
+          window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-active', '/?action=basal');
+        }
+        return { ok: true, isNative: true };
+      }
+      if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+        window.AndroidBridge.requestNotificationPermission();
+      }
+      return { ok: true, isNative: true, pendingPrompt: true };
+    }
+    return { ok: true, isNative: true };
   }
 
   if (!isPushSupported()) {
@@ -91,9 +122,6 @@ export async function subscribeToPush(authHeader = null) {
 
   const reg = await getRegistration();
   if (!reg || !('pushManager' in reg)) {
-    if (isAndroidApp()) {
-      return { ok: true, isNative: true };
-    }
     return { ok: false, error: 'Service Worker not ready.' };
   }
 
@@ -184,15 +212,34 @@ export async function unsubscribeFromPush(authHeader = null) {
 
 // Send a test push notification to this device
 export async function sendTestPush(authHeader = null, lang = 'en') {
+  const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
+  const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
+
   let nativeSent = false;
   if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.postNativeNotification === 'function') {
     try {
-      const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
-      const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
       window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-test', '/?action=basal');
       nativeSent = true;
     } catch (e) {
       console.warn('[PWA] Native push test dispatch failed:', e);
+    }
+  }
+
+  let localWebSent = false;
+  if (!isAndroidApp() && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+    try {
+      const reg = await getRegistration();
+      if (reg && typeof reg.showNotification === 'function') {
+        await reg.showNotification(testTitle, {
+          body: testBody,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          data: { url: '/?action=basal' }
+        });
+        localWebSent = true;
+      }
+    } catch (e) {
+      console.warn('[PWA] Local web notification dispatch failed:', e);
     }
   }
 
@@ -207,15 +254,15 @@ export async function sendTestPush(authHeader = null, lang = 'en') {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      if (nativeSent) {
-        return { ok: true, message: 'Native Android notification sent successfully!' };
+      if (nativeSent || localWebSent) {
+        return { ok: true, message: 'Notification sent successfully to your device!' };
       }
       return { ok: false, error: data.error || 'Failed to send test push notification.' };
     }
     return { ok: true, message: data.message };
   } catch (err) {
-    if (nativeSent) {
-      return { ok: true, message: 'Native Android notification sent successfully!' };
+    if (nativeSent || localWebSent) {
+      return { ok: true, message: 'Notification sent successfully to your device!' };
     }
     return { ok: false, error: err.message || 'Network error triggering test push.' };
   }
@@ -272,7 +319,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.7.0',
+  version: '1.8.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -281,16 +328,16 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'In-app Medical Privacy Agreement and informed consent for data protection',
-    'Dedicated Privacy Policy viewer and account-level consent tracking'
+    'Device push notifications overhaul with native Android notification drawer integration',
+    'Direct system notification settings shortcut and instant test notification dispatch on activation'
   ],
   he: [
-    'הסכם פרטיות רפואית מובנה באפליקציה והסכמה מדעת לאבטחת נתונים',
-    'מציג מדיניות פרטיות ייעודי ומעקב הסכמה ברמת החשבון'
+    'שדרוג מקיף להתראות דחיפה במכשיר עם אינטגרציה ישירה למגש ההתראות באנדרואיד',
+    'קיצור ישיר להגדרות ההתראות במערכת ושליחה מיידית של התראת בדיקה בהפעלה'
   ],
   ru: [
-    'Встроенное соглашение о медицинской конфиденциальности и защите данных',
-    'Встроенный просмотр политики конфиденциальности и учет согласия'
+    'Полное обновление push-уведомлений на устройстве с интеграцией в шторку Android',
+    'Прямой переход к настройкам уведомлений системы и мгновенная отправка тестового уведомления'
   ]
 };
 

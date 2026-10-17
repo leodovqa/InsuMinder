@@ -247,22 +247,79 @@ function AppContent() {
   const [isAcceptingPrivacy, setIsAcceptingPrivacy] = useState(false);
   const isPrivacyConsentRequired = Boolean(isLoggedIn && user && !user.privacyAcceptedAt);
 
+  // User Deletion & Privacy Decline Flow State
+  const [isDeclinePromptOpen, setIsDeclinePromptOpen] = useState(false);
+  const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
   const handleAcceptPrivacyConsent = async () => {
     setIsAcceptingPrivacy(true);
     try {
       const updatedUser = await authService.acceptPrivacy();
       if (updatedUser) {
         setUser(updatedUser);
+      } else {
+        const nowIso = new Date().toISOString();
+        setUser((prev) => {
+          if (!prev) return prev;
+          const next = { ...prev, privacyAcceptedAt: nowIso };
+          const token = authService.getToken();
+          if (token) {
+            authService.setSession(token, next);
+          }
+          return next;
+        });
       }
     } catch (err) {
       console.error('Failed to accept privacy agreement:', err);
+      const nowIso = new Date().toISOString();
+      setUser((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, privacyAcceptedAt: nowIso };
+        const token = authService.getToken();
+        if (token) {
+          authService.setSession(token, next);
+        }
+        return next;
+      });
     } finally {
       setIsAcceptingPrivacy(false);
     }
   };
 
   const handleDeclinePrivacyConsent = () => {
-    handleSignOut();
+    setIsDeclinePromptOpen(true);
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const res = await authService.deleteAccount();
+      if (res && res.success) {
+        setIsDeleteAccountModalOpen(false);
+        setIsDeclinePromptOpen(false);
+        setIsPrivacyModalOpen(false);
+        setUser(null);
+        setActiveTab('home');
+        setLogs([]);
+        setNotification({
+          type: 'success',
+          message: t('modals.deleteAccountSuccess')
+        });
+      } else {
+        setNotification({
+          type: 'error',
+          message: (res && res.error) || t('common.errorOccurred')
+        });
+      }
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err.message || t('common.errorOccurred')
+      });
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   // Granular Notification Preferences State
@@ -660,7 +717,9 @@ function AppContent() {
     isBasalConfirmModalOpen ||
     justUpdatedVersion ||
     isPrivacyModalOpen ||
-    isPrivacyConsentRequired
+    isPrivacyConsentRequired ||
+    isDeclinePromptOpen ||
+    isDeleteAccountModalOpen
   );
   useLockBodyScroll(isAnyAppModalOpen);
 
@@ -1724,6 +1783,8 @@ function AppContent() {
         return t('nav.notifications');
       case 'settings':
         return t('nav.settings');
+      case 'about':
+        return t('nav.about');
       case 'home':
       default:
         return t('nav.brand');
@@ -1905,6 +1966,18 @@ function AppContent() {
           >
             <span className="nav-icon" role="img" aria-label="settings">⚙️</span>
             <span className="nav-label">{t('nav.settings')}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-item ${activeTab === 'about' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('about');
+              setIsNavOpen(false);
+            }}
+          >
+            <span className="nav-icon" role="img" aria-label="about">ℹ️</span>
+            <span className="nav-label">{t('nav.about')}</span>
           </button>
         </nav>
 
@@ -3661,7 +3734,13 @@ function AppContent() {
             </div>
           </div>
         )}
+      </div>
+    </section>
+  )}
 
+  {activeTab === 'about' && (
+    <section className="settings-page" aria-label={t('nav.about')}>
+      <div className="settings-container">
         {/* About InsuMinder Card */}
         <div className="settings-card about-app-card">
           <div className="card-header">
@@ -3820,6 +3899,24 @@ function AppContent() {
                 {t('privacy.viewPolicyBtn')}
               </button>
             </div>
+
+            {/* Permanent Account & Data Deletion Section */}
+            {isLoggedIn && (
+              <div className="privacy-delete-account-section">
+                <div className="privacy-delete-text-group">
+                  <h4 className="privacy-delete-title">{t('privacy.deleteAccountSectionTitle')}</h4>
+                  <p className="privacy-delete-desc">{t('privacy.deleteAccountSectionDesc')}</p>
+                </div>
+                <button
+                  type="button"
+                  className="danger-btn privacy-delete-account-btn"
+                  onClick={() => setIsDeleteAccountModalOpen(true)}
+                >
+                  <span className="btn-icon" aria-hidden="true">🗑️</span>
+                  {t('privacy.deleteAccountBtn')}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -4486,6 +4583,132 @@ function AppContent() {
         requireConsent={false}
         onClose={() => setIsPrivacyModalOpen(false)}
       />
+
+      {/* Privacy Decline Choice Modal */}
+      {isDeclinePromptOpen && (
+        <div
+          className="modal-overlay privacy-decline-prompt-overlay"
+          onClick={() => setIsDeclinePromptOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="decline-prompt-title"
+        >
+          <div className="modal-card delete-modal-card decline-choice-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon-wrapper delete-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M12 8v4" />
+                  <path d="M12 16h.01" />
+                </svg>
+              </div>
+              <h3 id="decline-prompt-title" className="modal-title">
+                {t('privacy.declinePromptTitle')}
+              </h3>
+            </div>
+            <div className="modal-body">
+              <p className="delete-modal-text">
+                {t('privacy.declinePromptDesc')}
+              </p>
+            </div>
+            <div className="modal-actions decline-choice-actions">
+              <button
+                type="button"
+                className="decline-choice-btn decline-choice-signout-btn"
+                onClick={() => {
+                  setIsDeclinePromptOpen(false);
+                  handleSignOut();
+                }}
+              >
+                {t('privacy.declineSignOutOnly')}
+              </button>
+              <button
+                type="button"
+                className="decline-choice-btn decline-choice-delete-btn"
+                onClick={() => {
+                  setIsDeclinePromptOpen(false);
+                  setIsDeleteAccountModalOpen(true);
+                }}
+              >
+                {t('privacy.declineDeleteAccount')}
+              </button>
+              <button
+                type="button"
+                className="decline-choice-btn decline-choice-cancel-btn"
+                onClick={() => setIsDeclinePromptOpen(false)}
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account & All Data Confirmation Modal */}
+      {isDeleteAccountModalOpen && (
+        <div
+          className="modal-overlay delete-account-modal-overlay"
+          onClick={() => !isDeletingAccount && setIsDeleteAccountModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-modal-title"
+        >
+          <div className="modal-card delete-modal-card delete-account-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-icon-wrapper delete-icon-wrapper">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </div>
+              <h3 id="delete-account-modal-title" className="modal-title">
+                {t('modals.deleteAccountTitle')}
+              </h3>
+            </div>
+            <div className="modal-body">
+              <div className="delete-account-alert-banner">
+                <span className="alert-icon" aria-hidden="true">⚠️</span>
+                <p className="delete-account-warning-text">{t('modals.deleteAccountWarning')}</p>
+              </div>
+
+              <div className="delete-consequences-box">
+                <h4 className="delete-consequences-title">{t('modals.deleteAccountConsequencesTitle')}</h4>
+                <ul className="delete-consequences-list">
+                  <li><span className="consequence-bullet">✕</span> {t('modals.deleteAccountItemLogs')}</li>
+                  <li><span className="consequence-bullet">✕</span> {t('modals.deleteAccountItemReminders')}</li>
+                  <li><span className="consequence-bullet">✕</span> {t('modals.deleteAccountItemNotifications')}</li>
+                  <li><span className="consequence-bullet">✕</span> {t('modals.deleteAccountItemSharing')}</li>
+                </ul>
+              </div>
+
+              <p className="delete-account-reregister-note">
+                <span className="note-icon" aria-hidden="true">💡</span>
+                {t('modals.deleteAccountReRegisterNote')}
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={() => setIsDeleteAccountModalOpen(false)}
+                disabled={isDeletingAccount}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-delete-btn"
+                onClick={handleConfirmDeleteAccount}
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? t('modals.deleteAccountDeleting') : t('modals.deleteAccountConfirmBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Application Footer */}
       <footer className="app-footer">

@@ -302,14 +302,17 @@ describe('Medical Privacy Agreement & In-App Consent Flow (v1.7.0)', () => {
       const declineBtn = screen.getByRole('button', { name: /Decline & Sign Out/i });
       fireEvent.click(declineBtn);
 
+      const signOutOnlyBtn = await screen.findByRole('button', { name: /Sign Out Only/i });
+      fireEvent.click(signOutOnlyBtn);
+
       await waitFor(() => {
         expect(authService.getToken()).toBeNull();
         expect(screen.getByText('You have been signed out.')).toBeInTheDocument();
       });
     });
 
-    it('renders Privacy & Data Protection card in Settings tab and allows in-app review', async () => {
-      window.history.pushState({}, '', '/?page=settings');
+    it('renders Privacy & Data Protection card in About & Info tab and allows in-app review', async () => {
+      window.history.pushState({}, '', '/?page=about');
 
       authService.setSession('token-accepted', {
         id: 99,
@@ -343,7 +346,7 @@ describe('Medical Privacy Agreement & In-App Consent Flow (v1.7.0)', () => {
 
       render(<App />);
 
-      // Find Privacy & Data Protection card in Settings tab
+      // Find Privacy & Data Protection card in About & Info tab
       expect(await screen.findByRole('heading', { level: 2, name: /Privacy & Data Protection/i })).toBeInTheDocument();
       expect(screen.getByText(/Accepted on/i)).toBeInTheDocument();
 
@@ -356,6 +359,264 @@ describe('Medical Privacy Agreement & In-App Consent Flow (v1.7.0)', () => {
       expect(screen.getByRole('button', { name: /^Close$/i })).toBeInTheDocument();
 
       window.history.pushState({}, '', '/');
+    });
+
+    it('allows user account and data deletion from Privacy card with detailed consequences confirmation modal', async () => {
+      window.history.pushState({}, '', '/?page=about');
+
+      authService.setSession('token-to-delete', {
+        id: 101,
+        email: 'user.delete@domain.com',
+        name: 'User To Delete',
+        privacyAcceptedAt: '2026-10-17T12:00:00Z'
+      });
+
+      let deleteApiCalled = false;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: {
+                id: 101,
+                email: 'user.delete@domain.com',
+                name: 'User To Delete',
+                privacyAcceptedAt: '2026-10-17T12:00:00Z'
+              }
+            })
+          });
+        }
+        if (url === '/api/auth/account' && opts?.method === 'DELETE') {
+          deleteApiCalled = true;
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              message: 'Account and associated data deleted successfully.'
+            })
+          });
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      expect(await screen.findByRole('heading', { level: 2, name: /Privacy & Data Protection/i })).toBeInTheDocument();
+
+      const deleteBtn = screen.getByRole('button', { name: /Delete Account & Data/i });
+      expect(deleteBtn).toBeInTheDocument();
+      fireEvent.click(deleteBtn);
+
+      // Verify Delete Account Confirmation Modal is displayed
+      expect(await screen.findByRole('heading', { level: 3, name: /Delete Account & All Data/i })).toBeInTheDocument();
+      expect(screen.getByText(/What will be permanently deleted:/i)).toBeInTheDocument();
+      expect(screen.getByText(/All insulin injection logs, timestamps, notes, and history/i)).toBeInTheDocument();
+      expect(screen.getByText(/Shared caregiver connections/i)).toBeInTheDocument();
+      expect(screen.getByText(/You can register again at any time in the future using this email/i)).toBeInTheDocument();
+
+      // Click Confirm Delete
+      const confirmDeleteBtn = screen.getByRole('button', { name: /Yes, Delete My Account/i });
+      fireEvent.click(confirmDeleteBtn);
+
+      await waitFor(() => {
+        expect(deleteApiCalled).toBe(true);
+        expect(authService.getToken()).toBeNull();
+        expect(screen.getByText(/Your account and all associated data have been permanently deleted./i)).toBeInTheDocument();
+      });
+
+      window.history.pushState({}, '', '/');
+    });
+
+    it('allows user account and data deletion when declining mandatory privacy agreement', async () => {
+      window.history.pushState({}, '', '/');
+
+      authService.setSession('token-decline-delete', {
+        id: 102,
+        email: 'user.declinedelete@domain.com',
+        name: 'User Decline Delete',
+        privacyAcceptedAt: null
+      });
+
+      let deleteApiCalled = false;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: {
+                id: 102,
+                email: 'user.declinedelete@domain.com',
+                name: 'User Decline Delete',
+                privacyAcceptedAt: null
+              }
+            })
+          });
+        }
+        if (url === '/api/auth/account' && opts?.method === 'DELETE') {
+          deleteApiCalled = true;
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              message: 'Account deleted'
+            })
+          });
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      expect(await screen.findByText(/Please review and accept our privacy terms to continue using InsuMinder/i)).toBeInTheDocument();
+
+      const declineBtn = screen.getByRole('button', { name: /Decline & Sign Out/i });
+      fireEvent.click(declineBtn);
+
+      // Choose Delete Account from the decline choices modal
+      const deleteChoiceBtn = await screen.findByRole('button', { name: /Delete Account & Data/i });
+      fireEvent.click(deleteChoiceBtn);
+
+      // Confirmation modal appears
+      expect(await screen.findByRole('heading', { level: 3, name: /Delete Account & All Data/i })).toBeInTheDocument();
+      const confirmDeleteBtn = screen.getByRole('button', { name: /Yes, Delete My Account/i });
+      fireEvent.click(confirmDeleteBtn);
+
+      await waitFor(() => {
+        expect(deleteApiCalled).toBe(true);
+        expect(authService.getToken()).toBeNull();
+      });
+
+      window.history.pushState({}, '', '/');
+    });
+
+    it('falls back to /api/auth/profile when /api/auth/privacy-accept encounters an error', async () => {
+      authService.setSession('token-fallback-test', {
+        id: 103,
+        email: 'fallback.patient@domain.com',
+        name: 'Patient Fallback',
+        privacyAcceptedAt: null
+      });
+
+      let profileFallbackCalled = false;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: {
+                id: 103,
+                email: 'fallback.patient@domain.com',
+                name: 'Patient Fallback',
+                privacyAcceptedAt: null
+              }
+            })
+          });
+        }
+        if (url === '/api/auth/privacy-accept') {
+          // Primary endpoint fails (e.g. 405 or 500)
+          return Promise.resolve({
+            ok: false,
+            status: 405,
+            json: () => Promise.resolve({ success: false, error: 'Method not allowed' })
+          });
+        }
+        if (url === '/api/auth/profile' && opts?.method === 'PUT') {
+          profileFallbackCalled = true;
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              user: {
+                id: 103,
+                email: 'fallback.patient@domain.com',
+                name: 'Patient Fallback',
+                privacyAcceptedAt: '2026-10-17T17:00:00Z'
+              }
+            })
+          });
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      expect(await screen.findByText(/Please review and accept our privacy terms to continue using InsuMinder/i)).toBeInTheDocument();
+
+      const acceptBtn = screen.getByRole('button', { name: /I Agree & Continue/i });
+      fireEvent.click(acceptBtn);
+
+      await waitFor(() => {
+        expect(profileFallbackCalled).toBe(true);
+        expect(screen.queryByText(/Please review and accept our privacy terms to continue using InsuMinder/i)).not.toBeInTheDocument();
+      });
+
+      const currentUser = authService.getCurrentUser();
+      expect(currentUser.privacyAcceptedAt).toBe('2026-10-17T17:00:00Z');
+    });
+
+    it('optimistically accepts and dismisses modal even if all network requests fail', async () => {
+      authService.setSession('token-offline-test', {
+        id: 104,
+        email: 'offline.patient@domain.com',
+        name: 'Patient Offline',
+        privacyAcceptedAt: null
+      });
+
+      globalThis.fetch = vi.fn().mockImplementation((url) => {
+        if (url === '/api/auth/me') {
+          return Promise.resolve({
+            json: () => Promise.resolve({
+              success: true,
+              user: {
+                id: 104,
+                email: 'offline.patient@domain.com',
+                name: 'Patient Offline',
+                privacyAcceptedAt: null
+              }
+            })
+          });
+        }
+        if (url === '/api/auth/privacy-accept' || url === '/api/auth/profile') {
+          return Promise.reject(new Error('Network offline'));
+        }
+        if (url === '/api/logs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        }
+        if (url === '/api/telegram-configs') {
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, configs: [] }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      expect(await screen.findByText(/Please review and accept our privacy terms to continue using InsuMinder/i)).toBeInTheDocument();
+
+      const acceptBtn = screen.getByRole('button', { name: /I Agree & Continue/i });
+      fireEvent.click(acceptBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Please review and accept our privacy terms to continue using InsuMinder/i)).not.toBeInTheDocument();
+      });
+
+      const currentUser = authService.getCurrentUser();
+      expect(currentUser.privacyAcceptedAt).toBeTruthy();
     });
   });
 });

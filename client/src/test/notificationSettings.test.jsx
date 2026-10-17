@@ -151,7 +151,7 @@ describe('NotificationSettings Component', () => {
 
     renderNotificationSettings();
 
-    expect(screen.getByText('Device & Web Push Notifications')).toBeInTheDocument();
+    expect(screen.getByText('Device Push Notifications')).toBeInTheDocument();
 
     const testBtn = screen.getByRole('button', { name: /Send Test Push/i });
     expect(testBtn).toBeInTheDocument();

@@ -7,6 +7,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   sendTestPush,
+  openDeviceNotificationSettings,
   isAndroidApp,
   isStandaloneApp,
   checkIsAppInstalled,
@@ -72,12 +73,24 @@ export default function NotificationSettings({
     }
     checkExistingSub();
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        const perm = getNotificationPermission();
+        setPermission(perm);
+        if (perm === 'granted') {
+          setIsSubscribed(true);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     if (typeof window !== 'undefined') {
       window.__onNativeNotificationPermissionResult = (granted) => {
         if (isMounted) {
           setPermission(granted ? 'granted' : 'denied');
           if (granted) {
             setIsSubscribed(true);
+            setPushFeedback({ text: t('notificationSettings.devicePushTestSuccess'), isError: false });
           }
         }
       };
@@ -85,11 +98,12 @@ export default function NotificationSettings({
 
     return () => {
       isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (typeof window !== 'undefined') {
         window.__onNativeNotificationPermissionResult = null;
       }
     };
-  }, [isAndroid]);
+  }, [isAndroid, t]);
 
   const handleTogglePush = async () => {
     setPushLoading(true);
@@ -105,10 +119,13 @@ export default function NotificationSettings({
           setPushFeedback({ text: res.error || 'Failed to unsubscribe.', isError: true });
         }
       } else {
-        const res = await subscribeToPush(authHeader);
-        setPermission(getNotificationPermission());
+        const res = await subscribeToPush(authHeader, language);
+        const currentPerm = getNotificationPermission();
+        setPermission(currentPerm);
         if (res.ok) {
           setIsSubscribed(true);
+          // Automatically fire a test alert into the device notification center upon activation
+          await sendTestPush(authHeader, language);
           setPushFeedback({ text: t('notificationSettings.devicePushTestSuccess'), isError: false });
         } else {
           setPushFeedback({ text: res.error || 'Failed to enable push notifications.', isError: true });
@@ -119,6 +136,10 @@ export default function NotificationSettings({
     } finally {
       setPushLoading(false);
     }
+  };
+
+  const handleOpenSettings = () => {
+    openDeviceNotificationSettings();
   };
 
   const handleTestPush = async () => {
@@ -333,7 +354,7 @@ export default function NotificationSettings({
                   }`}
                 >
                   {permission === 'denied'
-                    ? t('notificationSettings.devicePushBlockedBadge')
+                    ? (isAndroid ? t('notificationSettings.devicePushBlockedBadgeDevice') : t('notificationSettings.devicePushBlockedBadge'))
                     : (isSubscribed || (isAndroid && permission === 'granted'))
                     ? t('notificationSettings.devicePushEnabledBadge')
                     : t('notificationSettings.devicePushDisabledBadge')}
@@ -352,7 +373,11 @@ export default function NotificationSettings({
               {permission === 'denied' && (
                 <div className="device-push-blocked-alert">
                   <span className="blocked-alert-icon" aria-hidden="true">⚠️</span>
-                  <p className="blocked-alert-text">{t('notificationSettings.devicePushBlockedHint')}</p>
+                  <p className="blocked-alert-text">
+                    {isAndroid
+                      ? t('notificationSettings.devicePushBlockedHintDevice')
+                      : t('notificationSettings.devicePushBlockedHint')}
+                  </p>
                 </div>
               )}
 
@@ -365,22 +390,51 @@ export default function NotificationSettings({
               <div className="device-push-actions">
                 {isAndroid ? (
                   permission === 'granted' ? (
-                    <button
-                      type="button"
-                      className="push-action-btn btn-primary"
-                      onClick={handleTestPush}
-                      disabled={testPushLoading}
-                    >
-                      {testPushLoading
-                        ? t('notificationSettings.devicePushTesting')
-                        : t('notificationSettings.devicePushTestBtn')}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="push-action-btn btn-primary"
+                        onClick={handleTestPush}
+                        disabled={testPushLoading}
+                      >
+                        {testPushLoading
+                          ? t('notificationSettings.devicePushTesting')
+                          : t('notificationSettings.devicePushTestBtn')}
+                      </button>
+                      <button
+                        type="button"
+                        className="push-action-btn btn-secondary"
+                        onClick={handleOpenSettings}
+                      >
+                        ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
+                      </button>
+                    </>
+                  ) : permission === 'denied' ? (
+                    <>
+                      <button
+                        type="button"
+                        className="push-action-btn btn-primary"
+                        onClick={handleOpenSettings}
+                      >
+                        ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
+                      </button>
+                      <button
+                        type="button"
+                        className="push-action-btn btn-secondary"
+                        onClick={handleTogglePush}
+                        disabled={pushLoading}
+                      >
+                        {pushLoading
+                          ? '...'
+                          : t('notificationSettings.devicePushEnableBtn')}
+                      </button>
+                    </>
                   ) : (
                     <button
                       type="button"
                       className="push-action-btn btn-primary"
                       onClick={handleTogglePush}
-                      disabled={pushLoading || permission === 'denied'}
+                      disabled={pushLoading}
                     >
                       {pushLoading
                         ? '...'
