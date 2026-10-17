@@ -17,18 +17,23 @@ export function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-// Check if Push & Service Worker are supported
+// Check if Push & Service Worker or Native Android notifications are supported
 export function isPushSupported() {
-  return typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
+  if (typeof window === 'undefined') return false;
+  if (isAndroidApp()) return true;
+  return 'serviceWorker' in navigator &&
     'PushManager' in window &&
     'Notification' in window;
 }
 
-// Get current browser permission state ('default' | 'granted' | 'denied' | 'unsupported')
+// Get current browser/Android permission state ('default' | 'granted' | 'denied' | 'unsupported')
 export function getNotificationPermission() {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return 'unsupported';
+  if (typeof window === 'undefined') return 'unsupported';
+  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.isNotificationPermissionGranted === 'function') {
+    return window.AndroidBridge.isNotificationPermissionGranted() ? 'granted' : 'default';
+  }
+  if (!('Notification' in window)) {
+    return isAndroidApp() ? 'default' : 'unsupported';
   }
   return Notification.permission;
 }
@@ -50,7 +55,7 @@ export async function registerServiceWorker() {
 
 // Get active Service Worker registration
 export async function getRegistration() {
-  if (!isPushSupported()) return null;
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
   return await navigator.serviceWorker.ready;
 }
 
@@ -58,7 +63,7 @@ export async function getRegistration() {
 export async function getExistingPushSubscription() {
   try {
     const reg = await getRegistration();
-    if (!reg) return null;
+    if (!reg || !('pushManager' in reg)) return null;
     return await reg.pushManager.getSubscription();
   } catch (err) {
     console.warn('[PWA] Error getting push subscription:', err);
@@ -66,20 +71,29 @@ export async function getExistingPushSubscription() {
   }
 }
 
-// Subscribe to Web Push
+// Subscribe to Web Push / Request Android Native Notification Permission
 export async function subscribeToPush(authHeader = null) {
+  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+    window.AndroidBridge.requestNotificationPermission();
+  }
+
   if (!isPushSupported()) {
     return { ok: false, error: 'Push notifications are not supported by this browser.' };
   }
 
-  // 1. Request notification permission
-  const perm = await Notification.requestPermission();
-  if (perm !== 'granted') {
-    return { ok: false, error: 'Permission denied for notifications.' };
+  // 1. Request notification permission if supported by window.Notification
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      return { ok: false, error: 'Permission denied for notifications.' };
+    }
   }
 
   const reg = await getRegistration();
-  if (!reg) {
+  if (!reg || !('pushManager' in reg)) {
+    if (isAndroidApp()) {
+      return { ok: true, isNative: true };
+    }
     return { ok: false, error: 'Service Worker not ready.' };
   }
 
@@ -91,10 +105,16 @@ export async function subscribeToPush(authHeader = null) {
     const data = await res.json();
     vapidKey = data.publicKey;
   } catch {
+    if (isAndroidApp()) {
+      return { ok: true, isNative: true };
+    }
     return { ok: false, error: 'Failed to retrieve VAPID key from server.' };
   }
 
   if (!vapidKey) {
+    if (isAndroidApp()) {
+      return { ok: true, isNative: true };
+    }
     return { ok: false, error: 'Empty VAPID key received.' };
   }
 
@@ -128,6 +148,9 @@ export async function subscribeToPush(authHeader = null) {
     return { ok: true, subscription: sub };
   } catch (err) {
     console.error('[PWA] subscribeToPush error:', err);
+    if (isAndroidApp()) {
+      return { ok: true, isNative: true };
+    }
     return { ok: false, error: err.message || 'Failed to subscribe to Web Push.' };
   }
 }
@@ -160,21 +183,40 @@ export async function unsubscribeFromPush(authHeader = null) {
 }
 
 // Send a test push notification to this device
-export async function sendTestPush(authHeader = null) {
+export async function sendTestPush(authHeader = null, lang = 'en') {
+  let nativeSent = false;
+  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.postNativeNotification === 'function') {
+    try {
+      const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
+      const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
+      window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-test', '/?action=basal');
+      nativeSent = true;
+    } catch (e) {
+      console.warn('[PWA] Native push test dispatch failed:', e);
+    }
+  }
+
   try {
     const headers = { 'Content-Type': 'application/json' };
     if (authHeader) headers['Authorization'] = authHeader;
 
     const res = await fetch('/api/push/test', {
       method: 'POST',
-      headers
+      headers,
+      body: JSON.stringify({ language: lang })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (nativeSent) {
+        return { ok: true, message: 'Native Android notification sent successfully!' };
+      }
       return { ok: false, error: data.error || 'Failed to send test push notification.' };
     }
     return { ok: true, message: data.message };
   } catch (err) {
+    if (nativeSent) {
+      return { ok: true, message: 'Native Android notification sent successfully!' };
+    }
     return { ok: false, error: err.message || 'Network error triggering test push.' };
   }
 }
@@ -230,7 +272,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.5.0',
+  version: '1.6.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -239,16 +281,16 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Real-time update progress bar, automatic restart, and celebration success dialog',
-    'Universal modal scroll locking: background page scrolling strictly prevented for all modals'
+    'Complete push notifications overhaul for Web & Android with high-priority channel support',
+    'Basal insulin reminder action button & deep-link for instant 1-tap logging'
   ],
   he: [
-    'מד התקדמות עדכון בזמן אמת, הפעלה מחדש אוטומטית וחלונית הצלחה חגיגית',
-    'נעילת גלילת רקע כוללת: מניעה מוחלטת של גלילת העמוד מאחורי כל החלוניות באפליקציה'
+    'שדרוג מקיף להתראות Push בדפדפן ובאנדרואיד עם תמיכה בערוץ התראות בעדיפות גבוהה',
+    'כפתור פעולה וקישור ישיר בתזכורת בזל לתיעוד אינסולין בלחיצה אחת'
   ],
   ru: [
-    'Индикатор прогресса обновления в реальном времени, автоперезапуск и праздничное окно успеха',
-    'Полная блокировка фоновой прокрутки: предотвращение прокрутки страницы под всеми модальными окнами'
+    'Комплексное обновление push-уведомлений для Web и Android с поддержкой высокоприоритетного канала',
+    'Кнопка действия и быстрая ссылка в напоминании базала для внесения в 1 касание'
   ]
 };
 
@@ -264,6 +306,7 @@ export function downloadAndroidApk() {
 export function isAndroidApp() {
   if (typeof window === 'undefined') return false;
   return Boolean(
+    (typeof window.AndroidBridge !== 'undefined') ||
     (window.navigator.userAgent && window.navigator.userAgent.includes('InsuMinder-Android')) ||
     (typeof window.location !== 'undefined' && new URLSearchParams(window.location.search).get('app') === 'android')
   );

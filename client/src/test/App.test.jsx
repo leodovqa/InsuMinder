@@ -1610,10 +1610,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.5\.0/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.6\.0/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.5.0')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.6.0')).toBeInTheDocument();
 
       // 3. Navigate to Settings Tab
       const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
@@ -1621,7 +1621,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.5.0')).toBeInTheDocument();
+      expect(screen.getByText('v1.6.0')).toBeInTheDocument();
 
       // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
       expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
@@ -1632,7 +1632,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Real-time update progress bar/i)).toBeInTheDocument();
+      expect(screen.getByText(/push notifications overhaul/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
@@ -1644,7 +1644,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Android
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.5.0')).toBeInTheDocument();
+      expect(screen.getByText('v1.6.0')).toBeInTheDocument();
 
       // Android version MUST show "Up to Date" status and "Check for Updates" button
       expect(screen.getByText('Up to Date')).toBeInTheDocument();
@@ -1776,6 +1776,37 @@ describe('App Component - Home & Logs UI Tests', () => {
       const apkFooterBtn = screen.getByRole('button', { name: /Download Android App/i, hidden: true });
       expect(apkFooterBtn).toBeInTheDocument();
       expect(apkFooterBtn).toHaveClass('nav-version-apk-btn');
+    });
+  });
+
+  describe('Basal Notification Deep-Link & Modal (?action=basal)', () => {
+    it('opens Basal confirmation modal when visiting ?action=basal and user is logged in', async () => {
+      const mockUser = { id: 1, email: 'user@test.org', name: 'Tester', basalTime: '20:00' };
+      authService.setSession('token-123', mockUser);
+      window.history.pushState({}, '', '/?action=basal');
+
+      let injectedType = null;
+      globalThis.fetch = vi.fn().mockImplementation((url, opts) => {
+        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
+        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
+        if (url === '/api/injections' && opts?.method === 'POST') {
+          injectedType = JSON.parse(opts.body).type;
+          return Promise.resolve({ json: () => Promise.resolve({ success: true, id: 999 }) });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
+      });
+
+      render(<App />);
+
+      const modalTitle = await screen.findByRole('heading', { name: /Log Basal Insulin/i });
+      expect(modalTitle).toBeInTheDocument();
+
+      const confirmBtn = screen.getByRole('button', { name: /Confirm & Log/i });
+      fireEvent.click(confirmBtn);
+
+      await waitFor(() => {
+        expect(injectedType).toBe('basal');
+      });
     });
   });
 });

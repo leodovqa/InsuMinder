@@ -1,38 +1,27 @@
 // functions/api/_webpush.js - RFC 8291 & RFC 8292 Zero-Dependency Web Push Dispatcher
 // Works 100% identically across Cloudflare Pages Functions and modern Node.js runtimes
 
-let cachedWebCryptoKeys = null;
+export const STABLE_VAPID_KEYS = {
+  publicKey: 'BF7pTPq0Grnklt77f1UujkSU-B-AqR3ZHKLGIyX8DyhYGdAI4mVsXwazKGEunwxykSosFApmHlVfGOlcl0ywA8I',
+  privateKey: 'kZTCIFztIITs-q4NGY2TZUgKst_o27AN4HUi7r9zUV0',
+  subject: 'mailto:support@insuminder.com'
+};
 
 export async function resolveVapidKeys(env) {
   const pub = env?.VAPID_PUBLIC_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PUBLIC_KEY);
   const priv = env?.VAPID_PRIVATE_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PRIVATE_KEY);
-  const sub = env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || 'mailto:support@insuminder.com';
+  const sub = env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || STABLE_VAPID_KEYS.subject;
 
   if (pub && priv) {
     return { publicKey: pub, privateKey: priv, subject: sub };
   }
 
-  if (!cachedWebCryptoKeys) {
-    const keyPair = await crypto.subtle.generateKey(
-      { name: 'ECDSA', namedCurve: 'P-256' },
-      true,
-      ['sign', 'verify']
-    );
-    const pubRaw = await crypto.subtle.exportKey('raw', keyPair.publicKey);
-    const privJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
-    const pubB64 = uint8ArrayToBase64Url(new Uint8Array(pubRaw));
-    cachedWebCryptoKeys = {
-      publicKey: pubB64,
-      privateKey: privJwk.d,
-      subject: sub
-    };
-  }
-  return cachedWebCryptoKeys;
+  return STABLE_VAPID_KEYS;
 }
 
-export const VAPID_SUBJECT = 'mailto:support@insuminder.com';
-export const VAPID_PUBLIC_KEY = (typeof process !== 'undefined' && process.env?.VAPID_PUBLIC_KEY) || '';
-export const VAPID_PRIVATE_KEY = (typeof process !== 'undefined' && process.env?.VAPID_PRIVATE_KEY) || '';
+export const VAPID_SUBJECT = STABLE_VAPID_KEYS.subject;
+export const VAPID_PUBLIC_KEY = STABLE_VAPID_KEYS.publicKey;
+export const VAPID_PRIVATE_KEY = STABLE_VAPID_KEYS.privateKey;
 
 function base64UrlToUint8Array(base64Url) {
   const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);

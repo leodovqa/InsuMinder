@@ -7,6 +7,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   sendTestPush,
+  isAndroidApp,
   isStandaloneApp,
   checkIsAppInstalled,
   downloadAndroidApk
@@ -20,7 +21,7 @@ export default function NotificationSettings({
   initialScope = 'personal',
   onScopeChange = null
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [activeScope, setActiveScope] = useState(initialScope || 'personal');
   const [prevInitialScope, setPrevInitialScope] = useState(initialScope);
 
@@ -46,6 +47,8 @@ export default function NotificationSettings({
   const [testPushLoading, setTestPushLoading] = useState(false);
   const [pushFeedback, setPushFeedback] = useState(null);
 
+  const isAndroid = isAndroidApp();
+
   // PWA install state
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
   const [installing, setInstalling] = useState(false);
@@ -57,8 +60,9 @@ export default function NotificationSettings({
       if (isPushSupported()) {
         const sub = await getExistingPushSubscription();
         if (isMounted) {
-          setIsSubscribed(Boolean(sub));
-          setPermission(getNotificationPermission());
+          const perm = getNotificationPermission();
+          setIsSubscribed(Boolean(sub) || (isAndroid && perm === 'granted'));
+          setPermission(perm);
         }
       }
       const installed = await checkIsAppInstalled();
@@ -68,10 +72,24 @@ export default function NotificationSettings({
     }
     checkExistingSub();
 
+    if (typeof window !== 'undefined') {
+      window.__onNativeNotificationPermissionResult = (granted) => {
+        if (isMounted) {
+          setPermission(granted ? 'granted' : 'denied');
+          if (granted) {
+            setIsSubscribed(true);
+          }
+        }
+      };
+    }
+
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.__onNativeNotificationPermissionResult = null;
+      }
     };
-  }, []);
+  }, [isAndroid]);
 
   const handleTogglePush = async () => {
     setPushLoading(true);
@@ -108,7 +126,7 @@ export default function NotificationSettings({
     setPushFeedback(null);
     try {
       const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
-      const res = await sendTestPush(authHeader);
+      const res = await sendTestPush(authHeader, language);
       if (res.ok) {
         setPushFeedback({ text: t('notificationSettings.devicePushTestSuccess'), isError: false });
       } else {
@@ -309,14 +327,14 @@ export default function NotificationSettings({
                   className={`notification-status-badge ${
                     permission === 'denied'
                       ? 'badge-blocked'
-                      : isSubscribed
+                      : (isSubscribed || (isAndroid && permission === 'granted'))
                       ? 'badge-active'
                       : 'badge-disabled'
                   }`}
                 >
                   {permission === 'denied'
                     ? t('notificationSettings.devicePushBlockedBadge')
-                    : isSubscribed
+                    : (isSubscribed || (isAndroid && permission === 'granted'))
                     ? t('notificationSettings.devicePushEnabledBadge')
                     : t('notificationSettings.devicePushDisabledBadge')}
                 </span>
@@ -345,30 +363,58 @@ export default function NotificationSettings({
               )}
 
               <div className="device-push-actions">
-                <button
-                  type="button"
-                  className={`push-action-btn ${isSubscribed ? 'btn-danger-outline' : 'btn-primary'}`}
-                  onClick={handleTogglePush}
-                  disabled={pushLoading || permission === 'denied'}
-                >
-                  {pushLoading
-                    ? '...'
-                    : isSubscribed
-                    ? t('notificationSettings.devicePushDisableBtn')
-                    : t('notificationSettings.devicePushEnableBtn')}
-                </button>
+                {isAndroid ? (
+                  permission === 'granted' ? (
+                    <button
+                      type="button"
+                      className="push-action-btn btn-primary"
+                      onClick={handleTestPush}
+                      disabled={testPushLoading}
+                    >
+                      {testPushLoading
+                        ? t('notificationSettings.devicePushTesting')
+                        : t('notificationSettings.devicePushTestBtn')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="push-action-btn btn-primary"
+                      onClick={handleTogglePush}
+                      disabled={pushLoading || permission === 'denied'}
+                    >
+                      {pushLoading
+                        ? '...'
+                        : t('notificationSettings.devicePushEnableBtn')}
+                    </button>
+                  )
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={`push-action-btn ${isSubscribed ? 'btn-danger-outline' : 'btn-primary'}`}
+                      onClick={handleTogglePush}
+                      disabled={pushLoading || permission === 'denied'}
+                    >
+                      {pushLoading
+                        ? '...'
+                        : isSubscribed
+                        ? t('notificationSettings.devicePushDisableBtn')
+                        : t('notificationSettings.devicePushEnableBtn')}
+                    </button>
 
-                {isSubscribed && (
-                  <button
-                    type="button"
-                    className="push-action-btn btn-secondary"
-                    onClick={handleTestPush}
-                    disabled={testPushLoading}
-                  >
-                    {testPushLoading
-                      ? t('notificationSettings.devicePushTesting')
-                      : t('notificationSettings.devicePushTestBtn')}
-                  </button>
+                    {isSubscribed && (
+                      <button
+                        type="button"
+                        className="push-action-btn btn-secondary"
+                        onClick={handleTestPush}
+                        disabled={testPushLoading}
+                      >
+                        {testPushLoading
+                          ? t('notificationSettings.devicePushTesting')
+                          : t('notificationSettings.devicePushTestBtn')}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>

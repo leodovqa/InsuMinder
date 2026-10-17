@@ -1,27 +1,28 @@
 {
-  "version": "1.5.0",
-  "versionCode": 7,
+  "version": "1.6.0",
+  "versionCode": 8,
   "versionHistory": [
     "1.0.0",
     "1.1.0",
     "1.2.0",
     "1.3.0",
     "1.4.0",
-    "1.5.0"
+    "1.5.0",
+    "1.6.0"
   ],
-  "buildTime": "2026-10-17T11:00:00Z",
+  "buildTime": "2026-10-17T15:00:00Z",
   "changes": {
     "en": [
-      "Real-time update progress bar, automatic restart, and celebration success dialog",
-      "Universal modal scroll locking: background page scrolling strictly prevented for all modals"
+      "Web Push and native Android push notifications with stable RFC 8292 keys and deep linking",
+      "One-tap basal reminder action opens InsuMinder directly to log your daily dose"
     ],
     "he": [
-      "מד התקדמות עדכון בזמן אמת, הפעלה מחדש אוטומטית וחלונית הצלחה חגיגית",
-      "נעילת גלילת רקע כוללת: מניעה מוחלטת של גלילת העמוד מאחורי כל החלוניות באפליקציה"
+      "התראות פוש מתקדמות בדפדפן ובאנדרואיד עם מפתחות VAPID יציבים וקישורי עומק",
+      "תזכורת בזאלי בלחיצה אחת: פתיחה מיידית של InsuMinder לתיעוד המנה היומית"
     ],
     "ru": [
-      "Индикатор прогресса обновления в реальном времени, автоперезапуск и праздничное окно успеха",
-      "Полная блокировка фоновой прокрутки: предотвращение прокрутки страницы под всеми модальными окнами"
+      "Web Push и нативные Android push-уведомления со стабильными VAPID ключами и диплинками",
+      "Напоминание о базальном инсулине в 1 клик: мгновенное открытие InsuMinder для фиксации дозы"
     ]
   }
 }

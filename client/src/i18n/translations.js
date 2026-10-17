@@ -299,7 +299,10 @@ export const translations = {
       basalReminderTitle: 'Basal Injection Reminder',
       earlyInjectionTitle: 'Early Injection Confirmation',
       earlyInjectionConfirmText: 'Less than 3 hours have passed since your previous injection. Are you sure you want to log another dose now?',
-      earlyInjectionWarning: 'Injecting too soon may cause insulin stacking and hypoglycemia.'
+      earlyInjectionWarning: 'Injecting too soon may cause insulin stacking and hypoglycemia.',
+      basalConfirmTitle: 'Log Basal Insulin',
+      basalConfirmBody: 'Would you like to log your daily basal insulin injection now?',
+      basalConfirmButton: 'Confirm & Log'
     },
     auth: {
       completeProfileTitle: 'Complete Your Profile',
@@ -510,7 +513,8 @@ export const translations = {
       testSentCheckTelegram: 'Test notification sent! Check your Telegram chat.',
       telegramTestFailed: 'Telegram test failed: {error}',
       failedToReachServerTest: 'Failed to reach server to test Telegram notification.',
-      queueCleared: 'Notification queue cleared! No pending reminders will be sent.'
+      queueCleared: 'Notification queue cleared! No pending reminders will be sent.',
+      basalAlreadyLoggedToast: 'Daily basal insulin dose was already logged for today.'
     }
   },
   he: {
@@ -798,7 +802,10 @@ export const translations = {
       basalReminderTitle: 'תזכורת אינסולין בזאלי',
       earlyInjectionTitle: 'אישור הזרקה מוקדמת',
       earlyInjectionConfirmText: 'טרם חלפו 3 שעות ממועד ההזרקה הקודם. האם אתה בטוח שברצונך לתעד הזרקה נוספת כעת?',
-      earlyInjectionWarning: 'הזרקה מוקדמת מדי עלולה לגרום להצטברות אינסולין ולירידת סוכר (היפוגליקמיה).'
+      earlyInjectionWarning: 'הזרקה מוקדמת מדי עלולה לגרום להצטברות אינסולין ולירידת סוכר (היפוגליקמיה).',
+      basalConfirmTitle: 'תיעוד אינסולין בזאלי',
+      basalConfirmBody: 'האם ברצונך לתעד כעת את הזרקת מנת האינסולין הבזאלי היומית שלך?',
+      basalConfirmButton: 'אישור ותיעוד'
     },
     auth: {
       completeProfileTitle: 'השלמת פרטי הפרופיל',
@@ -1009,7 +1016,8 @@ export const translations = {
       testSentCheckTelegram: 'הודעת בדיקה נשלחה! בדקו את שיחת הטלגרם שלכם.',
       telegramTestFailed: 'בדיקת טלגרם נכשלה: {error}',
       failedToReachServerTest: 'שגיאת תקשורת עם השרת בעת בדיקת טלגרם.',
-      queueCleared: 'תור ההתראות נוקה בהצלחה! לא יישלחו תזכורות ממתינות.'
+      queueCleared: 'תור ההתראות נוקה בהצלחה! לא יישלחו תזכורות ממתינות.',
+      basalAlreadyLoggedToast: 'מנת האינסולין הבזאלי היומית כבר תועדה להיום.'
     }
   },
   ru: {
@@ -1297,7 +1305,10 @@ export const translations = {
       basalReminderTitle: 'Напоминание о базальном инсулине',
       earlyInjectionTitle: 'Подтверждение ранней инъекции',
       earlyInjectionConfirmText: 'С момента предыдущей инъекции прошло менее 3 часов. Вы уверены, что хотите зафиксировать ещё одну дозу сейчас?',
-      earlyInjectionWarning: 'Слишком ранняя инъекция может привести к накоплению инсулина и гипогликемии.'
+      earlyInjectionWarning: 'Слишком ранняя инъекция может привести к накоплению инсулина и гипогликемии.',
+      basalConfirmTitle: 'Фиксация базального инсулина',
+      basalConfirmBody: 'Хотите зафиксировать ежедневную инъекцию базального инсулина сейчас?',
+      basalConfirmButton: 'Подтвердить и зафиксировать'
     },
     auth: {
       completeProfileTitle: 'Заполните ваш профиль',
@@ -1508,7 +1519,8 @@ export const translations = {
       testSentCheckTelegram: 'Тестовое уведомление отправлено! Проверьте ваш чат в Telegram.',
       telegramTestFailed: 'Ошибка тестирования Telegram: {error}',
       failedToReachServerTest: 'Не удалось связаться с сервером для тестирования Telegram-уведомления.',
-      queueCleared: 'Очередь уведомлений очищена! Ожидающие напоминания отправлены не будут.'
+      queueCleared: 'Очередь уведомлений очищена! Ожидающие напоминания отправлены не будут.',
+      basalAlreadyLoggedToast: 'Ежедневная доза базального инсулина уже была зафиксирована сегодня.'
     }
   }
 };

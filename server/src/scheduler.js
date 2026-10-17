@@ -88,14 +88,14 @@ function buildMessage3h(injectedAt, isLocal = true, lang = 'en') {
 function buildMessageBasal(isLocal = true, lang = 'en') {
   if (lang === 'he') {
     const prefix = isLocal ? "🌙 מאת InsuMinder (Local):" : "🌙 מאת InsuMinder:";
-    return `${prefix}\n⏰ תזכורת להזרקת אינסולין בזאלי\n\nנא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.`;
+    return `${prefix}\n⏰ תזכורת להזרקת אינסולין בזאלי\n\nנא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.\n\n📱 פתח את InsuMinder:\nhttps://insuminder.pages.dev/?action=basal`;
   }
   if (lang === 'ru') {
     const prefix = isLocal ? "🌙 От InsuMinder (Local):" : "🌙 От InsuMinder:";
-    return `${prefix}\n⏰ Напоминание о базальном инсулине\n\nПожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.`;
+    return `${prefix}\n⏰ Напоминание о базальном инсулине\n\nПожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.\n\n📱 Открыть InsuMinder:\nhttps://insuminder.pages.dev/?action=basal`;
   }
   const prefix = isLocal ? "🌙 From InsuMinder (Local):" : "🌙 From InsuMinder:";
-  return `${prefix}\n⏰ Basal Injection Reminder\n\nPlease remember to take and log your daily basal insulin dose.`;
+  return `${prefix}\n⏰ Basal Injection Reminder\n\nPlease remember to take and log your daily basal insulin dose.\n\n📱 Open InsuMinder:\nhttps://insuminder.pages.dev/?action=basal`;
 }
 
 function getJerusalemDateAndTime(date = new Date()) {
@@ -227,7 +227,7 @@ function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
       tag: 'insuminder-basal',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/badge-72x72.png',
-      data: { url: '/' }
+      data: { url: '/?action=basal' }
     };
   }
   if (lang === 'ru') {
@@ -237,7 +237,7 @@ function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
       tag: 'insuminder-basal',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/badge-72x72.png',
-      data: { url: '/' }
+      data: { url: '/?action=basal' }
     };
   }
   return {
@@ -246,7 +246,7 @@ function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
     tag: 'insuminder-basal',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/badge-72x72.png',
-    data: { url: '/' }
+    data: { url: '/?action=basal' }
   };
 }
 
