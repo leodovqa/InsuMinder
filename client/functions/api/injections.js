@@ -42,9 +42,136 @@ export async function onRequestPost(context) {
 
     const userId = await getEffectiveUserId(request, env, authUser, db);
     const now = new Date();
-    const currentMinute = now.toISOString().slice(0, 16);
+    const body = await request.json().catch(() => ({}));
+    const { type = 'bolus', manual = false, date, time, injected_at: customInjectedAt } = body || {};
+    const cleanType = type === 'basal' ? 'basal' : 'bolus';
+    const isBasal = cleanType === 'basal';
 
-    // Check if an injection was already logged this same minute by this user
+    // Handle Manual Injection Logging
+    if (manual || date || customInjectedAt) {
+      let finalDateObj;
+      if (customInjectedAt) {
+        finalDateObj = new Date(customInjectedAt);
+      } else if (date && time) {
+        finalDateObj = new Date(`${date}T${time}:00`);
+      }
+
+      if (!finalDateObj || isNaN(finalDateObj.getTime())) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Invalid injection date/time format." }),
+          { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+
+      if (finalDateObj.getTime() > now.getTime()) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Future date and time are not allowed." }),
+          { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
+      oneMonthAgo.setHours(0, 0, 0, 0);
+      if (finalDateObj.getTime() < oneMonthAgo.getTime()) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Cannot log injection older than 1 month." }),
+          { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+
+      const { results: allLogs } = await db
+        .prepare("SELECT * FROM injection_logs WHERE user_id = ? ORDER BY injected_at DESC")
+        .bind(userId)
+        .all();
+
+      const { dateStr: targetDate, timeStr: targetTime } = getJerusalemDateAndTime(finalDateObj);
+
+      const sameDayLogs = (allLogs || []).filter(l => {
+        const { dateStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+        return dateStr === targetDate;
+      });
+
+      if (isBasal) {
+        const existingBasal = sameDayLogs.find(l => l.type === 'basal');
+        if (existingBasal) {
+          return new Response(
+            JSON.stringify({ success: false, error: "You cannot have 2 basal injections in one day." }),
+            { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+          );
+        }
+      } else {
+        const bolusLogs = sameDayLogs.filter(l => !l.type || l.type === 'bolus');
+        if (bolusLogs.length >= 10) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Maximum 10 bolus injections allowed per day." }),
+            { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+          );
+        }
+
+        const duplicateMinute = bolusLogs.find(l => {
+          const { timeStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+          return timeStr === targetTime;
+        });
+        if (duplicateMinute) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Can't add, this exact time already appears." }),
+            { status: 409, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+          );
+        }
+      }
+
+      const injected_at = finalDateObj.toISOString();
+      const notify_10m_at = new Date(finalDateObj.getTime() + 10 * 60 * 1000).toISOString();
+      const notify_2h_at = new Date(finalDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString();
+      const notify_3h_at = new Date(finalDateObj.getTime() + 3 * 60 * 60 * 1000).toISOString();
+      const status_sent = 1;
+
+      const info = await db
+        .prepare(
+          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?)"
+        )
+        .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, cleanType)
+        .run();
+
+      if (isBasal) {
+        const { dateStr: todayDate } = getJerusalemDateAndTime(now);
+        if (targetDate === todayDate) {
+          const userRow = await db.prepare("SELECT basal_time FROM users WHERE id = ?").bind(userId).first();
+          const basalTime = (userRow && userRow.basal_time) ? userRow.basal_time : '20:00';
+          await db
+            .prepare(
+              `INSERT INTO basal_reminders (user_id, reminder_date, scheduled_time, status_sent, sent_at, error)
+               VALUES (?, ?, ?, 0, NULL, 'Already injected')
+               ON CONFLICT(user_id, reminder_date) DO UPDATE SET
+                 status_sent = CASE WHEN basal_reminders.status_sent = 1 THEN 1 ELSE 0 END,
+                 error = CASE WHEN basal_reminders.status_sent = 1 THEN NULL ELSE 'Already injected' END`
+            )
+            .bind(userId, todayDate, basalTime)
+            .run();
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          id: info.meta.last_row_id,
+          type: cleanType,
+          injected_at,
+          manual: true
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        }
+      );
+    }
+
+    // Live Injection: Check rate-limit (one per minute)
+    const currentMinute = now.toISOString().slice(0, 16);
     const latest = await db
       .prepare("SELECT injected_at FROM injection_logs WHERE user_id = ? ORDER BY injected_at DESC LIMIT 1")
       .bind(userId)
@@ -65,11 +192,6 @@ export async function onRequestPost(context) {
         }
       );
     }
-
-    const body = await request.json().catch(() => ({}));
-    const { type = 'bolus' } = body || {};
-    const cleanType = type === 'basal' ? 'basal' : 'bolus';
-    const isBasal = cleanType === 'basal';
 
     const injected_at = now.toISOString();
     const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();

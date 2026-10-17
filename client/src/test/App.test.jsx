@@ -91,6 +91,12 @@ describe('App Component - Home & Logs UI Tests', () => {
           json: () => Promise.resolve({ success: true, message: 'Test message sent successfully!' })
         });
       }
+      if (url === '/api/injections') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, id: 999 })
+        });
+      }
       if (url.startsWith('/version.json')) {
         return Promise.resolve({
           ok: true,
@@ -1599,36 +1605,177 @@ describe('App Component - Home & Logs UI Tests', () => {
   });
 
   describe('App Versioning & About Card UI', () => {
-    it('displays app version in the footer, nav drawer, and About card in Settings', async () => {
+    it('displays app version in the footer, nav drawer, and About card on Web (without update check or up-to-date badge)', async () => {
+      window.history.pushState({}, '', '/');
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.3\.1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.4\.0/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.3.1')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.4.0')).toBeInTheDocument();
 
       // 3. Navigate to Settings Tab
       const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
       fireEvent.click(settingsNavBtn);
 
-      // Verify About InsuMinder card
+      // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.3.1')).toBeInTheDocument();
-      expect(screen.getByText('Up to Date')).toBeInTheDocument();
+      expect(screen.getByText('v1.4.0')).toBeInTheDocument();
+
+      // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
+      expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Check for Updates/i })).not.toBeInTheDocument();
 
       // Verify "What's New in this Version" button and expandable highlights
       const whatsNewBtn = screen.getByRole('button', { name: /What's New in this Version/i });
+      expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Preserved active context and settings when switching languages/i)).toBeInTheDocument();
+      expect(screen.getByText(/Added manual injection logging for Bolus and Basal/i)).toBeInTheDocument();
+    });
 
-      // Verify "Check for Updates" button
+    it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
+      window.history.pushState({}, '', '/?app=android');
+      render(<App />);
+
+      const settingsNavBtn = screen.getByRole('button', { name: /App Settings/i, hidden: true });
+      fireEvent.click(settingsNavBtn);
+
+      // Verify About InsuMinder card on Android
+      expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
+      expect(screen.getByText('v1.4.0')).toBeInTheDocument();
+
+      // Android version MUST show "Up to Date" status and "Check for Updates" button
+      expect(screen.getByText('Up to Date')).toBeInTheDocument();
+
       const checkUpdatesBtn = screen.getByRole('button', { name: /Check for Updates/i });
+      expect(checkUpdatesBtn).toBeInTheDocument();
       fireEvent.click(checkUpdatesBtn);
 
       const feedbackElements = await screen.findAllByText('You are on the latest version of InsuMinder.');
       expect(feedbackElements.length).toBeGreaterThanOrEqual(1);
+
+      window.history.pushState({}, '', '/');
+    });
+  });
+
+  describe('Manual Injection Logging UI & Validation (v1.4.0)', () => {
+    it('renders Add Injection Manually section in Logs tab and opens modal', async () => {
+      window.history.pushState({}, '', '/?page=logs');
+      render(<App />);
+
+      const addBtn = await screen.findByRole('button', { name: /Add Injection Manually/i });
+      expect(addBtn).toBeInTheDocument();
+
+      fireEvent.click(addBtn);
+
+      expect(await screen.findByRole('heading', { level: 3, name: /Log Injection Manually/i })).toBeInTheDocument();
+      expect(screen.getByLabelText(/Date/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Time \(24h\)/i)).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /Bolus/i })).toBeInTheDocument();
+      expect(screen.getByRole('radio', { name: /Basal/i })).toBeInTheDocument();
+
+      // Close via Cancel button
+      const cancelBtn = screen.getByRole('button', { name: /Cancel/i });
+      fireEvent.click(cancelBtn);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('heading', { level: 3, name: /Log Injection Manually/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('validates against future date/time selection', async () => {
+      window.history.pushState({}, '', '/?page=logs');
+      render(<App />);
+
+      const addBtn = await screen.findByRole('button', { name: /Add Injection Manually/i });
+      fireEvent.click(addBtn);
+
+      const dateInput = screen.getByLabelText(/Date/i);
+      const timeInput = screen.getByLabelText(/Time \(24h\)/i);
+      const submitBtn = screen.getByRole('button', { name: /Add Injection$/i });
+
+      // Set future date (e.g. year 2099)
+      fireEvent.change(dateInput, { target: { value: '2099-01-01' } });
+      fireEvent.change(timeInput, { target: { value: '12:00' } });
+      fireEvent.click(submitBtn);
+
+      expect(await screen.findByText('Future date and time are not allowed.')).toBeInTheDocument();
+    });
+
+    it('submits a valid manual injection and displays success toast', async () => {
+      window.history.pushState({}, '', '/?page=logs');
+      render(<App />);
+
+      const addBtn = await screen.findByRole('button', { name: /Add Injection Manually/i });
+      fireEvent.click(addBtn);
+
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yDateStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+      const dateInput = screen.getByLabelText(/Date/i);
+      const timeInput = screen.getByLabelText(/Time \(24h\)/i);
+      const submitBtn = screen.getByRole('button', { name: /Add Injection$/i });
+
+      fireEvent.change(dateInput, { target: { value: yDateStr } });
+      fireEvent.change(timeInput, { target: { value: '14:30' } });
+
+      fireEvent.click(submitBtn);
+
+      expect(await screen.findByText('Injection recorded successfully.')).toBeInTheDocument();
+    });
+
+    it('provides quick selection chips for Today and past 2 days, and relative hour presets', async () => {
+      window.history.pushState({}, '', '/?page=logs');
+      render(<App />);
+
+      const addBtn = await screen.findByRole('button', { name: /Add Injection Manually/i });
+      fireEvent.click(addBtn);
+
+      // Verify Today chip
+      const todayChip = screen.getByRole('button', { name: /Today/i });
+      expect(todayChip).toBeInTheDocument();
+
+      // Verify Current Time chip
+      const currentTimeChip = screen.getByRole('button', { name: /Current Time/i });
+      expect(currentTimeChip).toBeInTheDocument();
+
+      // Open TimePicker popover to verify relative presets (-1h, -2h, -3h, -4h)
+      const openTimeBtn = screen.getByRole('button', { name: /Toggle 24-hour time picker/i });
+      fireEvent.click(openTimeBtn);
+
+      const now = new Date();
+      const prevHour = (now.getHours() - 1 + 24) % 24;
+      const prevHourStr = `${String(prevHour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      expect(screen.getByRole('button', { name: prevHourStr })).toBeInTheDocument();
+    });
+  });
+
+  describe('Sidebar Navigation Modernization & Scroll Locking (Tasks 3, 4, 5)', () => {
+    it('locks background body scrolling when sidebar drawer is open and unlocks when closed', () => {
+      render(<App />);
+
+      expect(document.body.classList.contains('nav-drawer-open')).toBe(false);
+
+      const hamburgerBtn = screen.getByRole('button', { name: /Open navigation menu/i });
+      fireEvent.click(hamburgerBtn);
+
+      expect(document.body.classList.contains('nav-drawer-open')).toBe(true);
+
+      const closeBtn = screen.getByRole('button', { name: /Close navigation menu/i });
+      fireEvent.click(closeBtn);
+
+      expect(document.body.classList.contains('nav-drawer-open')).toBe(false);
+    });
+
+    it('renders compact APK button in sidebar version footer', () => {
+      render(<App />);
+
+      const apkFooterBtn = screen.getByRole('button', { name: /Download Android App/i, hidden: true });
+      expect(apkFooterBtn).toBeInTheDocument();
+      expect(apkFooterBtn).toHaveClass('nav-version-apk-btn');
     });
   });
 });

@@ -23,6 +23,7 @@ import AuthModal from './AuthModal';
 import Profile from './Profile';
 import NotificationSettings from './NotificationSettings';
 import TimePicker24h from './TimePicker24h';
+import DatePickerModern from './DatePickerModern';
 import AndroidInstallModal from './AndroidInstallModal';
 import UpdateBanner from './UpdateBanner';
 import { authService } from './authService';
@@ -410,12 +411,99 @@ function AppContent() {
     updateUrlForTab(activeTab);
   }, [activeTab]);
 
+  // Manual Injection Modal State
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualType, setManualType] = useState('bolus');
+  const [manualDate, setManualDate] = useState('');
+  const [manualTime, setManualTime] = useState('');
+  const [manualError, setManualError] = useState('');
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
+  const getTodayDateStr = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const getOneMonthAgoDateStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 31);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const getDateOffsetStr = (offsetDays) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const formatDayMonthChip = (dateStr) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}`;
+    }
+    return dateStr;
+  };
+
+  const getRelativeHourPresets = () => {
+    const now = new Date();
+    const curH = now.getHours();
+    const curM = String(now.getMinutes()).padStart(2, '0');
+    return [1, 2, 3, 4].map(offset => {
+      const h = (curH - offset + 24) % 24;
+      return `${String(h).padStart(2, '0')}:${curM}`;
+    });
+  };
+
+  const getFormattedDateDisplay = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString(language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-GB', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const openManualModal = () => {
+    const now = new Date();
+    const todayStr = getTodayDateStr();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    setManualDate(todayStr);
+    setManualTime(timeStr);
+    setManualType('bolus');
+    setManualError('');
+    setIsManualModalOpen(true);
+  };
+
+  const closeManualModal = () => {
+    setIsManualModalOpen(false);
+    setManualError('');
+  };
+
   // Handle browser Back / Forward navigation
   useEffect(() => {
     const handlePopState = () => {
       setActiveTab(getTabFromUrl());
       if (isAuthModalOpen) {
         setIsAuthModalOpen(false);
+      }
+      if (isManualModalOpen) {
+        setIsManualModalOpen(false);
       }
       if (isEarlyBolusModalOpen) {
         setIsEarlyBolusModalOpen(false);
@@ -436,7 +524,19 @@ function AppContent() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthModalOpen, isEarlyBolusModalOpen, isAndroidModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+  }, [isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, isAndroidModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+
+  // Prevent background page scrolling when sidebar navigation drawer is open (Task 3)
+  useEffect(() => {
+    if (isNavOpen) {
+      document.body.classList.add('nav-drawer-open');
+    } else {
+      document.body.classList.remove('nav-drawer-open');
+    }
+    return () => {
+      document.body.classList.remove('nav-drawer-open');
+    };
+  }, [isNavOpen]);
 
   // Telegram Configuration State
   const [telegramConfigs, setTelegramConfigs] = useState(() => {
@@ -934,6 +1034,8 @@ function AppContent() {
       if (e.key === 'Escape') {
         if (isAuthModalOpen) {
           setIsAuthModalOpen(false);
+        } else if (isManualModalOpen) {
+          setIsManualModalOpen(false);
         } else if (isEarlyBolusModalOpen) {
           setIsEarlyBolusModalOpen(false);
         } else if (reminderModalData) {
@@ -954,7 +1056,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
 
   // Auto-dismiss notification after 4.5 seconds
   useEffect(() => {
@@ -1034,6 +1136,109 @@ function AppContent() {
         message: t('notifications.failedToLogInjection')
       });
     });
+  };
+
+  const handleManualInjectionSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (!manualDate || !manualTime) {
+      setManualError(t('logs.manualModalDescription'));
+      return;
+    }
+
+    const [year, month, day] = manualDate.split('-').map(Number);
+    const [hours, minutes] = manualTime.split(':').map(Number);
+    const selectedDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+    if (isNaN(selectedDate.getTime())) {
+      setManualError('Invalid date or time.');
+      return;
+    }
+
+    const now = new Date();
+    if (selectedDate.getTime() > now.getTime()) {
+      setManualError(t('logs.errorFutureNotAllowed'));
+      return;
+    }
+
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
+    oneMonthAgo.setHours(0, 0, 0, 0);
+    if (selectedDate.getTime() < oneMonthAgo.getTime()) {
+      setManualError(t('logs.errorOlderThanMonth'));
+      return;
+    }
+
+    // Client-side validations against existing logs
+    const sameDayLogs = logs.filter(l => formatDateOnly(l.injected_at) === manualDate);
+
+    if (manualType === 'basal') {
+      const existingBasal = sameDayLogs.find(l => l.type === 'basal');
+      if (existingBasal) {
+        setManualError(t('logs.errorTwoBasalOneDay'));
+        return;
+      }
+    } else {
+      const bolusLogs = sameDayLogs.filter(l => !l.type || l.type === 'bolus');
+      if (bolusLogs.length >= 10) {
+        setManualError(t('logs.errorMaxTenBolus'));
+        return;
+      }
+      const duplicateMinute = bolusLogs.find(l => formatTimeOnly(l.injected_at) === manualTime);
+      if (duplicateMinute) {
+        setManualError(t('logs.errorDuplicateTime'));
+        return;
+      }
+    }
+
+    setIsSubmittingManual(true);
+    setManualError('');
+
+    try {
+      const res = await fetch('/api/injections', {
+        method: 'POST',
+        headers: {
+          ...authService.getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          manual: true,
+          type: manualType,
+          date: manualDate,
+          time: manualTime,
+          injected_at: selectedDate.toISOString()
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        closeManualModal();
+        setNotification({
+          type: 'success',
+          message: t('logs.manualLoggedSuccess')
+        });
+        fetchLogs();
+      } else {
+        const errMsg = data.error || '';
+        if (/2 basal|two basal/i.test(errMsg)) {
+          setManualError(t('logs.errorTwoBasalOneDay'));
+        } else if (/10 bolus|maximum 10/i.test(errMsg)) {
+          setManualError(t('logs.errorMaxTenBolus'));
+        } else if (/exact time|already appears/i.test(errMsg)) {
+          setManualError(t('logs.errorDuplicateTime'));
+        } else if (/future/i.test(errMsg)) {
+          setManualError(t('logs.errorFutureNotAllowed'));
+        } else if (/1 month/i.test(errMsg)) {
+          setManualError(t('logs.errorOlderThanMonth'));
+        } else {
+          setManualError(errMsg || 'Failed to record injection.');
+        }
+      }
+    } catch (err) {
+      console.error('Manual injection error:', err);
+      setManualError('Network error while saving injection.');
+    } finally {
+      setIsSubmittingManual(false);
+    }
   };
 
   const handleClearNotificationQueue = async () => {
@@ -1573,21 +1778,8 @@ function AppContent() {
           </button>
         </nav>
 
-        {/* Bottom of sidebar: Log In / Sign Out button */}
+        {/* Bottom of sidebar: Theme toggle, compact user/auth, version & APK download */}
         <div className="nav-footer">
-          {/* Install Android App (Shown only on web when not installed) */}
-          {!isAppInstalled && (
-            <button
-              type="button"
-              className="nav-item nav-install-app-btn"
-              onClick={handleInstallPwa}
-            >
-              <span className="nav-icon" role="img" aria-label="android-install">📲</span>
-              <span className="nav-label">{t('settings.installAndroidApp')}</span>
-              <span className="nav-apk-pill" dir="ltr">APK</span>
-            </button>
-          )}
-
           {/* Theme Selector: Dark / Light Mode */}
           <div className="nav-theme-toggle-row">
             <div className="nav-theme-toggle-pill" role="radiogroup" aria-label={t('nav.themeToggleLabel')}>
@@ -1616,56 +1808,83 @@ function AppContent() {
             </div>
           </div>
 
+          {/* User Profile + Integrated Logout Button (Tasks 4) */}
           {isLoggedIn && user ? (
-            <div
-              className="nav-user-badge"
-              onClick={() => {
-                setActiveTab('profile');
-                setIsNavOpen(false);
-              }}
-              role="button"
-              tabIndex={0}
-              title={t('nav.viewProfile')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+            <div className="nav-user-combined-card">
+              <div
+                className="nav-user-info-area"
+                onClick={() => {
                   setActiveTab('profile');
                   setIsNavOpen(false);
-                }
-              }}
-            >
-              <div className="nav-user-avatar">
-                {(([user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.email || 'U')[0]).toUpperCase()}
+                }}
+                role="button"
+                tabIndex={0}
+                title={t('nav.viewProfile')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setActiveTab('profile');
+                    setIsNavOpen(false);
+                  }
+                }}
+              >
+                <div className="nav-user-avatar">
+                  {(([user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.email || 'U')[0]).toUpperCase()}
+                </div>
+                <div className="nav-user-details">
+                  <span className="nav-user-name">
+                    {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.email.split('@')[0]}
+                  </span>
+                  <span className="nav-user-email" title={user.email}>{user.email}</span>
+                </div>
               </div>
-              <div className="nav-user-details">
-                <span className="nav-user-name">
-                  {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.name || user.email.split('@')[0]}
-                </span>
-                <span className="nav-user-email" title={user.email}>{user.email}</span>
-              </div>
+              <button
+                type="button"
+                className="nav-integrated-logout-btn"
+                onClick={handleSignOut}
+                title={t('nav.signOut')}
+                aria-label={t('nav.signOut')}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
             </div>
-          ) : null}
-          <button
-            type="button"
-            className="nav-auth-btn"
-            onClick={() => {
-              if (isLoggedIn) {
-                handleSignOut();
-              } else {
+          ) : (
+            <button
+              type="button"
+              className="nav-auth-btn"
+              onClick={() => {
                 setAuthModalMode('login');
                 setIsAuthModalOpen(true);
                 setIsNavOpen(false);
-              }
-            }}
-          >
-            <span className="nav-icon" role="img" aria-label="auth">
-              {isLoggedIn ? '🚪' : '🔐'}
-            </span>
-            <span className="nav-label">
-              {isLoggedIn ? t('nav.signOut') : t('nav.logIn')}
-            </span>
-          </button>
+              }}
+            >
+              <span className="nav-icon" role="img" aria-label="auth">🔐</span>
+              <span className="nav-label">{t('nav.logIn')}</span>
+            </button>
+          )}
+
+          {/* Sidebar Footer: Version + Compact APK Download Pill (Task 5) */}
           <div className="nav-version-footer">
             <span className="nav-version-text">InsuMinder v{ANDROID_PACKAGE_INFO.version}</span>
+            {!isAppInstalled && (
+              <button
+                type="button"
+                className="nav-version-apk-btn"
+                onClick={handleInstallPwa}
+                title={t('settings.installAndroidApp')}
+                aria-label={t('settings.installAndroidApp')}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>APK</span>
+              </button>
+            )}
           </div>
         </div>
       </aside>
@@ -2426,6 +2645,22 @@ function AppContent() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Manual Injection Trigger Button (Option 1) */}
+                <div className="manual-add-action-bar manual-injection-card">
+                  <button
+                    type="button"
+                    className="btn-manual-add"
+                    onClick={openManualModal}
+                    aria-label={t('logs.addInjectionManually')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>{t('logs.addInjectionManually')}</span>
+                  </button>
                 </div>
 
                 {/* 3. Rapid Injection Trend Warning (< 3h) */}
@@ -3322,49 +3557,58 @@ function AppContent() {
                 <div className="about-app-name-row">
                   <span className="about-app-version-label">{t('settings.appVersionLabel')}</span>
                   <span className="about-app-version-pill">v{ANDROID_PACKAGE_INFO.version}</span>
-                </div>
-                <div className="about-app-status-row">
-                  <span className={`about-status-dot ${availableUpdate ? 'update-available' : ''}`} aria-hidden="true"></span>
-                  <span className="about-status-text">
-                    {availableUpdate
-                      ? t('appUpdate.updateAvailableStatus', { version: availableUpdate.newVersion })
-                      : t('settings.appUpToDateBadge')}
-                  </span>
-                  {availableUpdate?.isMandatory && (
-                    <span className="about-status-urgent-pill">
-                      {t('appUpdate.behindBadge', { count: availableUpdate.versionsBehind || 3 })}
+                  {isAndroidApp() && availableUpdate && availableUpdate.newVersion && availableUpdate.newVersion !== ANDROID_PACKAGE_INFO.version && (
+                    <span className="about-app-version-pill new-version-pill" title={`New version: v${availableUpdate.newVersion}`}>
+                      &rarr; v{availableUpdate.newVersion}
                     </span>
                   )}
                 </div>
+                {isAndroidApp() && (
+                  <div className="about-app-status-row">
+                    <span className={`about-status-dot ${availableUpdate && availableUpdate.newVersion && availableUpdate.newVersion !== ANDROID_PACKAGE_INFO.version ? 'update-available' : ''}`} aria-hidden="true"></span>
+                    <span className="about-status-text">
+                      {availableUpdate && availableUpdate.newVersion && availableUpdate.newVersion !== ANDROID_PACKAGE_INFO.version
+                        ? t('appUpdate.updateAvailableStatus', { version: availableUpdate.newVersion })
+                        : t('settings.appUpToDateBadge')}
+                    </span>
+                    {availableUpdate && availableUpdate.newVersion && availableUpdate.newVersion !== ANDROID_PACKAGE_INFO.version && availableUpdate.isMandatory && (
+                      <span className="about-status-urgent-pill">
+                        {t('appUpdate.behindBadge', { count: availableUpdate.versionsBehind || 3 })}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="about-app-actions">
-              {availableUpdate ? (
-                <button
-                  type="button"
-                  className="btn-check-updates btn-apply-update-highlight"
-                  onClick={() => applyAppUpdate(availableUpdate.newVersion)}
-                >
-                  <span className="btn-icon" aria-hidden="true">🚀</span>
-                  {t('settings.updateNowBtn', { version: availableUpdate.newVersion })}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-check-updates"
-                  onClick={handleManualUpdateCheck}
-                  disabled={isCheckingUpdate}
-                >
-                  <span className="btn-icon" aria-hidden="true">
-                    {isCheckingUpdate ? '⏳' : updateCheckFeedback === 'upToDate' ? '✅' : '🔄'}
-                  </span>
-                  {isCheckingUpdate
-                    ? t('settings.checkingForUpdates')
-                    : updateCheckFeedback === 'upToDate'
-                      ? t('settings.appUpToDateBadge')
-                      : t('settings.checkForUpdatesBtn')}
-                </button>
+              {isAndroidApp() && (
+                availableUpdate && availableUpdate.newVersion && availableUpdate.newVersion !== ANDROID_PACKAGE_INFO.version ? (
+                  <button
+                    type="button"
+                    className="btn-check-updates btn-apply-update-highlight"
+                    onClick={() => applyAppUpdate(availableUpdate.newVersion)}
+                  >
+                    <span className="btn-icon" aria-hidden="true">🚀</span>
+                    {t('settings.updateNowBtn', { version: availableUpdate.newVersion })}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-check-updates"
+                    onClick={handleManualUpdateCheck}
+                    disabled={isCheckingUpdate}
+                  >
+                    <span className="btn-icon" aria-hidden="true">
+                      {isCheckingUpdate ? '⏳' : updateCheckFeedback === 'upToDate' ? '✅' : '🔄'}
+                    </span>
+                    {isCheckingUpdate
+                      ? t('settings.checkingForUpdates')
+                      : updateCheckFeedback === 'upToDate'
+                        ? t('settings.appUpToDateBadge')
+                        : t('settings.checkForUpdatesBtn')}
+                  </button>
+                )
               )}
 
               <button
@@ -3379,7 +3623,7 @@ function AppContent() {
               </button>
             </div>
 
-            {updateCheckFeedback === 'upToDate' && (
+            {isAndroidApp() && updateCheckFeedback === 'upToDate' && (
               <div className="about-inline-feedback success" role="status">
                 <span className="feedback-icon" aria-hidden="true">✅</span>
                 <span>{t('settings.latestVersionNotice')}</span>
@@ -3781,6 +4025,190 @@ function AppContent() {
                 {t('common.yes')}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Injection Modal */}
+      {isManualModalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={closeManualModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="manual-injection-modal-title"
+        >
+          <div className="modal-card manual-injection-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header manual-modal-header">
+              <div className="modal-header-left manual-modal-header-left">
+                <div className="modal-icon-wrapper manual-modal-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </div>
+                <h3 id="manual-injection-modal-title" className="modal-title">
+                  {t('logs.manualModalTitle')}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-x-btn"
+                onClick={closeManualModal}
+                aria-label={t('common.closeModal')}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleManualInjectionSubmit} className="manual-modal-form" noValidate>
+              <div className="modal-body manual-modal-body">
+                <p className="manual-modal-description">
+                  {t('logs.manualModalDescription')}
+                </p>
+
+                {manualError && (
+                  <div className="manual-error-alert" role="alert">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{manualError}</span>
+                  </div>
+                )}
+
+                {/* Type Selector (Bolus vs Basal) */}
+                <div className="manual-form-group">
+                  <label className="manual-form-label">{t('logs.manualTypeLabel')}</label>
+                  <div className="manual-type-selector" role="radiogroup" aria-label={t('logs.manualTypeLabel')}>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={manualType === 'bolus'}
+                      className={`manual-type-btn ${manualType === 'bolus' ? 'active-bolus' : ''}`}
+                      onClick={() => { setManualType('bolus'); setManualError(''); }}
+                    >
+                      <span className="type-indicator-dot bolus-dot" />
+                      <span className="type-btn-text">{t('logs.typeBolus')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={manualType === 'basal'}
+                      className={`manual-type-btn ${manualType === 'basal' ? 'active-basal' : ''}`}
+                      onClick={() => { setManualType('basal'); setManualError(''); }}
+                    >
+                      <span className="type-indicator-dot basal-dot" />
+                      <span className="type-btn-text">{t('logs.typeBasal')}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Date Selection (Quick Chips + Modern Formatted Input) */}
+                <div className="manual-form-group">
+                  <div className="manual-label-row">
+                    <label htmlFor="manual-injection-date" className="manual-form-label">
+                      {t('logs.manualDateLabel')}
+                    </label>
+                    {manualDate && (
+                      <span className="manual-badge-date-preview">
+                        {getFormattedDateDisplay(manualDate)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quick Date Chips */}
+                  {/* Quick Date Chips (Today + 2 days back: Today, -1 day, -2 days) */}
+                  <div className="manual-quick-chips-row">
+                    <button
+                      type="button"
+                      className={`manual-chip-btn ${manualDate === getTodayDateStr() ? 'active' : ''}`}
+                      onClick={() => { setManualDate(getTodayDateStr()); setManualError(''); }}
+                    >
+                      {t('time.today')}
+                    </button>
+                    <button
+                      type="button"
+                      className={`manual-chip-btn ${manualDate === getDateOffsetStr(-1) ? 'active' : ''}`}
+                      onClick={() => { setManualDate(getDateOffsetStr(-1)); setManualError(''); }}
+                    >
+                      {formatDayMonthChip(getDateOffsetStr(-1))}
+                    </button>
+                    <button
+                      type="button"
+                      className={`manual-chip-btn ${manualDate === getDateOffsetStr(-2) ? 'active' : ''}`}
+                      onClick={() => { setManualDate(getDateOffsetStr(-2)); setManualError(''); }}
+                    >
+                      {formatDayMonthChip(getDateOffsetStr(-2))}
+                    </button>
+                  </div>
+
+                  <DatePickerModern
+                    id="manual-injection-date"
+                    name="manualDate"
+                    value={manualDate}
+                    min={getOneMonthAgoDateStr()}
+                    max={getTodayDateStr()}
+                    onChange={(val) => { setManualDate(val); setManualError(''); }}
+                    required
+                  />
+                </div>
+
+                {/* Time Selection (Strictly 24-Hour, Zero AM/PM) */}
+                <div className="manual-form-group">
+                  <div className="manual-label-row">
+                    <label htmlFor="manual-injection-time" className="manual-form-label">
+                      {t('logs.manualTimeLabel')}
+                    </label>
+                  </div>
+
+                  {/* Quick Time Chip */}
+                  <div className="manual-quick-chips-row">
+                    <button
+                      type="button"
+                      className="manual-chip-btn"
+                      onClick={() => {
+                        const now = new Date();
+                        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                        setManualTime(timeStr);
+                        setManualError('');
+                      }}
+                    >
+                      {t('logs.currentTime')}
+                    </button>
+                  </div>
+
+                  {/* Single Unified 24-Hour Time Input with Icon & Popover Picker */}
+                  <TimePicker24h
+                    id="manual-injection-time"
+                    name="manualTime"
+                    triggerType="input"
+                    value={manualTime}
+                    onChange={(val) => { setManualTime(val); setManualError(''); }}
+                    quickPresets={getRelativeHourPresets()}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="modal-btn cancel-btn"
+                  onClick={closeManualModal}
+                  disabled={isSubmittingManual}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="modal-btn confirm-btn manual-submit-btn"
+                  disabled={isSubmittingManual}
+                >
+                  {isSubmittingManual ? t('common.saving') : t('logs.manualAddSubmit')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

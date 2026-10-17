@@ -552,8 +552,24 @@ app.post('/api/auth/logout', (req, res) => {
 // Injections API: Log injection (Requires authentication, supports shared context)
 app.post('/api/injections', requireAuth, resolveContext, (req, res) => {
   const targetUserId = req.effectiveUserId || req.user.id;
-  const { type = 'bolus' } = req.body || {};
+  const { type = 'bolus', manual = false, date, time, injected_at } = req.body || {};
   const cleanType = type === 'basal' ? 'basal' : 'bolus';
+
+  if (manual || date || injected_at) {
+    let finalInjectedAt = injected_at;
+    if (!finalInjectedAt && date && time) {
+      finalInjectedAt = new Date(`${date}T${time}:00`).toISOString();
+    }
+    db.insertManualInjectionLog(targetUserId, cleanType, finalInjectedAt, function(err) {
+      if (err) {
+        const status = err.status || 400;
+        return res.status(status).json({ success: false, error: err.message });
+      }
+      res.json({ success: true, id: this.lastID, type: cleanType, injected_at: finalInjectedAt, manual: true });
+    });
+    return;
+  }
+
   db.insertInjectionLog(targetUserId, cleanType, function(err) {
     if (err) {
       const status = err.status || 500;
@@ -1091,7 +1107,7 @@ app.get('/api/download/android', async (req, res) => {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '1.3.1',
+      version: '1.4.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',
