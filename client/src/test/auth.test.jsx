@@ -148,10 +148,12 @@ describe('Authentication & User Experience Tests', () => {
 
       const emailInput = screen.getByLabelText(/Email Address/i);
       const passInput = screen.getByLabelText(/Password/i);
+      const privacyCheckbox = screen.getByRole('checkbox');
       const submitBtn = screen.getByRole('button', { name: /Continue & Send Code/i });
 
       fireEvent.change(emailInput, { target: { value: 'invalid@nonexistent.domain' } });
       fireEvent.change(passInput, { target: { value: 'password123' } });
+      fireEvent.click(privacyCheckbox);
       fireEvent.click(submitBtn);
 
       await waitFor(() => {
@@ -171,10 +173,12 @@ describe('Authentication & User Experience Tests', () => {
 
       const emailInput = screen.getByLabelText(/Email Address/i);
       const passInput = screen.getByLabelText(/Password/i);
+      const privacyCheckbox = screen.getByRole('checkbox');
       const submitBtn = screen.getByRole('button', { name: /Continue & Send Code/i });
 
       fireEvent.change(emailInput, { target: { value: 'patient@clinic.com' } });
       fireEvent.change(passInput, { target: { value: 'ValidPass123' } });
+      fireEvent.click(privacyCheckbox);
       fireEvent.click(submitBtn);
 
       await waitFor(() => {
@@ -545,8 +549,10 @@ describe('Authentication & User Experience Tests', () => {
 
       const emailInput = screen.getByLabelText(/Email Address/i);
       const passInput = screen.getByLabelText(/Password/i);
+      const privacyCheckbox = screen.getByRole('checkbox');
       fireEvent.change(emailInput, { target: { value: 'keepme@clinic.org' } });
       fireEvent.change(passInput, { target: { value: 'Secret123!' } });
+      fireEvent.click(privacyCheckbox);
 
       globalThis.fetch = vi.fn().mockResolvedValueOnce({
         json: () => Promise.resolve({ success: true })
@@ -681,7 +687,8 @@ describe('Authentication & User Experience Tests', () => {
       authService.setSession('valid-user-token', {
         id: 99,
         email: 'authenticated.patient@domain.com',
-        name: 'Patient Jane'
+        name: 'Patient Jane',
+        privacyAcceptedAt: '2026-10-17T12:00:00Z'
       });
 
       globalThis.fetch = vi.fn().mockImplementation((url) => {
@@ -689,7 +696,12 @@ describe('Authentication & User Experience Tests', () => {
           return Promise.resolve({
             json: () => Promise.resolve({
               success: true,
-              user: { id: 99, email: 'authenticated.patient@domain.com', name: 'Patient Jane' }
+              user: {
+                id: 99,
+                email: 'authenticated.patient@domain.com',
+                name: 'Patient Jane',
+                privacyAcceptedAt: '2026-10-17T12:00:00Z'
+              }
             })
           });
         }
@@ -741,7 +753,8 @@ describe('Authentication & User Experience Tests', () => {
         email: 'leotest2@grr.la',
         name: 'Leo Test',
         firstName: 'Leo',
-        lastName: 'Test'
+        lastName: 'Test',
+        privacyAcceptedAt: '2026-10-17T12:00:00Z'
       });
 
       globalThis.fetch = vi.fn().mockImplementation((url) => {
@@ -755,7 +768,8 @@ describe('Authentication & User Experience Tests', () => {
                 name: 'Leo Test',
                 firstName: 'Leo',
                 lastName: 'Test',
-                shareCode: 'INSU-TEST01'
+                shareCode: 'INSU-TEST01',
+                privacyAcceptedAt: '2026-10-17T12:00:00Z'
               }
             })
           });

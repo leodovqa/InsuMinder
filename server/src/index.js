@@ -46,7 +46,8 @@ function formatUserResponse(user, shareCode) {
     language: user.language || 'en',
     basalTime: user.basal_time || '20:00',
     theme: user.theme || 'dark',
-    notificationPreferences
+    notificationPreferences,
+    privacyAcceptedAt: user.privacy_accepted_at || null
   };
 }
 
@@ -183,6 +184,9 @@ app.post('/api/auth/verify', async (req, res) => {
       });
     }
 
+    const privacyAccepted = Boolean(req.body && (req.body.privacyAccepted || req.body.privacy_accepted));
+    const privacyAcceptedAt = privacyAccepted ? new Date().toISOString() : null;
+
     // Mark code as consumed
     await new Promise((resolve) => db.consumeVerificationCode(record.id, resolve));
 
@@ -210,6 +214,7 @@ app.post('/api/auth/verify', async (req, res) => {
       if (cleanLast) updates.last_name = cleanLast;
       if (cleanPhone) updates.phone = cleanPhone;
       if (cleanFirst || cleanLast) updates.name = fullName;
+      if (privacyAcceptedAt) updates.privacy_accepted_at = privacyAcceptedAt;
 
       await new Promise((resolve, reject) => {
         db.updateUser(user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -227,7 +232,8 @@ app.post('/api/auth/verify', async (req, res) => {
           first_name: cleanFirst,
           last_name: cleanLast,
           phone: cleanPhone,
-          is_verified: 1
+          is_verified: 1,
+          privacy_accepted_at: privacyAcceptedAt
         }, (err, u) => (err ? reject(err) : resolve(u)));
       });
     }
@@ -471,18 +477,20 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // 6. Update User Profile (Onboarding Step & Profile Updates)
 const handleProfileUpdate = async (req, res) => {
   try {
-    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences } = req.body || {};
+    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences, privacyAccepted } = req.body || {};
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
     const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
     const cleanTheme = (theme && ['dark', 'light'].includes(theme)) ? theme : null;
     const hasNotificationPrefs = notificationPreferences !== undefined;
+    const hasPrivacyAccepted = privacyAccepted !== undefined;
 
-    if ((cleanLang || cleanBasalTime || cleanTheme || hasNotificationPrefs) && firstName === undefined && lastName === undefined) {
+    if ((cleanLang || cleanBasalTime || cleanTheme || hasNotificationPrefs || hasPrivacyAccepted) && firstName === undefined && lastName === undefined) {
       const updates = {};
       if (cleanLang) updates.language = cleanLang;
       if (cleanBasalTime) updates.basal_time = cleanBasalTime;
       if (cleanTheme) updates.theme = cleanTheme;
       if (hasNotificationPrefs) updates.notification_preferences = notificationPreferences;
+      if (privacyAccepted) updates.privacy_accepted_at = new Date().toISOString();
 
       await new Promise((resolve, reject) => {
         db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -519,6 +527,7 @@ const handleProfileUpdate = async (req, res) => {
     if (cleanBasalTime) updates.basal_time = cleanBasalTime;
     if (cleanTheme) updates.theme = cleanTheme;
     if (hasNotificationPrefs) updates.notification_preferences = notificationPreferences;
+    if (privacyAccepted) updates.privacy_accepted_at = new Date().toISOString();
 
     await new Promise((resolve, reject) => {
       db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -539,6 +548,25 @@ const handleProfileUpdate = async (req, res) => {
 
 app.put('/api/auth/profile', requireAuth, handleProfileUpdate);
 app.post('/api/auth/profile', requireAuth, handleProfileUpdate);
+
+// 6b. Accept Privacy Agreement
+app.post('/api/auth/privacy-accept', requireAuth, async (req, res) => {
+  try {
+    const acceptedAt = new Date().toISOString();
+    await new Promise((resolve, reject) => {
+      db.updateUser(req.user.id, { privacy_accepted_at: acceptedAt }, (err) => (err ? reject(err) : resolve()));
+    });
+    const updatedUser = await new Promise((resolve, reject) => {
+      db.getUserById(req.user.id, (err, u) => (err ? reject(err) : resolve(u)));
+    });
+    res.json({
+      success: true,
+      user: formatUserResponse(updatedUser)
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || 'Failed to record privacy agreement acceptance.' });
+  }
+});
 
 // 7. Sign out
 app.post('/api/auth/logout', (req, res) => {
@@ -1107,7 +1135,7 @@ app.get('/api/download/android', async (req, res) => {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '1.6.0',
+      version: '1.7.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',

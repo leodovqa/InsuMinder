@@ -272,7 +272,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.6.0',
+  version: '1.7.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -281,16 +281,16 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Complete push notifications overhaul for Web & Android with high-priority channel support',
-    'Basal insulin reminder action button & deep-link for instant 1-tap logging'
+    'In-app Medical Privacy Agreement and informed consent for data protection',
+    'Dedicated Privacy Policy viewer and account-level consent tracking'
   ],
   he: [
-    'שדרוג מקיף להתראות Push בדפדפן ובאנדרואיד עם תמיכה בערוץ התראות בעדיפות גבוהה',
-    'כפתור פעולה וקישור ישיר בתזכורת בזל לתיעוד אינסולין בלחיצה אחת'
+    'הסכם פרטיות רפואית מובנה באפליקציה והסכמה מדעת לאבטחת נתונים',
+    'מציג מדיניות פרטיות ייעודי ומעקב הסכמה ברמת החשבון'
   ],
   ru: [
-    'Комплексное обновление push-уведомлений для Web и Android с поддержкой высокоприоритетного канала',
-    'Кнопка действия и быстрая ссылка в напоминании базала для внесения в 1 касание'
+    'Встроенное соглашение о медицинской конфиденциальности и защите данных',
+    'Встроенный просмотр политики конфиденциальности и учет согласия'
   ]
 };
 

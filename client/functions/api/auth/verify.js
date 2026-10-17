@@ -104,17 +104,20 @@ export async function onRequestPost(context) {
       });
     }
 
+    const privacyAccepted = Boolean(body && (body.privacyAccepted || body.privacy_accepted));
+    const privacyAcceptedAt = privacyAccepted ? new Date().toISOString() : null;
+
     if (user) {
       await db
-        .prepare('UPDATE users SET password_hash = ?, auth_provider = "email", is_verified = 1, name = COALESCE(?, name), first_name = COALESCE(?, first_name), last_name = COALESCE(?, last_name), phone = COALESCE(?, phone) WHERE id = ?')
-        .bind(record.password_hash, (cleanFirst || cleanLast) ? fullName : null, cleanFirst, cleanLast, cleanPhone, user.id)
+        .prepare('UPDATE users SET password_hash = ?, auth_provider = "email", is_verified = 1, name = COALESCE(?, name), first_name = COALESCE(?, first_name), last_name = COALESCE(?, last_name), phone = COALESCE(?, phone), privacy_accepted_at = COALESCE(?, privacy_accepted_at) WHERE id = ?')
+        .bind(record.password_hash, (cleanFirst || cleanLast) ? fullName : null, cleanFirst, cleanLast, cleanPhone, privacyAcceptedAt, user.id)
         .run();
       user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
     } else {
       const initialShareCode = generateShareCode();
       const result = await db
-        .prepare('INSERT INTO users (email, password_hash, auth_provider, name, first_name, last_name, phone, is_verified, share_code) VALUES (?, ?, "email", ?, ?, ?, ?, 1, ?)')
-        .bind(cleanEmail, record.password_hash, fullName, cleanFirst, cleanLast, cleanPhone, initialShareCode)
+        .prepare('INSERT INTO users (email, password_hash, auth_provider, name, first_name, last_name, phone, is_verified, share_code, privacy_accepted_at) VALUES (?, ?, "email", ?, ?, ?, ?, 1, ?, ?)')
+        .bind(cleanEmail, record.password_hash, fullName, cleanFirst, cleanLast, cleanPhone, initialShareCode, privacyAcceptedAt)
         .run();
       user = {
         id: result.meta.last_row_id,
@@ -125,7 +128,8 @@ export async function onRequestPost(context) {
         phone: cleanPhone,
         is_verified: 1,
         share_code: initialShareCode,
-        language: 'en'
+        language: 'en',
+        privacy_accepted_at: privacyAcceptedAt
       };
     }
 
@@ -166,7 +170,8 @@ export async function onRequestPost(context) {
         phone: user.phone || '',
         avatar: user.avatar || '',
         shareCode: user.share_code,
-        language: user.language || 'en'
+        language: user.language || 'en',
+        privacyAcceptedAt: user.privacy_accepted_at || null
       },
       joinedGroup
     }), {

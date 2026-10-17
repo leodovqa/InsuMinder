@@ -277,6 +277,11 @@ export async function ensureTablesExist(db) {
   } catch (err) {
     void err;
   }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN privacy_accepted_at TIMESTAMP`).run();
+  } catch (err) {
+    void err;
+  }
 }
 
 export function formatDoseTime(isoString) {

@@ -43,6 +43,7 @@ import { LanguageProvider, useTranslation } from './i18n';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import useLockBodyScroll from './useLockBodyScroll';
 import UpdateSuccessModal from './UpdateSuccessModal';
+import PrivacyModal from './PrivacyModal';
 
 const isLocalEnv = Boolean(
   typeof window !== 'undefined' &&
@@ -240,6 +241,29 @@ function AppContent() {
   const [viewingExplanationModal, setViewingExplanationModal] = useState(null);
   const [isEarlyBolusModalOpen, setIsEarlyBolusModalOpen] = useState(false);
   const [isClearingQueue, setIsClearingQueue] = useState(false);
+
+  // Privacy Agreement & Mandatory Consent State
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [isAcceptingPrivacy, setIsAcceptingPrivacy] = useState(false);
+  const isPrivacyConsentRequired = Boolean(isLoggedIn && user && !user.privacyAcceptedAt);
+
+  const handleAcceptPrivacyConsent = async () => {
+    setIsAcceptingPrivacy(true);
+    try {
+      const updatedUser = await authService.acceptPrivacy();
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+    } catch (err) {
+      console.error('Failed to accept privacy agreement:', err);
+    } finally {
+      setIsAcceptingPrivacy(false);
+    }
+  };
+
+  const handleDeclinePrivacyConsent = () => {
+    handleSignOut();
+  };
 
   // Granular Notification Preferences State
   const [notificationPreferences, setNotificationPreferences] = useState(() => {
@@ -634,7 +658,9 @@ function AppContent() {
     leaveGroupModalData ||
     viewingExplanationModal ||
     isBasalConfirmModalOpen ||
-    justUpdatedVersion
+    justUpdatedVersion ||
+    isPrivacyModalOpen ||
+    isPrivacyConsentRequired
   );
   useLockBodyScroll(isAnyAppModalOpen);
 
@@ -3760,6 +3786,42 @@ function AppContent() {
             )}
           </div>
         </div>
+
+        {/* Privacy & Data Protection Card */}
+        <div className="settings-card privacy-settings-card">
+          <div className="card-header">
+            <div className="card-icon-wrapper privacy-card-icon-wrapper">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+            </div>
+            <div className="card-header-text">
+              <h2 className="card-title">{t('privacy.cardTitle')}</h2>
+              <p className="card-subtitle">{t('privacy.cardDesc')}</p>
+            </div>
+          </div>
+
+          <div className="privacy-settings-body">
+            <div className="privacy-settings-status-row">
+              <span className={`privacy-status-badge ${user?.privacyAcceptedAt ? 'status-verified' : ''}`}>
+                {user?.privacyAcceptedAt
+                  ? t('privacy.statusAccepted', { date: new Date(user.privacyAcceptedAt).toLocaleDateString(language === 'he' ? 'he-IL' : (language === 'ru' ? 'ru-RU' : 'en-US')) })
+                  : t('privacy.statusNotAccepted')}
+              </span>
+            </div>
+            <div className="privacy-settings-actions">
+              <button
+                type="button"
+                className="btn-view-privacy"
+                onClick={() => setIsPrivacyModalOpen(true)}
+              >
+                <span className="btn-icon" aria-hidden="true">🛡️</span>
+                {t('privacy.viewPolicyBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   )}
@@ -4406,6 +4468,24 @@ function AppContent() {
           onClose={handleCloseUpdateSuccess}
         />
       )}
+
+      {/* Mandatory Privacy Consent Dialog for Existing Users */}
+      {isPrivacyConsentRequired && (
+        <PrivacyModal
+          isOpen={true}
+          requireConsent={true}
+          isSubmitting={isAcceptingPrivacy}
+          onAccept={handleAcceptPrivacyConsent}
+          onDecline={handleDeclinePrivacyConsent}
+        />
+      )}
+
+      {/* In-App Privacy Agreement Modal (View Mode) */}
+      <PrivacyModal
+        isOpen={isPrivacyModalOpen}
+        requireConsent={false}
+        onClose={() => setIsPrivacyModalOpen(false)}
+      />
 
       {/* Application Footer */}
       <footer className="app-footer">
