@@ -230,7 +230,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.3.1',
+  version: '1.4.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -239,16 +239,16 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Preserved active context and settings when switching languages in App Settings',
-    'Refined reminder pill button alignment and padding for balanced edge clearance across all languages'
+    'Added manual injection logging for Bolus and Basal with past date selection and limit validation',
+    'Streamlined sidebar navigation with integrated user actions and compact APK download access'
   ],
   he: [
-    'שמירה על הקשר והגדרות פעילים בעת החלפת שפה בהגדרות האפליקציה',
-    'יישור כפתורי תזכורות וריווח משופר למניעת צפיפות בשוליים בכל השפות'
+    'נוספה אפשרות לתיעוד ידני של אינסולין בולוס ובזאל עם בחירת תאריכי עבר ובדיקת מגבלות',
+    'סרגל צד יעיל ומרווח עם שילוב פעולות משתמש וכפתור הורדת APK חסכוני במקום'
   ],
   ru: [
-    'Сохранение активного контекста и настроек при смене языка в Настройках приложения',
-    'Выравнивание кнопок напоминаний и улучшенные отступы для свободного пространства по краям на всех языках'
+    'Добавлен ручной ввод инъекций болюса и базала с выбором прошедшей даты и проверкой лимитов',
+    'Оптимизировано боковое меню: компактные действия пользователя и лаконичная кнопка скачивания APK'
   ]
 };
 
@@ -318,6 +318,20 @@ let pendingUpdateInfo = null;
 let waitingWorker = null;
 
 export const DEFAULT_APP_VERSION = '1.0.0';
+
+export function parseSemver(v) {
+  const match = String(v).match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return [0, 0, 0];
+  return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
+}
+
+export function isSemverGreater(vA, vB) {
+  const a = parseSemver(vA);
+  const b = parseSemver(vB);
+  if (a[0] !== b[0]) return a[0] > b[0];
+  if (a[1] !== b[1]) return a[1] > b[1];
+  return a[2] > b[2];
+}
 
 export function getStoredAppVersion() {
   if (typeof window === 'undefined') return DEFAULT_APP_VERSION;
@@ -426,7 +440,8 @@ export async function checkForAppUpdate() {
       return null;
     }
 
-    if (remoteVer !== currentVer) {
+    // Only flag an update if remote version is strictly greater than current version
+    if (isSemverGreater(remoteVer, currentVer)) {
       const versionsBehind = calculateVersionsBehind(currentVer, remoteVer, data.versionHistory || []);
       const isMandatory = isAndroidApp() && versionsBehind >= 3;
       const info = {
@@ -440,12 +455,15 @@ export async function checkForAppUpdate() {
       };
       notifyUpdateListeners(info);
       return info;
+    } else {
+      // Current version is equal to or newer than remote
+      setStoredAppVersion(currentVer);
+      return null;
     }
   } catch {
     // Offline or network error - silently return null
     return null;
   }
-  return null;
 }
 
 // Hook Service Worker lifecycle to detect updates

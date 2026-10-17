@@ -115,5 +115,39 @@ describe('TimePicker24h Component (Strictly 24-Hour, No AM/PM)', () => {
     // 120 + 14 = 134th index * 34 = 4556
     expect(newLists[1].scrollTop).toBe((120 + 14) * 34);
   });
+
+  it('supports triggerType="input" with unified text input and icon trigger', () => {
+    const handleChange = vi.fn();
+    render(
+      <TimePicker24h
+        id="custom-time-input"
+        triggerType="input"
+        value="10:34"
+        onChange={handleChange}
+        quickPresets={['09:34', '08:34', '07:34', '06:34']}
+      />
+    );
+
+    // Verify input element is rendered
+    const input = screen.getByRole('textbox');
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveValue('10:34');
+
+    // Click icon to open popover
+    const toggleBtn = screen.getByRole('button', { name: /Toggle 24-hour time picker/i });
+    fireEvent.click(toggleBtn);
+
+    expect(screen.getByRole('dialog', { name: /Choose 24-hour time/i })).toBeInTheDocument();
+
+    // Verify relative presets are rendered
+    expect(screen.getByRole('button', { name: '09:34' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '08:34' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '07:34' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '06:34' })).toBeInTheDocument();
+
+    // Select relative preset
+    fireEvent.click(screen.getByRole('button', { name: '09:34' }));
+    expect(handleChange).toHaveBeenCalledWith('09:34');
+  });
 });
 

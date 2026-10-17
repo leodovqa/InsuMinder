@@ -18,17 +18,39 @@
 
 ---
 
-## 2. Section & Card Spacing Consistency
+## 2. Section & Card Spacing Consistency (Unified Application Spacing)
 
-### 2.1 Container-Controlled Spacing (Zero Ad-Hoc Margins)
-- Spacing between cards, sections, and stacked containers must **ALWAYS be completely uniform** throughout the entire application.
-- All section containers (e.g., `.settings-container`, `.app-main`, `.logs-container`) must manage child separation solely through layout properties:
+### 2.1 Unified Container-Controlled Spacing (Zero Ad-Hoc Margins)
+- **Single Identical Spacing Mechanism Across All Pages**: The spacing between cards, sections, banners, and action buttons must **ALWAYS be 100% identical and uniform** across every single view in the entire application.
+- All primary page layout containers:
+  - `.home-container` (Home tab)
+  - `.page-content-wrapper` (Injection Logs tab)
+  - `.settings-container` (Settings tab)
+  - `.profile-container` (Profile tab)
+  - `.notification-settings-container` (Notifications tab)
+  MUST strictly manage child separation through the standardized design variable:
   ```css
-  display: flex;
-  flex-direction: column;
-  gap: 22px; /* Uniform section gap across the application */
+  :root,
+  [data-theme="dark"],
+  [data-theme="light"] {
+    --section-gap: 20px;
+  }
+
+  .home-container,
+  .page-content-wrapper,
+  .settings-container,
+  .profile-container,
+  .notification-settings-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-gap, 20px); /* Universal 20px section gap across all pages */
+  }
   ```
-- **STRICT PROHIBITION**: Never apply ad-hoc `margin-top` or `margin-bottom` directly to child cards or sections (e.g., `.shared-access-card`, `.about-app-card`, `.pwa-install-settings-card`) inside flex or grid containers. Stacking margins on top of container gaps causes irregular, disjointed spacing between sections.
+
+### 2.2 Strict Prohibition of Ad-Hoc Margins
+- **NEVER apply physical top or bottom margins** (`margin-top` / `margin-bottom`) directly to child cards, sections, banners, or action triggers (e.g. `.trends-chart-card`, `.manual-add-action-bar`, `.rapid-trend-card`, `.daily-logs-section`, `.home-pwa-banner`, `.settings-card`).
+- Stacking margins on top of container gaps causes irregular, disjointed spacing between sections.
+- Consecutive elements (e.g. Weekly Chart $\rightarrow$ Manual Injection Action Button $\rightarrow$ Rapid Trend Card $\rightarrow$ Today's Injections list) must all have the **exact same vertical separation** (`20px`), guaranteed solely by the parent container's `gap`.
 
 ---
 
@@ -125,7 +147,58 @@ When displaying status indicators belonging to the same element family (such as 
 
 ---
 
-## 7. Zero Guesswork & Approval Protocol
+---
+
+## 8. Strict 24-Hour Time & DD/MM/YYYY Date Standards
+
+### 8.1 Universal 24-Hour Time Mandate (Zero AM/PM)
+- **WE USE ONLY 24-HOUR TIME WITHOUT ANY AM/PM THROUGHOUT THE ENTIRE APPLICATION**.
+- Under no circumstances may any component, view, modal, table, badge, chart, log, notification, or tooltip display "AM", "PM", "am", "pm", or 12-hour clock representations.
+- All times must be strictly rendered in 24-hour format with zero-padded hours and minutes: `HH:mm` (e.g., `09:05`, `14:30`, `23:59`).
+
+### 8.2 Universal DD/MM/YYYY Date Standard (Non-Negotiable)
+- **WE USE ONLY DD/MM/YYYY DATE FORMAT THROUGHOUT THE ENTIRE USER INTERFACE**.
+- All user-facing date inputs, displays, pickers, placeholders, and tooltips must strictly present dates in **`DD/MM/YYYY`** format (e.g., `17/10/2026`).
+- **Strict Prohibition of Raw `YYYY-MM-DD` in the UI**:
+  - Never display raw ISO `YYYY-MM-DD` directly inside input boxes, labels, or user-facing elements.
+  - `YYYY-MM-DD` is strictly reserved for internal state serialization, API payloads, and database storage.
+  - Later, an application setting will allow users to configure alternative date formats; until then, `DD/MM/YYYY` is the mandatory application-wide standard.
+  - The reusable `DatePickerModern` component renders dates as `DD/MM/YYYY` with placeholder `DD/MM/YYYY` while converting to canonical ISO format for API submission.
+
+### 8.3 Mandatory Reusable Pickers (DatePickerModern & TimePicker24h)
+- **Strict Prohibition of Raw `<input type="date">` and `<input type="time">`**:
+  - Native browser `<input type="date">` and `<input type="time">` are strictly banned from direct usage. They delegate rendering to host operating system locales, creating inconsistent, unstyled dialogs and forcing 12-hour AM/PM dials on US regional settings.
+- **Mandatory Reusable Components**:
+  1. **`DatePickerModern`**:
+     - Single unified input trigger with calendar icon, `DD/MM/YYYY` formatted display, and chevron.
+     - Fully styled popover calendar dialog in Dark and Light themes.
+     - Localized month and weekday headers in English, Hebrew, and Russian via `Intl.DateTimeFormat`.
+     - Strict `min` and `max` date boundary enforcement (disables out-of-range dates).
+     - Jump-to-Today footer button.
+  2. **`TimePicker24h`**:
+     - Single unified input trigger (`triggerType="input"`) with clock icon, formatted 24h text, and chevron.
+     - 24-hour steppers (▲/▼) and dual columns (00–23 hours, 00–59 minutes).
+     - Configurable quick presets (e.g. evening basal `['20:00', '21:00', '22:00', '23:00']` or relative injection hours).
+     - Zero AM/PM controls or text.
+
+### 8.4 Standard Quick Selection Chips
+- **Date Quick Chips (3-Day Fast Window)**:
+  - Chip 1: `Today` (`t('time.today')`).
+  - Chip 2: `-1 day` formatted as `DD/MM` (e.g. `16/10`).
+  - Chip 3: `-2 days` formatted as `DD/MM` (e.g. `15/10`).
+  - Allows immediate one-tap selection of recent dates within the 3-day period.
+- **Time Quick Chips & Relative Presets**:
+  - Quick Chip: `Current Time` (`t('logs.currentTime')`).
+  - Relative Popover Presets: In manual injection logging, presets display 4 relative hours from current time (`-1h`, `-2h`, `-3h`, `-4h`, e.g. `09:30`, `08:30`, `07:30`, `06:30`).
+
+### 8.5 Primary Action Button Visual Feedback (No Dull Gray)
+- **Primary Confirm / Add Action Buttons** (e.g., `.modal-btn.confirm-btn`, `.manual-submit-btn`) must **NEVER appear dull gray** or visually disabled when active.
+- Primary buttons must always use vibrant InsuMinder cyan-blue gradients (`linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)`), crisp borders, and distinct hover/active states (`filter: brightness(1.1)`), reserving opacity reduction solely for the `:disabled` state.
+
+---
+
+## 9. Zero Guesswork & Approval Protocol
 - Every UI element must be aligned, predictable, and follow these rules.
 - If a developer or agent considers introducing a new layout pattern, differing spacing, or novel icon size, **they must ask and obtain explicit user approval before writing the code**.
+
 

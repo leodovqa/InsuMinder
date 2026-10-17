@@ -5,14 +5,25 @@ import { useState, useRef, useEffect } from 'react';
  *
  * Supports:
  * - 24-Hour display format HH:MM (00:00 - 23:59)
+ * - Two trigger modes: 'button' (compact trigger) or 'input' (unified single input with icon)
  * - Interactive step buttons (▲ / ▼) for hour and minute
  * - Two-column scrollable selector for hours (00-23) and minutes (00-59)
- * - Quick preset buttons (20:00, 21:00, 22:00, 23:00)
+ * - Configurable quick presets (e.g. evening basal [20:00, 21:00, 22:00, 23:00] or relative [-1h, -2h, -3h, -4h])
  * - Click-outside and Escape key dismissal
  */
 const ITEM_HEIGHT = 34; // Exact height per item (4 items = 136px)
 
-export default function TimePicker24h({ value = '20:00', onChange, id = 'basal-time-picker' }) {
+export default function TimePicker24h({
+  value = '20:00',
+  onChange,
+  id = 'basal-time-picker',
+  name,
+  triggerType = 'button', // 'button' or 'input'
+  quickPresets,
+  placeholder = 'HH:MM',
+  required = false,
+  className = ''
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
   const hoursListRef = useRef(null);
@@ -22,7 +33,8 @@ export default function TimePicker24h({ value = '20:00', onChange, id = 'basal-t
   // Normalize initial value
   const parseTime = (timeStr) => {
     if (!timeStr || !/^([01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
-      return { hour: 20, minute: 0 };
+      const now = new Date();
+      return { hour: now.getHours(), minute: now.getMinutes() };
     }
     const [h, m] = timeStr.split(':').map(n => parseInt(n, 10));
     return { hour: h, minute: m };
@@ -136,36 +148,83 @@ export default function TimePicker24h({ value = '20:00', onChange, id = 'basal-t
   const hoursArray = Array.from({ length: 120 }, (_, i) => i % 24);
   const minutesArray = Array.from({ length: 300 }, (_, i) => i % 60);
 
-  const quickPresets = ['20:00', '21:00', '22:00', '23:00'];
+  const activePresets = Array.isArray(quickPresets) && quickPresets.length > 0
+    ? quickPresets
+    : ['20:00', '21:00', '22:00', '23:00'];
 
   return (
-    <div className="clock-picker-container" ref={containerRef}>
-      {/* Trigger Button */}
-      <button
-        id={id}
-        type="button"
-        className={`clock-picker-trigger ${isOpen ? 'is-open' : ''}`}
-        onClick={() => setIsOpen(prev => !prev)}
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-        aria-label={`Time: ${value} (24-hour)`}
-        title="Click to select 24-hour time"
-      >
-        <span className="clock-trigger-icon" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </span>
-        <span className="clock-trigger-value" dir="ltr">
-          {format2Digits(currentHour)}:{format2Digits(currentMinute)}
-        </span>
-        <span className="clock-trigger-chevron" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </span>
-      </button>
+    <div className={`clock-picker-container ${className}`} ref={containerRef}>
+      {/* Trigger Option 1: Modern Single Input with Clock Icon */}
+      {triggerType === 'input' ? (
+        <div className={`clock-picker-input-group ${isOpen ? 'is-focused' : ''}`}>
+          <button
+            type="button"
+            className="clock-picker-icon-btn"
+            onClick={() => setIsOpen(prev => !prev)}
+            aria-label="Toggle 24-hour time picker"
+            title="Open time picker"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </button>
+
+          <input
+            id={id}
+            name={name}
+            type="text"
+            inputMode="numeric"
+            pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+            placeholder={placeholder}
+            maxLength={5}
+            className="form-input clock-picker-text-input"
+            value={value || ''}
+            onChange={(e) => onChange && onChange(e.target.value)}
+            onClick={() => setIsOpen(true)}
+            required={required}
+            aria-haspopup="dialog"
+            aria-expanded={isOpen}
+            autoComplete="off"
+          />
+
+          <button
+            type="button"
+            className="clock-picker-chevron-btn"
+            onClick={() => setIsOpen(prev => !prev)}
+            aria-label="Toggle time picker"
+          >
+            <span className="expand-arrow" aria-hidden="true">{isOpen ? '▲' : '▼'}</span>
+          </button>
+        </div>
+      ) : (
+        /* Trigger Option 2: Default Button Trigger (Used in Settings Basal Time) */
+        <button
+          id={id}
+          type="button"
+          className={`clock-picker-trigger ${isOpen ? 'is-open' : ''}`}
+          onClick={() => setIsOpen(prev => !prev)}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          aria-label={`Time: ${value} (24-hour)`}
+          title="Click to select 24-hour time"
+        >
+          <span className="clock-trigger-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </span>
+          <span className="clock-trigger-value" dir="ltr">
+            {format2Digits(currentHour)}:{format2Digits(currentMinute)}
+          </span>
+          <span className="clock-trigger-chevron" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        </button>
+      )}
 
       {/* Popover Dropdown */}
       {isOpen && (
@@ -262,9 +321,9 @@ export default function TimePicker24h({ value = '20:00', onChange, id = 'basal-t
             </div>
           </div>
 
-          {/* Quick Presets for Evening/Night Basal Injections */}
+          {/* Quick Presets (Basal evening or Relative injection hours) */}
           <div className="clock-presets-row" dir="ltr">
-            {quickPresets.map(preset => (
+            {activePresets.map(preset => (
               <button
                 key={preset}
                 type="button"
@@ -294,4 +353,3 @@ export default function TimePicker24h({ value = '20:00', onChange, id = 'basal-t
     </div>
   );
 }
-

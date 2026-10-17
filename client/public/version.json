@@ -1,27 +1,27 @@
 {
-  "version": "1.3.1",
-  "versionCode": 5,
+  "version": "1.4.0",
+  "versionCode": 6,
   "versionHistory": [
     "1.0.0",
     "1.1.0",
     "1.2.0",
     "1.3.0",
-    "1.3.1"
+    "1.3.1",
+    "1.4.0"
   ],
-  "buildTime": "2026-10-16T22:35:00Z",
+  "buildTime": "2026-10-17T09:40:00Z",
   "changes": {
     "en": [
-      "Preserved active context and settings when switching languages in App Settings",
-      "Refined reminder pill button alignment and padding for balanced edge clearance across all languages"
+      "Added manual injection logging for Bolus and Basal with past date selection and limit validation",
+      "Streamlined sidebar navigation with integrated user actions and compact APK download access"
     ],
     "he": [
-      "שמירה על הקשר והגדרות פעילים בעת החלפת שפה בהגדרות האפליקציה",
-      "יישור כפתורי תזכורות וריווח משופר למניעת צפיפות בשוליים בכל השפות"
+      "נוספה אפשרות לתיעוד ידני של אינסולין בולוס ובזאל עם בחירת תאריכי עבר ובדיקת מגבלות",
+      "סרגל צד יעיל ומרווח עם שילוב פעולות משתמש וכפתור הורדת APK חסכוני במקום"
     ],
     "ru": [
-      "Сохранение активного контекста и настроек при смене языка в Настройках приложения",
-      "Выравнивание кнопок напоминаний и улучшенные отступы для свободного пространства по краям на всех языках"
+      "Добавлен ручной ввод инъекций болюса и базала с выбором прошедшей даты и проверкой лимитов",
+      "Оптимизировано боковое меню: компактные действия пользователя и лаконичная кнопка скачивания APK"
     ]
   }
 }
-

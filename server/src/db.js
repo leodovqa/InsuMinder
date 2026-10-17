@@ -355,6 +355,138 @@ function insertInjectionLog(userIdOrCallback, typeOrCallback, maybeCallback) {
   });
 }
 
+function getJerusalemDateAndTime(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const m = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return {
+    dateStr: `${m.year}-${m.month}-${m.day}`,
+    timeStr: `${m.hour}:${m.minute}`
+  };
+}
+
+function insertManualInjectionLog(userId, type, injectedAt, callback) {
+  const cleanUserId = typeof userId === 'number'
+    ? userId
+    : (typeof userId === 'string' && !isNaN(parseInt(userId, 10)) ? parseInt(userId, 10) : null);
+  const cleanType = typeof type === 'string' && type === 'basal' ? 'basal' : 'bolus';
+  const isBasal = cleanType === 'basal';
+
+  if (!injectedAt) {
+    const err = new Error("Injection date and time are required.");
+    err.status = 400;
+    return callback(err);
+  }
+
+  const injectionDate = new Date(injectedAt);
+  if (isNaN(injectionDate.getTime())) {
+    const err = new Error("Invalid injection date/time format.");
+    err.status = 400;
+    return callback(err);
+  }
+
+  const now = new Date();
+  if (injectionDate.getTime() > now.getTime()) {
+    const err = new Error("Future date and time are not allowed.");
+    err.status = 400;
+    return callback(err);
+  }
+
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
+  oneMonthAgo.setHours(0, 0, 0, 0);
+  if (injectionDate.getTime() < oneMonthAgo.getTime()) {
+    const err = new Error("Cannot log injection older than 1 month.");
+    err.status = 400;
+    return callback(err);
+  }
+
+  const { dateStr: targetDate, timeStr: targetTime } = getJerusalemDateAndTime(injectionDate);
+
+  const userSql = cleanUserId
+    ? "SELECT * FROM injection_logs WHERE user_id = ?"
+    : "SELECT * FROM injection_logs";
+  const userParams = cleanUserId ? [cleanUserId] : [];
+
+  db.all(userSql, userParams, (err, rows) => {
+    if (err) return callback(err);
+
+    const sameDayLogs = (rows || []).filter(log => {
+      const { dateStr } = getJerusalemDateAndTime(new Date(log.injected_at));
+      return dateStr === targetDate;
+    });
+
+    if (isBasal) {
+      const existingBasal = sameDayLogs.find(l => l.type === 'basal');
+      if (existingBasal) {
+        const dupErr = new Error("You cannot have 2 basal injections in one day.");
+        dupErr.status = 400;
+        return callback(dupErr);
+      }
+    } else {
+      const bolusLogs = sameDayLogs.filter(l => !l.type || l.type === 'bolus');
+      if (bolusLogs.length >= 10) {
+        const limitErr = new Error("Maximum 10 bolus injections allowed per day.");
+        limitErr.status = 400;
+        return callback(limitErr);
+      }
+
+      const duplicateMinute = bolusLogs.find(l => {
+        const { timeStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+        return timeStr === targetTime;
+      });
+      if (duplicateMinute) {
+        const dupTimeErr = new Error("Can't add, this exact time already appears.");
+        dupTimeErr.status = 409;
+        return callback(dupTimeErr);
+      }
+    }
+
+    const isoInjectedAt = injectionDate.toISOString();
+    const notify_10m_at = new Date(injectionDate.getTime() + 10 * 60 * 1000).toISOString();
+    const notify_2h_at = new Date(injectionDate.getTime() + 2 * 60 * 60 * 1000).toISOString();
+    const notify_3h_at = new Date(injectionDate.getTime() + 3 * 60 * 60 * 1000).toISOString();
+    const status_sent = 1;
+
+    const stmt = db.prepare(
+      "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?)"
+    );
+    stmt.run(
+      cleanUserId,
+      isoInjectedAt,
+      notify_10m_at,
+      notify_2h_at,
+      notify_3h_at,
+      status_sent,
+      status_sent,
+      status_sent,
+      cleanType,
+      function(insErr) {
+        if (insErr) return callback(insErr);
+        const lastID = this.lastID;
+        if (isBasal) {
+          const { dateStr: todayDate } = getJerusalemDateAndTime();
+          if (targetDate === todayDate) {
+            recordBasalReminder(cleanUserId, todayDate, '20:00', 0, 'Already injected', () => {
+              callback.call({ lastID }, null);
+            });
+            return;
+          }
+        }
+        callback.call({ lastID }, null);
+      }
+    );
+    stmt.finalize();
+  });
+}
+
 function getLogsFromLast24Hours(userIdOrCallback, maybeCallback) {
   const userId = typeof userIdOrCallback === 'number' ? userIdOrCallback : (typeof userIdOrCallback === 'string' ? parseInt(userIdOrCallback, 10) : null);
   const callback = typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback;
@@ -992,6 +1124,7 @@ module.exports = {
   getLatestVerificationCode,
   consumeVerificationCode,
   insertInjectionLog,
+  insertManualInjectionLog,
   getLogsFromLast24Hours,
   getAllSettings,
   setSettings,
