@@ -230,7 +230,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.4.0',
+  version: '1.5.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -239,16 +239,16 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Added manual injection logging for Bolus and Basal with past date selection and limit validation',
-    'Streamlined sidebar navigation with integrated user actions and compact APK download access'
+    'Real-time update progress bar, automatic restart, and celebration success dialog',
+    'Universal modal scroll locking: background page scrolling strictly prevented for all modals'
   ],
   he: [
-    'נוספה אפשרות לתיעוד ידני של אינסולין בולוס ובזאל עם בחירת תאריכי עבר ובדיקת מגבלות',
-    'סרגל צד יעיל ומרווח עם שילוב פעולות משתמש וכפתור הורדת APK חסכוני במקום'
+    'מד התקדמות עדכון בזמן אמת, הפעלה מחדש אוטומטית וחלונית הצלחה חגיגית',
+    'נעילת גלילת רקע כוללת: מניעה מוחלטת של גלילת העמוד מאחורי כל החלוניות באפליקציה'
   ],
   ru: [
-    'Добавлен ручной ввод инъекций болюса и базала с выбором прошедшей даты и проверкой лимитов',
-    'Оптимизировано боковое меню: компактные действия пользователя и лаконичная кнопка скачивания APK'
+    'Индикатор прогресса обновления в реальном времени, автоперезапуск и праздничное окно успеха',
+    'Полная блокировка фоновой прокрутки: предотвращение прокрутки страницы под всеми модальными окнами'
   ]
 };
 
@@ -408,16 +408,44 @@ export function calculateVersionsBehind(currentVersion, remoteVersion, versionHi
   if (!currentVersion || !remoteVersion || currentVersion === remoteVersion) {
     return 0;
   }
-  let behindFromHistory = 0;
+  if (!isSemverGreater(remoteVersion, currentVersion)) {
+    return 0;
+  }
+
+  const [cMajor, cMinor, cPatch] = parseSemver(currentVersion);
+  const [rMajor, rMinor, rPatch] = parseSemver(remoteVersion);
+
+  // A major version bump (e.g. 1.x -> 2.0.0) is ALWAYS a big update (mandatory, >= 3)
+  if (rMajor > cMajor) {
+    return Math.max(3, (rMajor - cMajor) * 3 + (rMinor - cMinor));
+  }
+
+  // 1. If versionHistory is provided, deduplicate by major.minor milestones so patch releases don't inflate distance
   if (Array.isArray(versionHistory) && versionHistory.length > 0) {
-    const currentIdx = versionHistory.indexOf(currentVersion);
-    const remoteIdx = versionHistory.indexOf(remoteVersion);
-    if (currentIdx !== -1 && remoteIdx !== -1 && remoteIdx > currentIdx) {
-      behindFromHistory = remoteIdx - currentIdx;
+    const milestones = Array.from(
+      new Set(
+        versionHistory.map((v) => {
+          const [maj, min] = parseSemver(v);
+          return `${maj}.${min}`;
+        })
+      )
+    );
+    const cIdx = milestones.indexOf(`${cMajor}.${cMinor}`);
+    const rIdx = milestones.indexOf(`${rMajor}.${rMinor}`);
+    if (cIdx !== -1 && rIdx !== -1 && rIdx > cIdx) {
+      return rIdx - cIdx;
     }
   }
-  const postponedCount = getPostponedUpdatesCount();
-  return Math.max(behindFromHistory, postponedCount);
+
+  // 2. Semver fallback distance based on minor versions
+  if (rMajor === cMajor && rMinor > cMinor) {
+    return rMinor - cMinor;
+  }
+  if (rMajor === cMajor && rMinor === cMinor && rPatch > cPatch) {
+    return 1;
+  }
+
+  return 0;
 }
 
 // Fetch version metadata and check if an update is available
@@ -443,7 +471,10 @@ export async function checkForAppUpdate() {
     // Only flag an update if remote version is strictly greater than current version
     if (isSemverGreater(remoteVer, currentVer)) {
       const versionsBehind = calculateVersionsBehind(currentVer, remoteVer, data.versionHistory || []);
-      const isMandatory = isAndroidApp() && versionsBehind >= 3;
+      const [cMaj] = parseSemver(currentVer);
+      const [rMaj] = parseSemver(remoteVer);
+      const isMajorUpgrade = rMaj > cMaj;
+      const isMandatory = isAndroidApp() && (isMajorUpgrade || versionsBehind >= 3 || Boolean(data.isMandatory));
       const info = {
         updateAvailable: true,
         currentVersion: currentVer,
@@ -499,10 +530,72 @@ export function initServiceWorkerUpdateWatcher(registration) {
   });
 }
 
-// Trigger update activation
-export async function applyAppUpdate(newVersion = null) {
+// Trigger update activation with live progress stages and verification
+export async function applyAppUpdate(newVersion = null, onProgress = null) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('Network offline. Please check your internet connection and try again.');
+  }
+
+  onProgress?.({ percent: 15, stage: 'checking' });
+
+  // 1. Verify network connection and server response
+  if (typeof fetch === 'function') {
+    try {
+      const res = await fetch(`/version.json?_t=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok && res.status !== 404 && res.status !== 0) {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+    } catch (err) {
+      if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
+        throw new Error(err?.message || 'Network error reaching update server.', { cause: err });
+      }
+    }
+  }
+
+  onProgress?.({ percent: 45, stage: 'downloading' });
+
+  // 2. Trigger Service Worker update check
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.update().catch(() => {});
+      }
+    } catch (e) {
+      void e;
+    }
+  }
+
+  onProgress?.({ percent: 75, stage: 'activating' });
+
+  // 3. Clear old caches & notify waiting worker
+  if (waitingWorker) {
+    try {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    } catch (e) {
+      void e;
+    }
+  }
+
+  if (typeof window !== 'undefined' && 'caches' in window) {
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) {
+      void e;
+    }
+  }
+
+  onProgress?.({ percent: 100, stage: 'complete' });
+
+  // 4. Update stored version and set success flag
   if (newVersion) {
     setStoredAppVersion(newVersion);
+    try {
+      localStorage.setItem('insuminder_just_updated_to', newVersion);
+    } catch (e) {
+      void e;
+    }
   }
   clearPostponedUpdates();
   try {
@@ -511,26 +604,10 @@ export async function applyAppUpdate(newVersion = null) {
     void e;
   }
 
-  if (isAndroidApp()) {
-    downloadAndroidApk();
-    return;
-  }
-
-  if (waitingWorker) {
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-  } else {
-    // If not waiting on SW, clear runtime caches and reload
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      try {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      } catch (e) {
-        void e;
-      }
-    }
-    if (typeof window !== 'undefined') {
-      window.location.reload();
-    }
+  // 5. Short pause to let user see 100% complete, then reload
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  if (typeof window !== 'undefined' && window.location && typeof window.location.reload === 'function') {
+    window.location.reload();
   }
 }
 

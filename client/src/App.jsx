@@ -35,13 +35,14 @@ import {
   subscribeToInstallPrompt,
   downloadAndroidApk,
   checkForAppUpdate,
-  applyAppUpdate,
   subscribeToAppUpdates,
   ANDROID_PACKAGE_INFO,
   APP_CURRENT_CHANGELOG
 } from './pwa';
 import { LanguageProvider, useTranslation } from './i18n';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
+import useLockBodyScroll from './useLockBodyScroll';
+import UpdateSuccessModal from './UpdateSuccessModal';
 
 const isLocalEnv = Boolean(
   typeof window !== 'undefined' &&
@@ -538,6 +539,40 @@ function AppContent() {
     };
   }, [isNavOpen]);
 
+  // Update Success Celebratory Modal State
+  const [justUpdatedVersion, setJustUpdatedVersion] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem('insuminder_just_updated_to');
+    } catch {
+      return null;
+    }
+  });
+
+  const handleCloseUpdateSuccess = () => {
+    try {
+      localStorage.removeItem('insuminder_just_updated_to');
+    } catch (e) {
+      void e;
+    }
+    setJustUpdatedVersion(null);
+  };
+
+  // Strictly lock background body scrolling whenever ANY modal in the application is active
+  const isAnyAppModalOpen = Boolean(
+    deleteModalConfig ||
+    reminderModalData ||
+    isAuthModalOpen ||
+    isManualModalOpen ||
+    isEarlyBolusModalOpen ||
+    isAndroidModalOpen ||
+    removeMemberModalData ||
+    leaveGroupModalData ||
+    viewingExplanationModal ||
+    justUpdatedVersion
+  );
+  useLockBodyScroll(isAnyAppModalOpen);
+
   // Telegram Configuration State
   const [telegramConfigs, setTelegramConfigs] = useState(() => {
     try {
@@ -1032,7 +1067,9 @@ function AppContent() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (isAuthModalOpen) {
+        if (justUpdatedVersion) {
+          handleCloseUpdateSuccess();
+        } else if (isAuthModalOpen) {
           setIsAuthModalOpen(false);
         } else if (isManualModalOpen) {
           setIsManualModalOpen(false);
@@ -1056,7 +1093,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal, justUpdatedVersion]);
 
   // Auto-dismiss notification after 4.5 seconds
   useEffect(() => {
@@ -3587,7 +3624,16 @@ function AppContent() {
                   <button
                     type="button"
                     className="btn-check-updates btn-apply-update-highlight"
-                    onClick={() => applyAppUpdate(availableUpdate.newVersion)}
+                    onClick={() => {
+                      try {
+                        sessionStorage.removeItem('insuminder_update_dismissed_version');
+                      } catch {
+                        // ignore storage errors
+                      }
+                      window.dispatchEvent(
+                        new CustomEvent('insuminder_trigger_update_flow', { detail: { version: availableUpdate.newVersion } })
+                      );
+                    }}
                   >
                     <span className="btn-icon" aria-hidden="true">🚀</span>
                     {t('settings.updateNowBtn', { version: availableUpdate.newVersion })}
@@ -4227,6 +4273,14 @@ function AppContent() {
         isOpen={isAndroidModalOpen}
         onClose={() => setIsAndroidModalOpen(false)}
       />
+
+      {/* Update Success Celebration Modal */}
+      {justUpdatedVersion && (
+        <UpdateSuccessModal
+          version={justUpdatedVersion}
+          onClose={handleCloseUpdateSuccess}
+        />
+      )}
 
       {/* Application Footer */}
       <footer className="app-footer">

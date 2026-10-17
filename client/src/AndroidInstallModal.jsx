@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from './i18n';
 import { downloadAndroidApk, ANDROID_PACKAGE_INFO } from './pwa';
+import useLockBodyScroll from './useLockBodyScroll';
 
 export default function AndroidInstallModal({ isOpen, onClose }) {
   const { t } = useTranslation();
   const [showSecurityDetails, setShowSecurityDetails] = useState(false);
+
+  useLockBodyScroll(Boolean(isOpen));
 
   useEffect(() => {
     if (!isOpen) return;

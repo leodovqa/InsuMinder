@@ -173,9 +173,57 @@ describe('UpdateBanner Component', () => {
     });
   });
 
-  it('invokes applyAppUpdate when Update Now button is clicked', async () => {
+  it('invokes applyAppUpdate with progress callback when Update Now button is clicked and shows progress bar', async () => {
     vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
-    const applySpy = vi.spyOn(pwaModule, 'applyAppUpdate').mockResolvedValue(undefined);
+    const applySpy = vi.spyOn(pwaModule, 'applyAppUpdate').mockImplementation(async (version, onProgress) => {
+      onProgress?.({ percent: 50, stage: 'downloading' });
+      // keep it pending to inspect progress state
+      await new Promise(() => {});
+    });
+
+    const mockUpdate = {
+      updateAvailable: true,
+      currentVersion: '1.0.0',
+      newVersion: '1.2.0',
+      versionsBehind: 1,
+      isMandatory: false,
+      changes: {
+        en: ['Speed improvements']
+      }
+    };
+
+    vi.spyOn(pwaModule, 'subscribeToAppUpdates').mockImplementation((cb) => {
+      cb(mockUpdate);
+      return () => {};
+    });
+    vi.spyOn(pwaModule, 'checkForAppUpdate').mockResolvedValue(mockUpdate);
+
+    renderWithProviders(<UpdateBanner />);
+
+    // Verify scroll lock
+    expect(document.body.classList.contains('modal-open')).toBe(true);
+
+    const updateBtn = screen.getByRole('button', { name: /Update Now/i });
+    fireEvent.click(updateBtn);
+
+    await waitFor(() => {
+      expect(applySpy).toHaveBeenCalledWith('1.2.0', expect.any(Function));
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      expect(screen.getByText('50%')).toBeInTheDocument();
+      expect(screen.getByText('Downloading update...')).toBeInTheDocument();
+    });
+  });
+
+  it('displays error container and allows retrying when applyAppUpdate fails', async () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
+    let attempt = 0;
+    const applySpy = vi.spyOn(pwaModule, 'applyAppUpdate').mockImplementation(async () => {
+      attempt++;
+      if (attempt === 1) {
+        throw new Error('Network timeout during download.');
+      }
+      return undefined;
+    });
 
     const mockUpdate = {
       updateAvailable: true,
@@ -200,7 +248,17 @@ describe('UpdateBanner Component', () => {
     fireEvent.click(updateBtn);
 
     await waitFor(() => {
-      expect(applySpy).toHaveBeenCalledWith('1.2.0');
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText('Update Failed')).toBeInTheDocument();
+      expect(screen.getByText('Network timeout during download.')).toBeInTheDocument();
+    });
+
+    // Tap retry button
+    const retryBtn = screen.getByRole('button', { name: /Retry/i });
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(applySpy).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -238,5 +296,51 @@ describe('UpdateBanner Component', () => {
     const overlay = screen.getByRole('alertdialog');
     fireEvent.click(overlay);
     expect(screen.getByText('Update Required to Continue')).toBeInTheDocument();
+  });
+
+  it('triggers update with progress bar when insuminder_trigger_update_flow event is dispatched', async () => {
+    vi.spyOn(pwaModule, 'isAndroidApp').mockReturnValue(true);
+    const applySpy = vi.spyOn(pwaModule, 'applyAppUpdate').mockImplementation(async (version, onProgress) => {
+      onProgress?.({ percent: 75, stage: 'activating' });
+      await new Promise(() => {});
+    });
+
+    const mockUpdate = {
+      updateAvailable: true,
+      currentVersion: '1.4.0',
+      newVersion: '1.5.0',
+      versionsBehind: 1,
+      isMandatory: false,
+      changes: {
+        en: ['Speed improvements']
+      }
+    };
+
+    vi.spyOn(pwaModule, 'subscribeToAppUpdates').mockImplementation((cb) => {
+      cb(mockUpdate);
+      return () => {};
+    });
+    vi.spyOn(pwaModule, 'checkForAppUpdate').mockResolvedValue(mockUpdate);
+
+    renderWithProviders(<UpdateBanner />);
+
+    // Dismiss initial voluntary modal
+    const laterBtn = screen.getByRole('button', { name: /Later/i });
+    fireEvent.click(laterBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // Dispatch trigger event from Settings
+    window.dispatchEvent(new CustomEvent('insuminder_trigger_update_flow', { detail: { version: '1.5.0' } }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(applySpy).toHaveBeenCalledWith('1.5.0', expect.any(Function));
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
+      expect(screen.getByText('75%')).toBeInTheDocument();
+      expect(screen.getByText('Activating new version...')).toBeInTheDocument();
+    });
   });
 });

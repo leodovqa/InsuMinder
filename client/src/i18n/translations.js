@@ -433,7 +433,17 @@ export const translations = {
       mandatoryTitle: 'Update Required to Continue',
       mandatoryDesc: 'Your Android app is {count} updates behind. Please update now to continue using InsuMinder safely.',
       updateAvailableStatus: 'Update available: v{version}',
-      behindBadge: '{count} updates behind'
+      behindBadge: '{count} updates behind',
+      stageChecking: 'Checking for updates...',
+      stageDownloading: 'Downloading update...',
+      stageActivating: 'Activating new version...',
+      stageComplete: 'Update ready! Restarting...',
+      errorTitle: 'Update Failed',
+      errorNetwork: 'Network error occurred while downloading update. Please check your connection and try again.',
+      retry: 'Retry',
+      successTitle: 'Update Successful!',
+      successDesc: 'InsuMinder has been updated to the latest version. Everything is ready for you.',
+      continueBtn: 'Continue to App'
     },
     time: {
       justNow: 'Just now',
@@ -922,7 +932,17 @@ export const translations = {
       mandatoryTitle: 'נדרש עדכון כדי להמשיך',
       mandatoryDesc: 'האפליקציה שלך בפיגור של {count} עדכונים. יש לעדכן כעת כדי להמשיך להשתמש ב-InsuMinder בבטחה.',
       updateAvailableStatus: 'עדכון זמין: v{version}',
-      behindBadge: 'פיגור של {count} עדכונים'
+      behindBadge: 'פיגור של {count} עדכונים',
+      stageChecking: 'בודק חבילות עדכון...',
+      stageDownloading: 'מוריד עדכון...',
+      stageActivating: 'מפעיל גרסה חדשה...',
+      stageComplete: 'העדכון מוכן! מפעיל מחדש...',
+      errorTitle: 'העדכון נכשל',
+      errorNetwork: 'שגיאת רשת בעת הורדת העדכון. אנא בדוק את החיבור לאינטרנט ונסה שוב.',
+      retry: 'נסה שוב',
+      successTitle: 'העדכון הושלם בהצלחה!',
+      successDesc: 'InsuMinder עודכנה בהצלחה לגרסה העדכנית ביותר. הכל מוכן לשימוש.',
+      continueBtn: 'המשך לאפליקציה'
     },
     time: {
       justNow: 'ממש עכשיו',
@@ -1411,7 +1431,17 @@ export const translations = {
       mandatoryTitle: 'Для продолжения требуется обновление',
       mandatoryDesc: 'Ваше приложение отстает на {count} обновл. Пожалуйста, обновите сейчас для безопасной работы InsuMinder.',
       updateAvailableStatus: 'Доступно обновление: v{version}',
-      behindBadge: 'Отставание на {count} обновл.'
+      behindBadge: 'Отставание на {count} обновл.',
+      stageChecking: 'Проверка пакетов обновления...',
+      stageDownloading: 'Загрузка обновления...',
+      stageActivating: 'Активация новой версии...',
+      stageComplete: 'Обновление готово! Перезапуск...',
+      errorTitle: 'Ошибка обновления',
+      errorNetwork: 'Произошла сетевая ошибка при загрузке обновления. Проверьте подключение и повторите попытку.',
+      retry: 'Повторить',
+      successTitle: 'Обновление успешно установлено!',
+      successDesc: 'InsuMinder успешно обновлен до последней версии. Все готово к работе.',
+      continueBtn: 'Продолжить'
     },
     time: {
       justNow: 'Только что',
