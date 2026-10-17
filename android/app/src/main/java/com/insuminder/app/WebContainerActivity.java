@@ -3,7 +3,12 @@ package com.insuminder.app;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
@@ -14,6 +19,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
+import android.webkit.PermissionRequest;
 import android.webkit.ServiceWorkerClient;
 import android.webkit.ServiceWorkerController;
 import android.webkit.WebChromeClient;
@@ -25,6 +31,9 @@ import android.webkit.WebViewClient;
 import android.webkit.JavascriptInterface;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
+import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
@@ -43,6 +52,9 @@ import com.google.android.gms.tasks.Task;
 public class WebContainerActivity extends Activity {
 
     public static final int RC_GOOGLE_SIGN_IN = 9001;
+    public static final int RC_POST_NOTIFICATIONS = 9002;
+    public static final String NOTIFICATION_CHANNEL_ID = "insuminder_reminders";
+    public static final String NOTIFICATION_CHANNEL_NAME = "InsuMinder Reminders";
     public static final String DEFAULT_WEB_CLIENT_ID = "49202391060-u2o79b29r36940t0ep9p8b7g6prm9d2q.apps.googleusercontent.com";
 
     private WebView mWebView;
@@ -60,6 +72,9 @@ public class WebContainerActivity extends Activity {
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         window.setStatusBarColor(Color.parseColor("#0284c7"));
         window.setNavigationBarColor(Color.parseColor("#0f172a"));
+
+        // Initialize high-priority notification channel for dose reminders
+        createNotificationChannel();
 
         RelativeLayout layout = new RelativeLayout(this);
         layout.setBackgroundColor(Color.parseColor("#0f172a"));
@@ -141,6 +156,18 @@ public class WebContainerActivity extends Activity {
                 } else {
                     mProgressBar.setVisibility(View.GONE);
                 }
+            }
+
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                if (request == null) return;
+                runOnUiThread(() -> {
+                    try {
+                        request.grant(request.getResources());
+                    } catch (Exception e) {
+                        // Ignore
+                    }
+                });
             }
 
             @Override
@@ -226,7 +253,156 @@ public class WebContainerActivity extends Activity {
                 ? getIntent().getData()
                 : Uri.parse(MainActivity.DEFAULT_URL);
 
+        targetUri = resolveTargetUri(targetUri);
         mWebView.loadUrl(targetUri.toString());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent != null && intent.getData() != null) {
+            Uri targetUri = resolveTargetUri(intent.getData());
+            if (mWebView != null) {
+                mWebView.loadUrl(targetUri.toString());
+            }
+        }
+    }
+
+    private Uri resolveTargetUri(Uri rawUri) {
+        if (rawUri == null) {
+            return Uri.parse(MainActivity.DEFAULT_URL);
+        }
+
+        // Support custom scheme insuminder:// (e.g. insuminder://open?action=basal or insuminder://?action=basal)
+        if ("insuminder".equalsIgnoreCase(rawUri.getScheme())) {
+            String query = rawUri.getEncodedQuery();
+            String path = rawUri.getPath() != null ? rawUri.getPath() : "";
+            if (path.startsWith("/open")) {
+                path = path.substring(5);
+            }
+            String url = "https://insuminder.pages.dev" + path + (query != null ? "?" + query : "");
+            rawUri = Uri.parse(url);
+        }
+
+        // Ensure ?app=android query parameter is present so web app identifies native container
+        if (rawUri.getQueryParameter("app") == null) {
+            rawUri = rawUri.buildUpon().appendQueryParameter("app", "android").build();
+        }
+
+        return rawUri;
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    NOTIFICATION_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Insulin dose reminders and notifications");
+            channel.enableLights(true);
+            channel.setLightColor(Color.parseColor("#0ea5e9"));
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 300, 200, 300});
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    public boolean hasNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
+    public void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (!hasNotificationPermission()) {
+                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, RC_POST_NOTIFICATIONS);
+            } else {
+                notifyNotificationPermissionResult(true);
+            }
+        } else {
+            notifyNotificationPermissionResult(true);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == RC_POST_NOTIFICATIONS) {
+            boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            notifyNotificationPermissionResult(granted);
+        }
+    }
+
+    private void notifyNotificationPermissionResult(boolean granted) {
+        if (mWebView == null) return;
+        runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeNotificationPermissionResult && window.__onNativeNotificationPermissionResult(" + granted + ");", null));
+    }
+
+    public void showNativeNotification(String title, String body, String tag, String targetUrl) {
+        if (!hasNotificationPermission()) {
+            requestNotificationPermission();
+            return;
+        }
+
+        createNotificationChannel();
+
+        String destination = (targetUrl != null && !targetUrl.trim().isEmpty())
+                ? targetUrl.trim()
+                : "https://insuminder.pages.dev/?action=basal";
+
+        if (!destination.startsWith("http://") && !destination.startsWith("https://") && !destination.startsWith("insuminder://")) {
+            if (destination.startsWith("/")) {
+                destination = "https://insuminder.pages.dev" + destination;
+            } else {
+                destination = "https://insuminder.pages.dev/" + destination;
+            }
+        }
+
+        if (!destination.contains("app=android")) {
+            destination = destination + (destination.contains("?") ? "&" : "?") + "app=android";
+        }
+
+        Intent intent = new Intent(this, WebContainerActivity.class);
+        intent.setData(Uri.parse(destination));
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+
+        int requestCode = tag != null ? Math.abs(tag.hashCode()) : (int) System.currentTimeMillis();
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, requestCode, intent, flags);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title != null && !title.trim().isEmpty() ? title : "InsuMinder")
+                .setContentText(body != null ? body : "")
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body != null ? body : ""))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setColor(Color.parseColor("#0ea5e9"));
+
+        if (destination.contains("action=basal")) {
+            builder.addAction(R.mipmap.ic_launcher, "💉 Log Basal", pendingIntent);
+        }
+
+        NotificationManagerCompat managerCompat = NotificationManagerCompat.from(this);
+        try {
+            managerCompat.notify(tag != null ? tag : "insuminder_reminder", requestCode, builder.build());
+        } catch (SecurityException se) {
+            // Ignored if notification permission revoked
+        }
     }
 
     private synchronized void setupGoogleSignIn(String webClientId) {
@@ -248,6 +424,21 @@ public class WebContainerActivity extends Activity {
         @JavascriptInterface
         public boolean isNativeAndroid() {
             return true;
+        }
+
+        @JavascriptInterface
+        public boolean isNotificationPermissionGranted() {
+            return hasNotificationPermission();
+        }
+
+        @JavascriptInterface
+        public void requestNotificationPermission() {
+            runOnUiThread(() -> WebContainerActivity.this.requestNotificationPermission());
+        }
+
+        @JavascriptInterface
+        public void postNativeNotification(String title, String body, String tag, String targetUrl) {
+            runOnUiThread(() -> showNativeNotification(title, body, tag, targetUrl));
         }
 
         @JavascriptInterface

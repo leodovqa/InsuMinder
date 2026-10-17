@@ -27,18 +27,44 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Uri targetUri = getIntent() != null && getIntent().getData() != null
-                ? getIntent().getData()
-                : Uri.parse(DEFAULT_URL);
-
-        // Ensure ?app=android query parameter is present so web app identifies native container
-        if (targetUri.getQueryParameter("app") == null) {
-            targetUri = targetUri.buildUpon().appendQueryParameter("app", "android").build();
-        }
+        Uri targetUri = resolveTargetUri(getIntent() != null ? getIntent().getData() : null);
 
         // Always launch native embedded WebContainer for standalone APK experience
         launchWebContainer(targetUri);
         finish();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        Uri targetUri = resolveTargetUri(intent != null ? intent.getData() : null);
+        launchWebContainer(targetUri);
+        finish();
+    }
+
+    private Uri resolveTargetUri(Uri rawUri) {
+        if (rawUri == null) {
+            return Uri.parse(DEFAULT_URL);
+        }
+
+        // Support custom scheme insuminder:// (e.g. insuminder://open?action=basal or insuminder://?action=basal)
+        if ("insuminder".equalsIgnoreCase(rawUri.getScheme())) {
+            String query = rawUri.getEncodedQuery();
+            String path = rawUri.getPath() != null ? rawUri.getPath() : "";
+            if (path.startsWith("/open")) {
+                path = path.substring(5);
+            }
+            String url = "https://insuminder.pages.dev" + path + (query != null ? "?" + query : "");
+            rawUri = Uri.parse(url);
+        }
+
+        // Ensure ?app=android query parameter is present so web app identifies native container
+        if (rawUri.getQueryParameter("app") == null) {
+            rawUri = rawUri.buildUpon().appendQueryParameter("app", "android").build();
+        }
+
+        return rawUri;
     }
 
     private boolean hasCustomTabsSupport() {
@@ -66,6 +92,7 @@ public class MainActivity extends Activity {
     private void launchWebContainer(Uri uri) {
         Intent intent = new Intent(this, WebContainerActivity.class);
         intent.setData(uri);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
     }
 }

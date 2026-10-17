@@ -97,6 +97,12 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'InsuMinder Reminder';
+  const targetUrl = (data.data && data.data.url) || data.url || '/';
+  const actions = [];
+  if (targetUrl.includes('action=basal')) {
+    actions.push({ action: 'log_basal', title: '💉 Log Basal' });
+  }
+
   const options = {
     body: data.body || 'You have an insulin timing reminder.',
     icon: data.icon || '/icons/icon-192x192.png',
@@ -104,7 +110,8 @@ self.addEventListener('push', (event) => {
     tag: data.tag || 'insuminder-reminder',
     renotify: true,
     vibrate: [200, 100, 200],
-    data: data.data || { url: '/' }
+    data: { url: targetUrl },
+    actions: actions
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -113,7 +120,10 @@ self.addEventListener('push', (event) => {
 // 5. Notification Click Event: Focus or Open App Window
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  let targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  if (event.action === 'log_basal') {
+    targetUrl = '/?action=basal';
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

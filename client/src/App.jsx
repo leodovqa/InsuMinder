@@ -212,6 +212,13 @@ function AppContent() {
     const params = new URLSearchParams(window.location.search);
     return (params.get('shareCode') || params.get('invite')) ? 'register' : 'login';
   }); // 'login' | 'register'
+  // Basal Notification Deep Link State
+  const [isBasalConfirmModalOpen, setIsBasalConfirmModalOpen] = useState(false);
+  const [pendingBasalAction, setPendingBasalAction] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('action') === 'basal';
+  });
   const [selectedWeekStart, setSelectedWeekStart] = useState(() => getStartOfWeek(new Date()));
   const [touchStartX, setTouchStartX] = useState(null);
   const [touchStartY, setTouchStartY] = useState(null);
@@ -521,11 +528,14 @@ function AppContent() {
       if (viewingExplanationModal) {
         setViewingExplanationModal(null);
       }
+      if (isBasalConfirmModalOpen) {
+        setIsBasalConfirmModalOpen(false);
+      }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, isAndroidModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal]);
+  }, [isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, isAndroidModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal, isBasalConfirmModalOpen]);
 
   // Prevent background page scrolling when sidebar navigation drawer is open (Task 3)
   useEffect(() => {
@@ -538,6 +548,60 @@ function AppContent() {
       document.body.classList.remove('nav-drawer-open');
     };
   }, [isNavOpen]);
+
+  // Basal Notification Deep Link Listeners (?action=basal)
+  useEffect(() => {
+    const checkAction = () => {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'basal') {
+        setActiveTab('home');
+        setPendingBasalAction(true);
+      }
+    };
+
+    window.addEventListener('focus', checkAction);
+    window.addEventListener('popstate', checkAction);
+    return () => {
+      window.removeEventListener('focus', checkAction);
+      window.removeEventListener('popstate', checkAction);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingBasalAction) return;
+
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('action');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+    }
+
+    const timer = setTimeout(() => {
+      if (!isLoggedIn) {
+        setAuthModalMode('login');
+        setIsAuthModalOpen(true);
+        setPendingBasalAction(false);
+        return;
+      }
+
+      const nowKey = formatDateOnly(new Date().toISOString());
+      const alreadyLogged = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at) === nowKey);
+
+      if (alreadyLogged) {
+        setNotification({
+          type: 'info',
+          message: t('notifications.basalAlreadyLoggedToast')
+        });
+        setPendingBasalAction(false);
+      } else {
+        setIsBasalConfirmModalOpen(true);
+        setPendingBasalAction(false);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [pendingBasalAction, isLoggedIn, logs, t]);
 
   // Update Success Celebratory Modal State
   const [justUpdatedVersion, setJustUpdatedVersion] = useState(() => {
@@ -569,6 +633,7 @@ function AppContent() {
     removeMemberModalData ||
     leaveGroupModalData ||
     viewingExplanationModal ||
+    isBasalConfirmModalOpen ||
     justUpdatedVersion
   );
   useLockBodyScroll(isAnyAppModalOpen);
@@ -1085,6 +1150,8 @@ function AppContent() {
           setLeaveGroupModalData(null);
         } else if (viewingExplanationModal) {
           setViewingExplanationModal(null);
+        } else if (isBasalConfirmModalOpen) {
+          setIsBasalConfirmModalOpen(false);
         } else if (isNavOpen) {
           setIsNavOpen(false);
         }
@@ -1093,7 +1160,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal, justUpdatedVersion]);
+  }, [isNavOpen, deleteModalConfig, reminderModalData, isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal, isBasalConfirmModalOpen, justUpdatedVersion]);
 
   // Auto-dismiss notification after 4.5 seconds
   useEffect(() => {
@@ -4255,6 +4322,64 @@ function AppContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Basal Insulin Deep-Link Confirmation Modal */}
+      {isBasalConfirmModalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setIsBasalConfirmModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="basal-confirm-modal-title"
+        >
+          <div className="modal-card basal-confirm-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="early-modal-header-left">
+                <div className="modal-icon-wrapper basal-icon-wrapper">
+                  <span style={{ fontSize: '20px' }} role="img" aria-hidden="true">🌙</span>
+                </div>
+                <h3 id="basal-confirm-modal-title" className="modal-title">
+                  {t('modals.basalConfirmTitle')}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-x-btn"
+                onClick={() => setIsBasalConfirmModalOpen(false)}
+                aria-label={t('common.closeModal')}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <p className="early-modal-text">
+                {t('modals.basalConfirmBody')}
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                onClick={() => setIsBasalConfirmModalOpen(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-btn"
+                onClick={() => {
+                  setIsBasalConfirmModalOpen(false);
+                  handleLogInjection('basal');
+                }}
+              >
+                {t('modals.basalConfirmButton')}
+              </button>
+            </div>
           </div>
         </div>
       )}

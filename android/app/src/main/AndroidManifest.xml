@@ -52,6 +52,14 @@
                     android:scheme="https"
                     android:host="insuminder.pages.dev" />
             </intent-filter>
+
+            <!-- Custom Scheme Deep Linking -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="insuminder" />
+            </intent-filter>
         </activity>
 
         <!-- Embedded Web Container Fallback Activity -->

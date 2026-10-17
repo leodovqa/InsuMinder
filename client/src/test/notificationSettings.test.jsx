@@ -134,5 +134,38 @@ describe('NotificationSettings Component', () => {
     fireEvent.keyDown(basalCard, { key: ' ' });
     expect(onUpdatePreferences).toHaveBeenCalledTimes(2);
   });
+
+  it('renders device push card and triggers test notification', async () => {
+    // Mock Android bridge
+    window.AndroidBridge = {
+      isNativeAndroid: () => true,
+      isNotificationPermissionGranted: () => true,
+      postNativeNotification: vi.fn(),
+      requestNotificationPermission: vi.fn()
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, message: 'Test notification sent!' })
+    });
+
+    renderNotificationSettings();
+
+    expect(screen.getByText('Device & Web Push Notifications')).toBeInTheDocument();
+
+    const testBtn = screen.getByRole('button', { name: /Send Test Push/i });
+    expect(testBtn).toBeInTheDocument();
+
+    fireEvent.click(testBtn);
+
+    expect(window.AndroidBridge.postNativeNotification).toHaveBeenCalledWith(
+      expect.stringContaining('InsuMinder Test Alert'),
+      expect.stringContaining('Device push reminders are active'),
+      'insuminder-test',
+      '/?action=basal'
+    );
+
+    delete window.AndroidBridge;
+  });
 });
 

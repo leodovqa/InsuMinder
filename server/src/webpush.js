@@ -1,29 +1,21 @@
 const crypto = require('crypto');
 
-// Dynamic / environment VAPID key resolution to prevent secret leakage
+const STABLE_VAPID_KEYS = {
+  publicKey: 'BF7pTPq0Grnklt77f1UujkSU-B-AqR3ZHKLGIyX8DyhYGdAI4mVsXwazKGEunwxykSosFApmHlVfGOlcl0ywA8I',
+  privateKey: 'kZTCIFztIITs-q4NGY2TZUgKst_o27AN4HUi7r9zUV0',
+  subject: 'mailto:support@insuminder.com'
+};
+
+// Environment VAPID key resolution with persistent stable fallback
 function resolveVapidKeys() {
   if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     return {
       publicKey: process.env.VAPID_PUBLIC_KEY,
       privateKey: process.env.VAPID_PRIVATE_KEY,
-      subject: process.env.VAPID_SUBJECT || 'mailto:support@insuminder.com'
+      subject: process.env.VAPID_SUBJECT || STABLE_VAPID_KEYS.subject
     };
   }
-  const ec = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
-  const privJwk = ec.privateKey.export({ format: 'jwk' });
-  const pubJwk = ec.publicKey.export({ format: 'jwk' });
-  const x = Buffer.from(pubJwk.x, 'base64');
-  const y = Buffer.from(pubJwk.y, 'base64');
-  const uncompressed = Buffer.concat([Buffer.from([0x04]), x, y])
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-  return {
-    publicKey: uncompressed,
-    privateKey: privJwk.d,
-    subject: process.env.VAPID_SUBJECT || 'mailto:support@insuminder.com'
-  };
+  return STABLE_VAPID_KEYS;
 }
 
 const _vapid = resolveVapidKeys();
