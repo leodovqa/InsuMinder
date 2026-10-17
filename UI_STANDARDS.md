@@ -147,6 +147,63 @@ When displaying status indicators belonging to the same element family (such as 
 
 ---
 
+## 7. Universal Modal Background Scroll Locking & Touch Containment (Mandatory Standard)
+
+### 7.1 Strict Prohibition of Background / Underneath Scrolling
+- **WE NEVER ALLOW THE APP TO SCROLL "UNDER" ANY MODAL**:
+  - Whenever ANY modal, dialog, sheet, popover, or drawer is open (never mind what the modal is: injection logging, confirmation, settings, time/date picker, auth, update banner, or celebration dialog), background scrolling on `document.body` and `document.documentElement` **MUST BE STRICTLY AND UNCONDITIONALLY PREVENTED**.
+  - Swiping, dragging, or mouse-wheel scrolling when a modal is active must NEVER scroll the background page underneath.
+  - Background scrolling is disorienting, breaks gesture boundaries, and ruins mobile touch interaction.
+
+### 7.2 Mandatory Standard Implementation (useLockBodyScroll & CSS Containment)
+- **Mandatory Reference-Counted Hook**:
+  - Every modal component must invoke the standardized, reference-counted `useLockBodyScroll` hook from `client/src/useLockBodyScroll.js`:
+    ```javascript
+    import { useLockBodyScroll } from './useLockBodyScroll';
+
+    export function MyCustomModal({ isOpen, onClose }) {
+      useLockBodyScroll(Boolean(isOpen));
+      if (!isOpen) return null;
+      // ...
+    }
+    ```
+  - Reference counting (`activeLockCount`) ensures that nested modals, multi-step dialogs, or closing one modal while another is open never prematurely unfreezes background scroll.
+- **Global CSS Locking (`body.modal-open, html.modal-open`)**:
+  - Automatically applied whenever at least one modal is active:
+    ```css
+    body.modal-open,
+    html.modal-open {
+      overflow: hidden !important;
+      touch-action: none;
+      overscroll-behavior: contain !important;
+    }
+    ```
+- **Internal Modal Touch & Overscroll Containment**:
+  - The modal card container (`.modal-card`) must strictly contain all internal touch and scroll gestures:
+    ```css
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      touch-action: pan-y;
+      overscroll-behavior: contain !important;
+    }
+
+    .modal-card {
+      touch-action: pan-y;
+      overscroll-behavior: contain !important;
+      max-height: calc(100vh - 40px);
+      max-height: calc(100dvh - 40px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    ```
+
+### 7.3 Non-Negotiable Protocol for Future Work
+- For **ANY** modal that is created, updated, changed, or fixed in the future:
+  1. The component **must** bind `useLockBodyScroll` or be included in the top-level `isAnyAppModalOpen` registry.
+  2. The modal overlay and card **must** include `overscroll-behavior: contain !important; touch-action: pan-y;`.
+  3. Developers and agents **must test and verify** on both mobile and desktop viewports that the background page cannot be scrolled while the modal is open, and that scrolling inside the modal card works smoothly.
+
 ---
 
 ## 8. Strict 24-Hour Time & DD/MM/YYYY Date Standards

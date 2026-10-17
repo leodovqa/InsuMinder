@@ -63,4 +63,8 @@ These rules outline the guidelines for developing the web-based application.
     - Switching language must strictly and exclusively swap the localized UI dictionary and text direction (`ltr`/`rtl`).
     - The active data context (`personal` vs `shared`), selected caregiver group, notification preferences, telegram configs, input states, and reminder cards must remain 100% identical before and after switching languages.
     - Always verify this state preservation before committing any changes to settings, profile handling, or user persistence.
+11. **Universal Modal Scroll Locking & Touch Containment Rule**:
+    - Under NO circumstances may the background application page be allowed to scroll underneath ANY active modal, popover, sheet, or drawer.
+    - Whenever creating, updating, changing, or fixing ANY modal in the application, developers and agents MUST bind the reference-counted `useLockBodyScroll` hook (`client/src/useLockBodyScroll.js`) and ensure modal cards contain all touch and scroll gestures (`overscroll-behavior: contain !important; touch-action: pan-y;`) in strict adherence to Section 7 of [UI_STANDARDS.md](file:///d:/Github/InsuMinder/UI_STANDARDS.md).
+
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from './i18n';
+import useLockBodyScroll from './useLockBodyScroll';
 import {
   subscribeToAppUpdates,
   checkForAppUpdate,
@@ -13,6 +14,8 @@ export default function UpdateBanner() {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [progress, setProgress] = useState({ percent: 0, stage: '' });
+  const [updateError, setUpdateError] = useState(null);
 
   useEffect(() => {
     // 1. Only Android APK shows the update popup modal
@@ -65,9 +68,35 @@ export default function UpdateBanner() {
     };
     window.addEventListener('insuminder_update_reset_dismiss', onResetDismiss);
 
-    // 6. Escape key handling (only for non-mandatory updates)
+    // 6. Direct trigger from Settings card to open modal and run update with progress bar
+    const onTriggerUpdateFlow = (e) => {
+      setIsDismissed(false);
+      try {
+        sessionStorage.removeItem('insuminder_update_dismissed_version');
+      } catch {
+        // ignore storage errors
+      }
+      const targetVersion = e?.detail?.version;
+      setUpdateInfo((curr) => {
+        const ver = targetVersion || curr?.newVersion;
+        if (ver) {
+          setIsUpdating(true);
+          setUpdateError(null);
+          setProgress({ percent: 15, stage: 'checking' });
+          applyAppUpdate(ver, (p) => setProgress(p)).catch((err) => {
+            console.error('[UpdateBanner] Failed to apply update from trigger:', err);
+            setIsUpdating(false);
+            setUpdateError(err?.message || t('appUpdate.errorNetwork'));
+          });
+        }
+        return curr;
+      });
+    };
+    window.addEventListener('insuminder_trigger_update_flow', onTriggerUpdateFlow);
+
+    // 7. Escape key handling (only for non-mandatory updates)
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !isUpdating) {
         setUpdateInfo((current) => {
           if (current && !current.isMandatory && !(current.versionsBehind >= 3)) {
             recordPostponedUpdate(current.newVersion);
@@ -89,36 +118,44 @@ export default function UpdateBanner() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('insuminder_update_reset_dismiss', onResetDismiss);
+      window.removeEventListener('insuminder_trigger_update_flow', onTriggerUpdateFlow);
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, []);
+  }, [isUpdating, t]);
 
-  // Must only run for Android APK
-  if (!isAndroidApp()) {
-    return null;
-  }
-
-  if (!updateInfo || !updateInfo.updateAvailable) {
-    return null;
-  }
-
+  // Compute visibility
   const isMandatory = Boolean(
-    updateInfo.isMandatory ||
-    (typeof updateInfo.versionsBehind === 'number' && updateInfo.versionsBehind >= 3)
+    updateInfo && (
+      updateInfo.isMandatory ||
+      (typeof updateInfo.versionsBehind === 'number' && updateInfo.versionsBehind >= 3)
+    )
   );
 
-  // If dismissed in this session and not mandatory, do not render
-  if (isDismissed && !isMandatory) {
-    return null;
-  }
+  const isSessionDismissed = Boolean(
+    !isMandatory &&
+    updateInfo &&
+    (() => {
+      try {
+        return sessionStorage.getItem('insuminder_update_dismissed_version') === updateInfo.newVersion;
+      } catch {
+        return false;
+      }
+    })()
+  );
 
-  // Double check session storage for non-mandatory updates
-  try {
-    if (!isMandatory && sessionStorage.getItem('insuminder_update_dismissed_version') === updateInfo.newVersion) {
-      return null;
-    }
-  } catch {
-    // ignore session storage errors
+  const isModalOpen = Boolean(
+    isAndroidApp() &&
+    updateInfo &&
+    updateInfo.updateAvailable &&
+    !isDismissed &&
+    !isSessionDismissed
+  );
+
+  // Strictly lock background body scrolling while update modal is open
+  useLockBodyScroll(isModalOpen);
+
+  if (!isModalOpen) {
+    return null;
   }
 
   const rawChanges = updateInfo.changes || {};
@@ -130,16 +167,19 @@ export default function UpdateBanner() {
 
   const handleUpdate = async () => {
     setIsUpdating(true);
+    setUpdateError(null);
+    setProgress({ percent: 15, stage: 'checking' });
     try {
-      await applyAppUpdate(updateInfo.newVersion);
+      await applyAppUpdate(updateInfo.newVersion, (p) => setProgress(p));
     } catch (e) {
       console.error('[UpdateBanner] Failed to apply update:', e);
       setIsUpdating(false);
+      setUpdateError(e?.message || t('appUpdate.errorNetwork'));
     }
   };
 
   const handleDismiss = () => {
-    if (isMandatory) return;
+    if (isMandatory || isUpdating) return;
     recordPostponedUpdate(updateInfo.newVersion);
     try {
       sessionStorage.setItem('insuminder_update_dismissed_version', updateInfo.newVersion);
@@ -150,7 +190,7 @@ export default function UpdateBanner() {
   };
 
   const handleBackdropClick = (e) => {
-    if (isMandatory) return;
+    if (isMandatory || isUpdating) return;
     if (e.target === e.currentTarget) {
       handleDismiss();
     }
@@ -182,7 +222,7 @@ export default function UpdateBanner() {
               </span>
             </div>
           </div>
-          {!isMandatory && (
+          {!isMandatory && !isUpdating && (
             <button
               type="button"
               className="update-close-btn"
@@ -201,7 +241,7 @@ export default function UpdateBanner() {
             </p>
           )}
 
-          {changesList.length > 0 && (
+          {changesList.length > 0 && !isUpdating && (
             <div className={`update-banner-body ${isMandatory ? 'update-blocking-body' : 'update-modal-changelog'}`}>
               <p className="update-whats-new-label">{t('appUpdate.whatsNew')}</p>
               <ul className="update-changes-list">
@@ -214,33 +254,78 @@ export default function UpdateBanner() {
               </ul>
             </div>
           )}
+
+          {/* Real-time Update Progress Bar & Stage Feedback */}
+          {isUpdating && (
+            <div className="update-progress-container" role="region" aria-label={t('appUpdate.updating')}>
+              <div className="update-progress-bar-track">
+                <div
+                  className="update-progress-bar-fill"
+                  style={{ width: `${progress.percent}%` }}
+                  role="progressbar"
+                  aria-valuenow={progress.percent}
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                />
+              </div>
+              <div className="update-progress-meta">
+                <span className="update-progress-stage">
+                  {progress.stage === 'checking' && t('appUpdate.stageChecking')}
+                  {progress.stage === 'downloading' && t('appUpdate.stageDownloading')}
+                  {progress.stage === 'activating' && t('appUpdate.stageActivating')}
+                  {progress.stage === 'complete' && t('appUpdate.stageComplete')}
+                  {!progress.stage && t('appUpdate.updating')}
+                </span>
+                <span className="update-progress-percent">{progress.percent}%</span>
+              </div>
+            </div>
+          )}
+
+          {/* Error & Retry Banner */}
+          {updateError && (
+            <div className="update-error-container" role="alert">
+              <div className="update-error-header">
+                <span className="update-error-icon" aria-hidden="true">⚠️</span>
+                <strong className="update-error-title">{t('appUpdate.errorTitle')}</strong>
+              </div>
+              <p className="update-error-msg">{updateError}</p>
+              <button
+                type="button"
+                className="btn-update-retry"
+                onClick={handleUpdate}
+              >
+                {t('appUpdate.retry')}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="update-modal-actions">
-          <button
-            type="button"
-            className={`btn-update-now ${isMandatory ? 'btn-blocking-update' : ''}`}
-            onClick={handleUpdate}
-            disabled={isUpdating}
-          >
-            {isUpdating ? (
-              <>
-                <span className="update-spinner" aria-hidden="true"></span>
-                <span>{t('appUpdate.updating')}</span>
-              </>
-            ) : (
-              t('appUpdate.updateNow')
-            )}
-          </button>
-          {!isMandatory && (
-            <button
-              type="button"
-              className="btn-update-later"
-              onClick={handleDismiss}
-              disabled={isUpdating}
-            >
-              {t('appUpdate.updateLater')}
-            </button>
+          {!isUpdating && (
+            <>
+              <button
+                type="button"
+                className={`btn-update-now ${isMandatory ? 'btn-blocking-update' : ''}`}
+                onClick={handleUpdate}
+              >
+                {t('appUpdate.updateNow')}
+              </button>
+              {!isMandatory && (
+                <button
+                  type="button"
+                  className="btn-update-later"
+                  onClick={handleDismiss}
+                >
+                  {t('appUpdate.updateLater')}
+                </button>
+              )}
+            </>
+          )}
+          {isUpdating && (
+            <div className="update-in-progress-badge">
+              <span className="update-spinner" aria-hidden="true"></span>
+              <span>{t('appUpdate.updating')}</span>
+            </div>
           )}
         </div>
       </div>

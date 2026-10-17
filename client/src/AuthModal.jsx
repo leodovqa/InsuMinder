@@ -4,9 +4,11 @@ import examples from 'libphonenumber-js/examples.mobile.json';
 import { authService } from './authService';
 import { detectCountry } from './countryCallingCodes';
 import { useTranslation } from './i18n';
+import useLockBodyScroll from './useLockBodyScroll';
 
 export default function AuthModal({ isOpen, initialMode = 'login', shareCode = null, onClose, onSuccess }) {
   const { t } = useTranslation();
+  useLockBodyScroll(Boolean(isOpen));
   const [mode, setMode] = useState(initialMode); // 'login' | 'register' | 'verify' | 'profile'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

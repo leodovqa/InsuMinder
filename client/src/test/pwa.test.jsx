@@ -265,19 +265,27 @@ describe('PWA Installation Detection & Persistence Tests', () => {
   });
 
   it('exports valid ANDROID_PACKAGE_INFO and APP_CURRENT_CHANGELOG with 3-language parity', () => {
-    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.4.0');
+    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.5.0');
     expect(pwa.ANDROID_PACKAGE_INFO.fileName).toBe('InsuMinder.apk');
     expect(pwa.APP_CURRENT_CHANGELOG.en.length).toBeGreaterThan(0);
     expect(pwa.APP_CURRENT_CHANGELOG.he.length).toBeGreaterThan(0);
     expect(pwa.APP_CURRENT_CHANGELOG.ru.length).toBeGreaterThan(0);
   });
 
-  it('calculates versionsBehind from versionHistory and postponed updates', () => {
+  it('calculates versionsBehind from versionHistory and semver accurately', () => {
     localStorage.clear();
-    const history = ['1.0.0', '1.0.1', '1.0.2', '1.1.0'];
-    expect(pwa.calculateVersionsBehind('1.0.0', '1.1.0', history)).toBe(3);
-    expect(pwa.calculateVersionsBehind('1.0.2', '1.1.0', history)).toBe(1);
-    expect(pwa.calculateVersionsBehind('1.1.0', '1.1.0', history)).toBe(0);
+    const history = ['1.0.0', '1.1.0', '1.2.0', '1.3.0', '1.4.0', '1.5.0'];
+    expect(pwa.calculateVersionsBehind('1.2.0', '1.4.0', history)).toBe(2);
+    expect(pwa.calculateVersionsBehind('1.2.0', '1.5.0', history)).toBe(3);
+    expect(pwa.calculateVersionsBehind('1.4.0', '1.5.0', history)).toBe(1);
+    expect(pwa.calculateVersionsBehind('1.5.0', '1.5.0', history)).toBe(0);
+
+    // Patch releases in history do not artificially inflate version difference
+    const historyWithPatches = ['1.0.0', '1.1.0', '1.2.0', '1.3.0', '1.3.1', '1.4.0'];
+    expect(pwa.calculateVersionsBehind('1.2.0', '1.4.0', historyWithPatches)).toBe(2);
+
+    // Major upgrade (e.g. 1.5.0 -> 2.0.0) is ALWAYS a big update (mandatory, >= 3) even if only 1 milestone difference
+    expect(pwa.calculateVersionsBehind('1.5.0', '2.0.0', ['1.5.0', '2.0.0'])).toBeGreaterThanOrEqual(3);
 
     pwa.recordPostponedUpdate('1.0.1');
     pwa.recordPostponedUpdate('1.0.2');
@@ -285,6 +293,42 @@ describe('PWA Installation Detection & Persistence Tests', () => {
 
     pwa.clearPostponedUpdates();
     expect(pwa.getPostponedUpdatesCount()).toBe(0);
+  });
+
+  it('marks major upgrade (e.g. 1.x -> 2.0.0) as mandatory on Android even if only 1 version ahead', async () => {
+    localStorage.setItem('insuminder_app_version', '1.9.0');
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        version: '2.0.0',
+        versionHistory: ['1.9.0', '2.0.0'],
+        changes: { en: ['Major release 2.0'] }
+      })
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+
+    const originalNavigator = globalThis.navigator;
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { ...originalNavigator, userAgent: 'Mozilla/5.0 InsuMinder-Android/1.0.0' },
+      configurable: true,
+      writable: true
+    });
+
+    try {
+      const androidUpdate = await pwa.checkForAppUpdate();
+      expect(androidUpdate.updateAvailable).toBe(true);
+      expect(androidUpdate.isMandatory).toBe(true);
+      expect(androidUpdate.versionsBehind).toBeGreaterThanOrEqual(3);
+    } finally {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: originalNavigator,
+        configurable: true,
+        writable: true
+      });
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it('marks update as mandatory ONLY on Android when >= 3 updates behind', async () => {
