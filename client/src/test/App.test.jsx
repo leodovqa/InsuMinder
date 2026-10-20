@@ -1610,10 +1610,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.9\.1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.9\.0/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.9.1')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.9.0')).toBeInTheDocument();
 
       // 3. Navigate to About & Info Tab
       const aboutNavBtn = screen.getByRole('button', { name: /About & Info/i, hidden: true });
@@ -1621,7 +1621,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.9.1')).toBeInTheDocument();
+      expect(screen.getByText('v1.9.0')).toBeInTheDocument();
 
       // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
       expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
@@ -1632,7 +1632,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Android native notification permission gating/i)).toBeInTheDocument();
+      expect(screen.getByText(/User date format settings/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
@@ -1644,7 +1644,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Android
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.9.1')).toBeInTheDocument();
+      expect(screen.getByText('v1.9.0')).toBeInTheDocument();
 
       // Android version MUST show "Up to Date" status and "Check for Updates" button
       expect(screen.getByText('Up to Date')).toBeInTheDocument();
@@ -1781,10 +1781,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
   describe('Basal Notification Deep-Link & Modal (?action=basal)', () => {
     it('opens Basal confirmation modal when visiting ?action=basal and user is logged in', async () => {
-      const now = new Date();
-      const currentH = String(now.getHours()).padStart(2, '0');
-      const currentM = String(now.getMinutes()).padStart(2, '0');
-      const mockUser = { id: 1, email: 'user@test.org', name: 'Tester', basalTime: `${currentH}:${currentM}` };
+      const mockUser = { id: 1, email: 'user@test.org', name: 'Tester', basalTime: '20:00' };
       authService.setSession('token-123', mockUser);
       window.history.pushState({}, '', '/?action=basal');
 
@@ -1810,25 +1807,6 @@ describe('App Component - Home & Logs UI Tests', () => {
       await waitFor(() => {
         expect(injectedType).toBe('basal');
       });
-    });
-    it('displays warning toast and does not open modal when ?action=basal is accessed too early', async () => {
-      const now = new Date();
-      const futureH = String((now.getHours() + 1) % 24).padStart(2, '0');
-      const futureM = String(now.getMinutes()).padStart(2, '0');
-      const mockUser = { id: 1, email: 'user@test.org', name: 'Tester', basalTime: `${futureH}:${futureM}` };
-      authService.setSession('token-123', mockUser);
-      window.history.pushState({}, '', '/?action=basal');
-
-      globalThis.fetch = vi.fn().mockImplementation((url) => {
-        if (url === '/api/auth/me') return Promise.resolve({ json: () => Promise.resolve({ success: true, user: mockUser }) });
-        if (url === '/api/logs') return Promise.resolve({ json: () => Promise.resolve({ success: true, logs: [] }) });
-        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
-      });
-
-      render(<App />);
-
-      expect(await screen.findByText(/Too early for basal injection/i)).toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /Log Basal Insulin/i })).not.toBeInTheDocument();
     });
   });
   describe('Date Format Preference Settings', () => {

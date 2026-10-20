@@ -1,6 +1,6 @@
 {
-  "version": "1.9.1",
-  "versionCode": 13,
+  "version": "1.9.0",
+  "versionCode": 12,
   "versionHistory": [
     "1.0.0",
     "1.1.0",
@@ -12,25 +12,24 @@
     "1.7.0",
     "1.8.0",
     "1.8.1",
-    "1.9.0",
-    "1.9.1"
+    "1.9.0"
   ],
-  "buildTime": "2026-10-20T17:00:00.000Z",
+  "buildTime": "2026-10-20T10:00:00.000Z",
   "changes": {
     "en": [
-      "Android native notification permission gating and instant test alert dispatch",
-      "Automatic notification permission prompt on Android installation and login",
-      "Premature basal injection timing guard and modal layout alignment"
+      "User date format settings: Choose between DD/MM/YYYY, MM/DD/YYYY, and YYYY-MM-DD",
+      "Dynamic date formatting across all reminders, logs, and manual injection pickers",
+      "Modernized project architecture roadmap and developer documentation"
     ],
     "he": [
-      "אימות הרשאות התראה מקוריות באנדרואיד ושליחת התראת בדיקה מהירה",
-      "בקשת הרשאת התראות אוטומטית בהתקנה והתחברות באנדרואיד",
-      "הגנה מפני הזרקה בזאלית מוקדמת ויישור כותרת חלון האישור"
+      "הגדרת פורמט תאריך מותאם אישית: בחירה בין DD/MM/YYYY, MM/DD/YYYY ו-YYYY-MM-DD",
+      "עיצוב תאריכים דינמי בכל התזכורות, היומנים ובבוחר התאריכים להזרקות ידניות",
+      "עדכון מפת הדרכים הארכיטקטונית ותיעוד המפתחים"
     ],
     "ru": [
-      "Проверка системных разрешений на уведомления Android и отправка тестового алерта",
-      "Автоматический запрос разрешений на уведомления при установке и входе в Android",
-      "Защита от преждевременного базального укола и выравнивание заголовка модального окна"
+      "Пользовательская настройка формата даты: выбор между DD/MM/YYYY, MM/DD/YYYY и YYYY-MM-DD",
+      "Динамическое форматирование дат во всех напоминаниях, журналах и выборе дат для ручных инъекций",
+      "Обновлена архитектурная дорожная карта и документация для разработчиков"
     ]
   }
 }

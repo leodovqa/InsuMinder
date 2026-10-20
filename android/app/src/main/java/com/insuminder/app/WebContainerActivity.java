@@ -1,4 +1,4 @@
-﻿package com.insuminder.app;
+package com.insuminder.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -406,7 +406,7 @@ public class WebContainerActivity extends Activity {
 
         String destination = (targetUrl != null && !targetUrl.trim().isEmpty())
                 ? targetUrl.trim()
-                : "https://insuminder.pages.dev/";
+                : "https://insuminder.pages.dev/?action=basal";
 
         if (!destination.startsWith("http://") && !destination.startsWith("https://") && !destination.startsWith("insuminder://")) {
             if (destination.startsWith("/")) {

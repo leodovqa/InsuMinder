@@ -1,4 +1,4 @@
-﻿/**
+/**
  * InsuMinder Internationalization (i18n) Dictionary
  * 
  * Languages supported:
@@ -452,8 +452,6 @@ export const translations = {
       devicePushTestBtn: 'Send Test Push',
       devicePushTesting: 'Sending Test Push...',
       devicePushTestSuccess: 'Test notification sent! Check your notification tray.',
-      devicePushActiveSuccess: 'Device notifications enabled successfully! A test notification was sent to your notification tray.',
-      devicePushDeclinedBanner: 'Device notifications declined. To receive reminders, tap again to allow or open device settings.',
       devicePushBlockedHint: 'Notifications are blocked in your browser site permissions. Please allow notifications in browser settings to receive alerts.',
       devicePushBlockedHintDevice: 'Notifications are disabled in device settings. Please open settings and allow notifications for InsuMinder.',
       devicePushOpenSettingsBtn: 'Open Device Notification Settings',
@@ -575,8 +573,7 @@ export const translations = {
       telegramTestFailed: 'Telegram test failed: {error}',
       failedToReachServerTest: 'Failed to reach server to test Telegram notification.',
       queueCleared: 'Notification queue cleared! No pending reminders will be sent.',
-      basalAlreadyLoggedToast: 'Daily basal insulin dose was already logged for today.',
-      basalTooEarlyToast: 'Too early for basal injection. Your scheduled basal time is at {time}.'
+      basalAlreadyLoggedToast: 'Daily basal insulin dose was already logged for today.'
     }
   },
   he: {
@@ -1017,8 +1014,6 @@ export const translations = {
       devicePushTestBtn: 'שלח התראת בדיקה',
       devicePushTesting: 'שולח התראת בדיקה...',
       devicePushTestSuccess: 'התראת בדיקה נשלחה! בדוק את מגש ההתראות במכשיר.',
-      devicePushActiveSuccess: 'התראות המכשיר הופעלו בהצלחה! התראת בדיקה נשלחה למגש ההתראות.',
-      devicePushDeclinedBanner: 'התראות המכשיר נדחו. כדי לקבל תזכורות, יש ללחוץ שוב ולאשר או לפתוח הגדרות מכשיר.',
       devicePushBlockedHint: 'ההתראות חסומות בהגדרות הדפדפן. יש לאשר הרשאת התראות בהגדרות האתר כדי לקבל תזכורות.',
       devicePushBlockedHintDevice: 'ההתראות מבוטלות בהגדרות המכשיר. אנא פתח את ההגדרות ואשר קבלת התראות עבור InsuMinder.',
       devicePushOpenSettingsBtn: 'פתח הגדרות התראות במכשיר',
@@ -1140,8 +1135,7 @@ export const translations = {
       telegramTestFailed: 'בדיקת טלגרם נכשלה: {error}',
       failedToReachServerTest: 'שגיאת תקשורת עם השרת בעת בדיקת טלגרם.',
       queueCleared: 'תור ההתראות נוקה בהצלחה! לא יישלחו תזכורות ממתינות.',
-      basalAlreadyLoggedToast: 'מנת האינסולין הבזאלי היומית כבר תועדה להיום.',
-      basalTooEarlyToast: 'מוקדם מדי להזרקה בזאלית. זמן ההזרקה המתוזמן שלך הוא בשעה {time}.'
+      basalAlreadyLoggedToast: 'מנת האינסולין הבזאלי היומית כבר תועדה להיום.'
     }
   },
   ru: {
@@ -1582,8 +1576,6 @@ export const translations = {
       devicePushTestBtn: 'Отправить тестовый Push',
       devicePushTesting: 'Отправка тестового push...',
       devicePushTestSuccess: 'Тестовое уведомление отправлено! Проверьте шторку уведомлений.',
-      devicePushActiveSuccess: 'Уведомления на устройстве успешно включены! Тестовое уведомление отправлено в панель уведомлений.',
-      devicePushDeclinedBanner: 'Уведомления на устройстве отклонены. Чтобы получать напоминания, нажмите снова и разрешите или откройте настройки устройства.',
       devicePushBlockedHint: 'Уведомления заблокированы в настройках браузера. Разрешите уведомления в настройках сайта для получения напоминаний.',
       devicePushBlockedHintDevice: 'Уведомления отключены в настройках устройства. Пожалуйста, откройте настройки и включите уведомления для InsuMinder.',
       devicePushOpenSettingsBtn: 'Открыть настройки уведомлений на устройстве',
@@ -1705,8 +1697,7 @@ export const translations = {
       telegramTestFailed: 'Ошибка тестирования Telegram: {error}',
       failedToReachServerTest: 'Не удалось связаться с сервером для тестирования Telegram-уведомления.',
       queueCleared: 'Очередь уведомлений очищена! Ожидающие напоминания отправлены не будут.',
-      basalAlreadyLoggedToast: 'Ежедневная доза базального инсулина уже была зафиксирована сегодня.',
-      basalTooEarlyToast: 'Слишком рано для базальной инъекции. Запланированное время инъекции: {time}.'
+      basalAlreadyLoggedToast: 'Ежедневная доза базального инсулина уже была зафиксирована сегодня.'
     }
   }
 };

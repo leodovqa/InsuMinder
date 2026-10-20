@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import NotificationSettings from '../NotificationSettings';
 import { LanguageProvider } from '../i18n';
@@ -265,7 +265,7 @@ describe('PWA Installation Detection & Persistence Tests', () => {
   });
 
   it('exports valid ANDROID_PACKAGE_INFO and APP_CURRENT_CHANGELOG with 3-language parity', () => {
-    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.9.1');
+    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.9.0');
     expect(pwa.ANDROID_PACKAGE_INFO.fileName).toBe('InsuMinder.apk');
     expect(pwa.APP_CURRENT_CHANGELOG.en.length).toBeGreaterThan(0);
     expect(pwa.APP_CURRENT_CHANGELOG.he.length).toBeGreaterThan(0);

@@ -85,24 +85,13 @@ export default function NotificationSettings({
     document.addEventListener('visibilitychange', handleVisibility);
 
     if (typeof window !== 'undefined') {
-      window.__onNativeNotificationPermissionResult = async (granted) => {
-        if (!isMounted) return;
-        setPushLoading(false);
-        setPermission(granted ? 'granted' : 'denied');
-        if (granted) {
-          setIsSubscribed(true);
-          const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
-          await sendTestPush(authHeader, language);
-          setPushFeedback({
-            text: t('notificationSettings.devicePushActiveSuccess'),
-            isError: false
-          });
-        } else {
-          setIsSubscribed(false);
-          setPushFeedback({
-            text: t('notificationSettings.devicePushDeclinedBanner'),
-            isError: true
-          });
+      window.__onNativeNotificationPermissionResult = (granted) => {
+        if (isMounted) {
+          setPermission(granted ? 'granted' : 'denied');
+          if (granted) {
+            setIsSubscribed(true);
+            setPushFeedback({ text: t('notificationSettings.devicePushTestSuccess'), isError: false });
+          }
         }
       };
     }
@@ -114,7 +103,7 @@ export default function NotificationSettings({
         window.__onNativeNotificationPermissionResult = null;
       }
     };
-  }, [isAndroid, language, t]);
+  }, [isAndroid, t]);
 
   const handleTogglePush = async () => {
     setPushLoading(true);
@@ -131,20 +120,13 @@ export default function NotificationSettings({
         }
       } else {
         const res = await subscribeToPush(authHeader, language);
-        if (res.pendingPrompt) {
-          // Native Android OS runtime permission dialog is active; wait for callback
-          return;
-        }
         const currentPerm = getNotificationPermission();
         setPermission(currentPerm);
-        if (res.ok && (currentPerm === 'granted' || !isAndroid)) {
+        if (res.ok) {
           setIsSubscribed(true);
-          setPermission('granted');
+          // Automatically fire a test alert into the device notification center upon activation
           await sendTestPush(authHeader, language);
-          setPushFeedback({ text: t('notificationSettings.devicePushActiveSuccess'), isError: false });
-        } else if (currentPerm === 'denied') {
-          setIsSubscribed(false);
-          setPushFeedback({ text: t('notificationSettings.devicePushDeclinedBanner'), isError: true });
+          setPushFeedback({ text: t('notificationSettings.devicePushTestSuccess'), isError: false });
         } else {
           setPushFeedback({ text: res.error || 'Failed to enable push notifications.', isError: true });
         }
@@ -152,9 +134,7 @@ export default function NotificationSettings({
     } catch (err) {
       setPushFeedback({ text: err.message || 'Push error occurred.', isError: true });
     } finally {
-      if (!isAndroid || getNotificationPermission() !== 'default') {
-        setPushLoading(false);
-      }
+      setPushLoading(false);
     }
   };
 

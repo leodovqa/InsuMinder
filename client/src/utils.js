@@ -720,16 +720,3 @@ export const getBasalReminderStatus = (
   };
 };
 
-
-
-export const getBasalTimeDiffMinutes = (nowDate, basalTimeStr) => {
-  if (!basalTimeStr || !/^\d{1,2}:\d{2}$/.test(basalTimeStr)) return 0;
-  const [bH, bM] = basalTimeStr.split(':').map(Number);
-  const now = nowDate || new Date();
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const basalMins = bH * 60 + bM;
-  let diff = nowMins - basalMins;
-  if (diff > 720) diff -= 1440;
-  if (diff < -720) diff += 1440;
-  return diff;
-};
