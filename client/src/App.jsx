@@ -18,6 +18,7 @@ import {
   getReminderStatus,
   getBasalReminderStatus,
   getEffectiveNotificationPreferences,
+  getBasalTimeDiffMinutes,
   getSavedDateFormat,
   setSavedDateFormat,
   DATE_FORMATS
@@ -192,6 +193,17 @@ function AppContent() {
   const { theme, setTheme } = useTheme();
   const [logs, setLogs] = useState([]);
   const [basalReminder, setBasalReminder] = useState(null);
+  const [basalTime, setBasalTime] = useState(() => {
+    const userStored = authService.getCurrentUser()?.basalTime;
+    if (userStored) return userStored;
+    try {
+      return localStorage.getItem('insuminder_basal_time') || '20:00';
+    } catch {
+      return '20:00';
+    }
+  });
+  const [basalTimeInput, setBasalTimeInput] = useState(basalTime);
+
   const [dateFormat, setDateFormat] = useState(() => getSavedDateFormat());
 
   useEffect(() => {
@@ -705,13 +717,41 @@ function AppContent() {
         });
         setPendingBasalAction(false);
       } else {
-        setIsBasalConfirmModalOpen(true);
-        setPendingBasalAction(false);
+        const scheduledTime = basalTime || user?.basalTime || '20:00';
+        const diffMins = getBasalTimeDiffMinutes(new Date(), scheduledTime);
+
+        if (diffMins < -5) {
+          setNotification({
+            type: 'warning',
+            message: t('notifications.basalTooEarlyToast', { time: scheduledTime })
+          });
+          setPendingBasalAction(false);
+        } else {
+          setIsBasalConfirmModalOpen(true);
+          setPendingBasalAction(false);
+        }
       }
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [pendingBasalAction, isLoggedIn, logs, t, dateFormat]);
+  }, [pendingBasalAction, isLoggedIn, logs, t, dateFormat, basalTime, user]);
+
+  // Automatic Native Permission Prompt on App Install / Login (Android Onboarding)
+  useEffect(() => {
+    if (!isAndroidApp() || typeof window === 'undefined' || !window.AndroidBridge) return;
+    try {
+      const hasPrompted = localStorage.getItem('insuminder_native_perm_prompted') === 'true';
+      const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
+      if (isLoggedIn && !hasPrompted && !isGranted) {
+        localStorage.setItem('insuminder_native_perm_prompted', 'true');
+        if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+          window.AndroidBridge.requestNotificationPermission();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [isLoggedIn]);
 
   // Update Success Celebratory Modal State
   const [justUpdatedVersion, setJustUpdatedVersion] = useState(() => {
@@ -773,16 +813,7 @@ function AppContent() {
     return () => clearInterval(timer);
   }, []);
 
-  const [basalTime, setBasalTime] = useState(() => {
-    const userStored = authService.getCurrentUser()?.basalTime;
-    if (userStored) return userStored;
-    try {
-      return localStorage.getItem('insuminder_basal_time') || '20:00';
-    } catch {
-      return '20:00';
-    }
-  });
-  const [basalTimeInput, setBasalTimeInput] = useState(basalTime);
+
 
   const handleSaveBasalTime = async (newTime) => {
     if (!newTime || !/^([01]\d|2[0-3]):[0-5]\d$/.test(newTime)) return;
@@ -1051,6 +1082,22 @@ function AppContent() {
 
     if (authUser && authUser.theme && ['dark', 'light'].includes(authUser.theme)) {
       setTheme(authUser.theme);
+    }
+
+    // Android Onboarding: Prompt for native notification permission upon initial login/registration
+    if (isAndroidApp() && typeof window !== 'undefined' && window.AndroidBridge) {
+      try {
+        const hasPrompted = localStorage.getItem('insuminder_native_perm_prompted') === 'true';
+        const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
+        if (!hasPrompted && !isGranted) {
+          localStorage.setItem('insuminder_native_perm_prompted', 'true');
+          if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+            window.AndroidBridge.requestNotificationPermission();
+          }
+        }
+      } catch {
+        // ignore
+      }
     }
 
     // Security: Clear referral / share code from URL so it cannot be reused
@@ -4334,7 +4381,7 @@ function AppContent() {
         >
           <div className="modal-card early-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header early-modal-header">
-              <div className="early-modal-header-left">
+              <div className="basal-modal-header-left">
                 <div className="modal-icon-wrapper early-icon-wrapper">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
@@ -4580,7 +4627,7 @@ function AppContent() {
         >
           <div className="modal-card basal-confirm-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="early-modal-header-left">
+              <div className="basal-modal-header-left">
                 <div className="modal-icon-wrapper basal-icon-wrapper">
                   <span style={{ fontSize: '20px' }} role="img" aria-hidden="true">🌙</span>
                 </div>

@@ -46,90 +46,14 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 ## 1. Immediate Next Sprint Task (Highest Priority)
 
 ### Task Details
-- **Branch Name**: `feat/android-native-permissions-and-notifications-v1.9.0`
-- **Target Version**: `v1.9.0` (versionCode `12`)
-- **Status**: Ready to implement upon starting next branch.
+- **Task**: Basal Notification Direct App/Web Launch Link (Item 1 from Backlog)
+- **Target Version**: `v1.9.2` (versionCode `14`)
+- **Status**: Ready to plan and implement upon user instruction.
 
-### Background & Evidence
-Recent testing on mobile devices and Web browsers confirmed that Web Push works, but native Android notifications fail to deliver properly due to missing runtime permission gating and coupled deep links:
-1. **Premature "Active" Status & Missing OS Permission Gate**:
-   - In `NotificationSettings.jsx`, tapping "Activate Notifications on Device" previously marked the state as active and dispatched a test alert immediately without waiting for the user to respond to the native Android OS prompt.
-   - On Android 13+ (API 33+), notifications require explicit runtime permission (`android.permission.POST_NOTIFICATIONS`). If dispatched before the user grants permission, Android silently drops the notification.
-2. **Test Alert Linked to Basal Modal**:
-   - In `client/src/pwa.js`, `sendTestPush()` hardcoded `url: '/?action=basal'`. Tapping the test notification opened the app and immediately triggered the Basal Injection Confirmation modal.
-3. **Premature Basal Prompt**:
-   - At **19:57**, tapping the deep link popped up the modal asking to log basal injection, even though scheduled basal was at **20:00**.
-4. **Basal Confirmation Modal Header UI Misalignment**:
-   - In the confirmation modal, the close `✕` button was smashed directly against the Hebrew title text (`תיעוד אינסולין בזאלי`) due to missing `justify-content: space-between` and `flex: 1` on `.early-modal-header-left`.
-
-### The 5 Implementation Points (Non-Negotiable)
-
-#### Point 1: Strict Native Android Permission Gating (`POST_NOTIFICATIONS`)
-- **Native Android (`WebContainerActivity.java`)**:
-  - Request Android 13+ `POST_NOTIFICATIONS` runtime permission via `requestPermissions(..., RC_POST_NOTIFICATIONS)`.
-  - In `onRequestPermissionsResult`, notify the webview via `window.__onNativeNotificationPermissionResult(granted)`.
-  - Expose `openNotificationSettings()` so the app can navigate directly to Android system settings if permission was previously permanently denied.
-- **Client Webview (`NotificationSettings.jsx` & `pwa.js`)**:
-  - In `handleTogglePush`: DO NOT set `isSubscribed = true` or fire `sendTestPush()` optimistically. Set loading state and wait for the native callback.
-  - If user taps **"Allow"** (`granted === true`):
-    - Only THEN mark notifications as active (`isSubscribed = true`, `permission = 'granted'`).
-    - Dispatch a genuine test alert into the device notification center (`window.AndroidBridge.postNativeNotification`).
-    - Show positive feedback toast: *"התראות המכשיר הופעלו בהצלחה! התראת בדיקה נשלחה למגש ההתראות"*.
-  - If user taps **"Don't allow"** (`granted === false`):
-    - Keep toggle off (`isSubscribed = false`, `permission = 'denied'`).
-    - Display explicit decline banner/toast: *"התראות המכשיר נדחו. כדי לקבל תזכורות, יש ללחוץ שוב ולאשר או לפתוח הגדרות מכשיר"*.
-    - Provide an "Open Settings" button (`window.AndroidBridge.openNotificationSettings()`) if permission was denied.
-
-#### Point 2: Automatic Native Permission Prompt on App Install / Login (Android Onboarding)
-- Standard Android App Lifecycle:
-  - When the user installs and completes sign-in (Login or Register) within the Android APK container:
-    - Check `window.AndroidBridge.isNotificationPermissionGranted()`.
-    - If not yet granted, automatically trigger the native permission prompt once.
-    - If the user declines, do not block the app; allow normal navigation and let the user enable it later in Notification Settings.
-
-#### Point 3: Decouple Test Notification from Basal Modal
-- In `client/src/pwa.js` (`sendTestPush`):
-  - Change target URL from `/?action=basal` to `/?page=notifications` or `/`.
-  - Clicking a test notification must ONLY open/focus the app on the notification settings or homepage without triggering any action modal.
-  - In `client/public/sw.js` and `WebContainerActivity.java`: ensure the "Log Basal" action button is ONLY attached when `destination.contains('action=basal')` on genuine scheduled basal reminders.
-
-#### Point 4: Premature Basal Pop-Up Timing Guard
-- In `client/src/App.jsx` when handling `?action=basal`:
-  - Inspect `user.basalTime` (e.g., `"20:00"`).
-  - Calculate difference between current local time and scheduled basal time.
-  - If current time is strictly before `basalTime` (allowing a threshold of 5 minutes prior):
-    - Do NOT open the confirmation modal.
-    - Display an informative toast: *"מוקדם מדי להזרקה בזאלית. זמן ההזרקה המתוזמן שלך הוא בשעה {basalTime}"*.
-  - If within the valid window (from 5 minutes before scheduled time up to 4 hours after):
-    - Open the Basal Confirmation Modal.
-
-#### Point 5: Basal Confirmation Modal Header UI Alignment
-- In `client/src/App.css` and `client/src/App.jsx`:
-  ```css
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-  
-  .early-modal-header-left,
-  .basal-modal-header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
-  }
-  
-  .modal-close-x-btn {
-    flex-shrink: 0;
-    margin-inline-start: auto;
-  }
-  ```
-  - Guarantees the close button sits at the far edge (top-left in RTL Hebrew, top-right in LTR English/Russian) with ample spacing.
+### Background & Objective
+- Exclusively for scheduled basal insulin reminders (Telegram and Push), append a dedicated action link at the bottom of the notification.
+- Triggers opening the native Android app via intent URL, falling back to `https://insuminder.pages.dev` in browser if app is not installed.
+- Ensure deep link verification and graceful fallback.
 
 ---
 
@@ -234,6 +158,20 @@ Verified by `node scripts/check-version.js`.
 ---
 
 ## 3. Completed Milestones History
+
+### v1.9.1 (PR pending) — Android Native Permissions & Notification Lifecycle Overhaul
+- **Strict Native Android Permission Gating (`POST_NOTIFICATIONS`)**: `WebContainerActivity.java` runtime permission prompt bridge with `window.__onNativeNotificationPermissionResult(granted)`. In `NotificationSettings.jsx`, wait for native callback before activating or dispatching test push, with explicit feedback banners and device settings redirection button.
+- **Android Onboarding Permission Prompt**: Prompt for runtime notification permissions upon login/registration in the Android container if not yet granted.
+- **Decoupled Test Push Delivery**: Decoupled test notifications from the clinical basal modal by targeting `/?page=notifications`.
+- **Premature Basal Pop-Up Timing Guard**: Added `getBasalTimeDiffMinutes(nowDate, basalTimeStr)` in `utils.js` with circular 24h clock wrap-around. Blocks early basal modal pop-up and displays informative warning toast if accessed earlier than 5 minutes before scheduled basal time.
+- **Basal Modal Header UI Alignment**: Standardized `.modal-header`, `.early-modal-header-left`, and `.modal-close-x-btn` for bidirectional spacing parity.
+- 100% synchronized version bump to `v1.9.1` (versionCode `13`) across all 9 locations with 0 diff between `functions/` and `client/functions/`.
+
+### v1.9.0 (PR #45) — Dynamic Date Format Setting (Israel/Global/ISO), Universal 24-Hour Time & Local Session Persistence
+- User-selectable date formats (`DD/MM/YYYY`, `MM/DD/YYYY`, `YYYY-MM-DD`) with fail-safe automatic fallback via `getSavedDateFormat()`.
+- Reusable `DatePickerModern` calendar popover and unified `TimePicker24h`.
+- Strict 24-hour time standardization application-wide with zero AM/PM.
+- Local storage session fallback persistence preventing repeated privacy modal prompts on page refresh.
 
 ### v1.8.1 (PR #44) — Zero Hardcoded Secrets Architecture & VAPID Credential Remediation
 - Fully eradicated hardcoded VAPID keys from `functions/api/_webpush.js`, `client/functions/api/_webpush.js`, and `server/src/webpush.js`.

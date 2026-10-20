@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+﻿import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import NotificationSettings from '../NotificationSettings';
 import { LanguageProvider } from '../i18n';
@@ -162,10 +162,37 @@ describe('NotificationSettings Component', () => {
       expect.stringContaining('InsuMinder Test Alert'),
       expect.stringContaining('Device push reminders are active'),
       'insuminder-test',
-      '/?action=basal'
+      '/?page=notifications'
     );
 
     delete window.AndroidBridge;
   });
-});
 
+  it('handles Android permission callback when user grants or declines', async () => {
+    window.AndroidBridge = {
+      isNativeAndroid: () => true,
+      isNotificationPermissionGranted: () => false,
+      postNativeNotification: vi.fn(),
+      requestNotificationPermission: vi.fn()
+    };
+
+    renderNotificationSettings();
+
+    const enableBtn = screen.getByRole('button', { name: /Enable Push on this Device/i });
+    fireEvent.click(enableBtn);
+
+    expect(window.AndroidBridge.requestNotificationPermission).toHaveBeenCalled();
+
+    // User grants permission via native Android OS dialog
+    expect(typeof window.__onNativeNotificationPermissionResult).toBe('function');
+    await window.__onNativeNotificationPermissionResult(true);
+
+    expect(await screen.findByText(/Device notifications enabled successfully/i)).toBeInTheDocument();
+
+    // User declines permission
+    await window.__onNativeNotificationPermissionResult(false);
+    expect(await screen.findByText(/Device notifications declined/i)).toBeInTheDocument();
+
+    delete window.AndroidBridge;
+  });
+});

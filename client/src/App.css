@@ -3408,6 +3408,8 @@ html.modal-open {
 .modal-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -3567,10 +3569,13 @@ html.modal-open {
   margin-bottom: 16px;
 }
 
-.early-modal-header-left {
+.early-modal-header-left,
+.basal-modal-header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .early-icon-wrapper {
@@ -3706,6 +3711,8 @@ html.modal-open {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  margin-inline-start: auto;
   transition: all 0.15s ease;
 }
 
