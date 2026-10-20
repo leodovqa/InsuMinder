@@ -1,4 +1,4 @@
-// client/src/pwa.js - Service Worker, Web Push & PWA installation helper
+﻿// client/src/pwa.js - Service Worker, Web Push & PWA installation helper
 
 let deferredPrompt = null;
 const installPromptListeners = new Set();
@@ -96,9 +96,9 @@ export async function subscribeToPush(authHeader = null, lang = 'en') {
         if (typeof window.AndroidBridge.postNativeNotification === 'function') {
           const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
           const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
-          window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-active', '/?action=basal');
+          window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-active', '/?page=notifications');
         }
-        return { ok: true, isNative: true };
+        return { ok: true, isNative: true, granted: true };
       }
       if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
         window.AndroidBridge.requestNotificationPermission();
@@ -218,7 +218,7 @@ export async function sendTestPush(authHeader = null, lang = 'en') {
   let nativeSent = false;
   if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.postNativeNotification === 'function') {
     try {
-      window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-test', '/?action=basal');
+      window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-test', '/?page=notifications');
       nativeSent = true;
     } catch (e) {
       console.warn('[PWA] Native push test dispatch failed:', e);
@@ -234,7 +234,7 @@ export async function sendTestPush(authHeader = null, lang = 'en') {
           body: testBody,
           icon: '/favicon.ico',
           badge: '/favicon.ico',
-          data: { url: '/?action=basal' }
+          data: { url: '/?page=notifications' }
         });
         localWebSent = true;
       }
@@ -319,7 +319,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.0',
+  version: '1.9.1',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -328,19 +328,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'User date format settings: Choose between DD/MM/YYYY, MM/DD/YYYY, and YYYY-MM-DD',
-    'Dynamic date formatting across all reminders, logs, and manual injection pickers',
-    'Modernized project architecture roadmap and developer documentation'
+    'Android native notification permission gating and instant test alert dispatch',
+    'Automatic notification permission prompt on Android installation and login',
+    'Premature basal injection timing guard and modal layout alignment'
   ],
   he: [
-    'הגדרת פורמט תאריך מותאם אישית: בחירה בין DD/MM/YYYY, MM/DD/YYYY ו-YYYY-MM-DD',
-    'עיצוב תאריכים דינמי בכל התזכורות, היומנים ובבוחר התאריכים להזרקות ידניות',
-    'עדכון מפת הדרכים הארכיטקטונית ותיעוד המפתחים'
+    'אימות הרשאות התראה מקוריות באנדרואיד ושליחת התראת בדיקה מהירה',
+    'בקשת הרשאת התראות אוטומטית בהתקנה והתחברות באנדרואיד',
+    'הגנה מפני הזרקה בזאלית מוקדמת ויישור כותרת חלון האישור'
   ],
   ru: [
-    'Пользовательская настройка формата даты: выбор между DD/MM/YYYY, MM/DD/YYYY и YYYY-MM-DD',
-    'Динамическое форматирование дат во всех напоминаниях, журналах и выборе дат для ручных инъекций',
-    'Обновлена архитектурная дорожная карта и документация для разработчиков'
+    'Проверка системных разрешений на уведомления Android и отправка тестового алерта',
+    'Автоматический запрос разрешений на уведомления при установке и входе в Android',
+    'Защита от преждевременного базального укола и выравнивание заголовка модального окна'
   ]
 };
 
