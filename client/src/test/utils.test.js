@@ -22,7 +22,8 @@ import {
   getSavedDateFormat,
   setSavedDateFormat,
   DATE_FORMATS,
-  formatDisplayDate
+  formatDisplayDate,
+  getBasalTimeDiffMinutes
 } from '../utils';
 
 describe('Utility Functions & Helpers', () => {
@@ -767,6 +768,40 @@ describe('Utility Functions & Helpers', () => {
       expect(rem10m.status).toBe('sent');
       expect(rem10m.icon).toBe('✅');
       expect(rem10m.isDisabled).toBe(false);
+    });
+  });
+
+  describe('getBasalTimeDiffMinutes', () => {
+    it('calculates negative minutes when current time is earlier than scheduled time', () => {
+      const now = new Date(2026, 9, 20, 19, 50); // 19:50
+      expect(getBasalTimeDiffMinutes(now, '20:00')).toBe(-10);
+    });
+
+    it('calculates negative minutes within the 5-minute pre-window', () => {
+      const now = new Date(2026, 9, 20, 19, 56); // 19:56
+      expect(getBasalTimeDiffMinutes(now, '20:00')).toBe(-4);
+    });
+
+    it('calculates positive minutes when current time is past scheduled time', () => {
+      const now = new Date(2026, 9, 20, 20, 30); // 20:30
+      expect(getBasalTimeDiffMinutes(now, '20:00')).toBe(30);
+    });
+
+    it('handles circular time across midnight (pre-midnight with early morning basal)', () => {
+      const now = new Date(2026, 9, 20, 23, 55); // 23:55
+      expect(getBasalTimeDiffMinutes(now, '00:30')).toBe(-35);
+    });
+
+    it('handles circular time across midnight (post-midnight with late night basal)', () => {
+      const now = new Date(2026, 9, 21, 0, 15); // 00:15
+      expect(getBasalTimeDiffMinutes(now, '23:45')).toBe(30);
+    });
+
+    it('returns 0 for missing or invalid basal time string', () => {
+      const now = new Date(2026, 9, 20, 19, 50);
+      expect(getBasalTimeDiffMinutes(now, null)).toBe(0);
+      expect(getBasalTimeDiffMinutes(now, '')).toBe(0);
+      expect(getBasalTimeDiffMinutes(now, 'invalid')).toBe(0);
     });
   });
 });
