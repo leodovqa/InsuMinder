@@ -32,7 +32,7 @@ describe('Android APK Download Endpoint', () => {
     assert.equal(data.packageName, 'com.insuminder.app');
     assert.equal(data.version, '1.0.0');
 
-    server.close();
+    await new Promise((resolve) => server.close(resolve));
   });
 
   it('redirects with 302 to the latest GitHub Release APK when accessed directly', async () => {
@@ -50,7 +50,7 @@ describe('Android APK Download Endpoint', () => {
     assert.equal(res.status, 302);
     assert.equal(res.headers.get('location'), 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk');
 
-    server.close();
+    await new Promise((resolve) => server.close(resolve));
   });
 
   it('server/src/index.js syntax and entrypoint compiles cleanly', () => {

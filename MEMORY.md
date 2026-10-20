@@ -46,14 +46,14 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 ## 1. Immediate Next Sprint Task (Highest Priority)
 
 ### Task Details
-- **Task**: Basal Notification Direct App/Web Launch Link (Item 1 from Backlog)
-- **Target Version**: `v1.9.2` (versionCode `14`)
-- **Status**: Ready to plan and implement upon user instruction.
+- **Task**: Android APK Direct Download, Intent URI Settings Fallback & CI Server Stabilization
+- **Target Version**: 1.9.4 (versionCode 16)
+- **Status**: Ready for user review and PR creation upon approval.
 
 ### Background & Objective
-- Exclusively for scheduled basal insulin reminders (Telegram and Push), append a dedicated action link at the bottom of the notification.
-- Triggers opening the native Android app via intent URL, falling back to `https://insuminder.pages.dev` in browser if app is not installed.
-- Ensure deep link verification and graceful fallback.
+- Pure intent URI fallback for opening system app notification settings directly even if native bridge methods are absent.
+- Outdated APK container shell detection and prominent 1-tap download & install card for the latest APK (1.9.4).
+- Stabilization of server CI tests with proper asynchronous socket teardown and clean database close.
 
 ---
 
@@ -196,6 +196,23 @@ Verified by `node scripts/check-version.js`.
 - Reusable `DatePickerModern` calendar popover and unified `TimePicker24h`.
 - Strict 24-hour time standardization application-wide with zero AM/PM.
 - Local storage session fallback persistence preventing repeated privacy modal prompts on page refresh.
+
+### v1.9.4 (PR #50) — Pure Intent URI Fallback, Outdated APK Shell Auto-Detection & CI Suite Stabilization
+- Pure Android `intent:` scheme fallback (`intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.insuminder.app;end`) to open system settings directly even when the native bridge method is missing.
+- Implemented `Intent.parseUri(..., Intent.URI_INTENT_SCHEME)` in `WebContainerActivity.java` to properly handle intent URIs within WebView.
+- Outdated APK Shell Auto-Detection in `NotificationSettings.jsx` and `pwa.js`: immediately alerts users running ancient native APK containers (e.g. `v1.2.0` lacking Android 14 `POST_NOTIFICATIONS`) and provides a 1-tap download and install button for the latest APK (`v1.9.4`).
+- Prevented 3-dot indefinite loading spinner by identifying unsupported native bridge methods immediately on toggle.
+- CI Server Unit Test Suite Stabilization: resolved socket teardown race conditions in `server/test/download.test.js` via awaited `server.close()`, ensured clean SQLite database shutdown in `server/test/manual-injections.test.js`, and randomized test email per run to eliminate test runner cancellations.
+- 100% version synchronization across all 9 locations to `v1.9.4` (versionCode `16`).
+
+### v1.9.3 (PR #49) — Xiaomi HyperOS Notification Permission & System Settings Bridge
+- Added dedicated Xiaomi HyperOS / MIUI App Info and security permissions intent handlers.
+- Fallback timer to prevent silent blocking on aggressive OEM permission managers.
+- High-visibility settings button styling and translations.
+
+### v1.9.2 (PR #48) — Basal Notification Direct App/Web Launch Link
+- Appended direct app/web launch link to scheduled basal reminders.
+- Deep link routing to `/?action=basal` and basal injection confirmation modal.
 
 ### v1.8.1 (PR #44) — Zero Hardcoded Secrets Architecture & VAPID Credential Remediation
 - Fully eradicated hardcoded VAPID keys from `functions/api/_webpush.js`, `client/functions/api/_webpush.js`, and `server/src/webpush.js`.

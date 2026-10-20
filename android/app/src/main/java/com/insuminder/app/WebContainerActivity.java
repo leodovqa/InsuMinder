@@ -228,6 +228,19 @@ public class WebContainerActivity extends Activity {
                     return false; // Stay in container
                 }
 
+                // Parse intent:// URIs directly to Android Intent
+                if (uri != null && "intent".equalsIgnoreCase(uri.getScheme())) {
+                    try {
+                        Intent parsedIntent = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME);
+                        if (parsedIntent != null) {
+                            startActivity(parsedIntent);
+                            return true;
+                        }
+                    } catch (Exception e) {
+                        Log.w("InsuMinder", "Failed to parse intent URI: " + e.getMessage());
+                    }
+                }
+
                 // External URLs open in system browser
                 try {
                     Intent externalIntent = new Intent(Intent.ACTION_VIEW, uri);

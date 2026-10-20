@@ -49,6 +49,7 @@ export default function NotificationSettings({
   const [pushFeedback, setPushFeedback] = useState(null);
 
   const isAndroid = isAndroidApp();
+  const isOutdatedApk = isAndroid && typeof window !== 'undefined' && (!window.AndroidBridge || typeof window.AndroidBridge.openNotificationSettings !== 'function' || typeof window.AndroidBridge.requestNotificationPermission !== 'function');
 
   // PWA install state
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
@@ -131,6 +132,14 @@ export default function NotificationSettings({
         }
       } else {
         const res = await subscribeToPush(authHeader, language);
+        if (res.isOutdatedApk) {
+          setPushLoading(false);
+          setPushFeedback({
+            text: t('notificationSettings.outdatedApkWarning'),
+            isError: true
+          });
+          return;
+        }
         if (res.pendingPrompt) {
           // Native Android OS runtime permission dialog is active; wait for callback
           // Fallback timer: if the native OS suppresses dialogs (e.g. Xiaomi HyperOS/MIUI),
@@ -414,6 +423,23 @@ export default function NotificationSettings({
                 </div>
               )}
 
+              {isOutdatedApk && (
+                <div className="device-push-blocked-alert" style={{ marginBottom: '12px' }}>
+                  <span className="blocked-alert-icon" aria-hidden="true">⚠️</span>
+                  <div style={{ flex: 1 }}>
+                    <p className="blocked-alert-text">{t('notificationSettings.outdatedApkWarning')}</p>
+                    <button
+                      type="button"
+                      className="push-action-btn btn-primary"
+                      onClick={() => (onDownloadApk ? onDownloadApk() : downloadAndroidApk())}
+                      style={{ marginTop: '8px' }}
+                    >
+                      📥 {t('notificationSettings.outdatedApkDownloadBtn')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {pushFeedback && (
                 <div className={`push-feedback-banner ${pushFeedback.isError ? 'error' : 'success'}`}>
                   <span>{pushFeedback.text}</span>
@@ -445,14 +471,14 @@ export default function NotificationSettings({
                     <>
                       <button
                         type="button"
-                        className="push-action-btn btn-primary"
+                        className="push-action-btn btn-settings"
                         onClick={handleOpenSettings}
                       >
                         ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
                       </button>
                       <button
                         type="button"
-                        className="push-action-btn btn-secondary"
+                        className="push-action-btn btn-primary"
                         onClick={handleTogglePush}
                         disabled={pushLoading}
                       >
