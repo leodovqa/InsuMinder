@@ -5,6 +5,45 @@
 
 ---
 
+## 0. Security Alert & Remediation: Exposed VAPID Private Key (GitGuardian)
+
+> **Status**: Verified Real Incident • To be remediated from secondary PC  
+> **Source**: GitGuardian Secret Detection Alert (`October 18th 2026, 06:32:41 UTC`)  
+> **Repository**: `leodovqa/InsuMinder`
+
+### Incident Details
+- **Secret Type**: VAPID Private Key
+- **Exposed Secret**: `kZTCIFztIITs-q4NGY2TZUgKst_o27AN4HUi7r9zUV0`
+- **Files Containing Hardcoded Secret**:
+  1. `functions/api/_webpush.js` (lines 4–8)
+  2. `client/functions/api/_webpush.js` (lines 4–8)
+  3. `server/src/webpush.js` (lines 3–7)
+- **Root Cause**: During the Web Push overhaul (commit `e742748` / PR #41), fallback VAPID keys (`STABLE_VAPID_KEYS`) were committed directly into the source code as a fallback when environment variables were unset.
+
+### Security Impact
+The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications dispatched to browser push services (Google FCM, Mozilla autopush). While it does not expose patient database records or passwords, anyone possessing the key could theoretically sign push messages if they possessed subscriber endpoints.
+
+### Remediation Steps (To Execute from Other PC)
+1. **Generate New VAPID Key Pair**:
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+2. **Store New Keys in Environment Secrets (Never in Git)**:
+   - **Cloudflare Pages Dashboard** (Settings > Environment Variables):
+     - `VAPID_PUBLIC_KEY` = `<new_generated_public_key>`
+     - `VAPID_PRIVATE_KEY` = `<new_generated_private_key>`
+     - `VAPID_SUBJECT` = `mailto:support@insuminder.com`
+   - **Local / Server `.env`**:
+     - Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`.
+3. **Remove Hardcoded Private Key from Source Code**:
+   - In `functions/api/_webpush.js`, `client/functions/api/_webpush.js`, and `server/src/webpush.js`, remove the hardcoded string `kZTCIFztIITs-q4NGY2TZUgKst_o27AN4HUi7r9zUV0`.
+   - Update `resolveVapidKeys()` to strictly require `VAPID_PRIVATE_KEY` from `env` (or throw a clean configuration error if missing in production).
+   - Ensure strict Rule 1 zero-diff between `functions/` and `client/functions/`.
+4. **GitGuardian Resolution**:
+   - In the GitGuardian email / dashboard, click **"Fix This Secret Leak"** and mark the incident as rotated/resolved once the new key is deployed.
+
+---
+
 ## 1. Immediate Next Sprint Task (Highest Priority)
 
 ### Task Details
