@@ -7,7 +7,7 @@
 
 ## 0. Security Alert & Remediation: Exposed VAPID Private Key (GitGuardian)
 
-> **Status**: Verified Real Incident • To be remediated from secondary PC  
+> **Status**: ✅ REMEDIATED in v1.8.1 (`fix/rotate-vapid-keys-and-remove-hardcoded-secrets`)  
 > **Source**: GitGuardian Secret Detection Alert (`October 18th 2026, 06:32:41 UTC`)  
 > **Repository**: `leodovqa/InsuMinder`
 
@@ -23,24 +23,23 @@
 ### Security Impact
 The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications dispatched to browser push services (Google FCM, Mozilla autopush). While it does not expose patient database records or passwords, anyone possessing the key could theoretically sign push messages if they possessed subscriber endpoints.
 
-### Remediation Steps (To Execute from Other PC)
-1. **Generate New VAPID Key Pair**:
-   ```bash
-   npx web-push generate-vapid-keys
-   ```
-2. **Store New Keys in Environment Secrets (Never in Git)**:
-   - **Cloudflare Pages Dashboard** (Settings > Environment Variables):
-     - `VAPID_PUBLIC_KEY` = `<new_generated_public_key>`
-     - `VAPID_PRIVATE_KEY` = `<new_generated_private_key>`
-     - `VAPID_SUBJECT` = `mailto:support@insuminder.com`
-   - **Local / Server `.env`**:
-     - Add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`.
-3. **Remove Hardcoded Private Key from Source Code**:
-   - In `functions/api/_webpush.js`, `client/functions/api/_webpush.js`, and `server/src/webpush.js`, remove the hardcoded string `kZTCIFztIITs-q4NGY2TZUgKst_o27AN4HUi7r9zUV0`.
-   - Update `resolveVapidKeys()` to strictly require `VAPID_PRIVATE_KEY` from `env` (or throw a clean configuration error if missing in production).
-   - Ensure strict Rule 1 zero-diff between `functions/` and `client/functions/`.
-4. **GitGuardian Resolution**:
-   - In the GitGuardian email / dashboard, click **"Fix This Secret Leak"** and mark the incident as rotated/resolved once the new key is deployed.
+### Remediation Actions Completed in v1.8.1
+1. **Hardcoded Fallback Keys Fully Removed**:
+   - Removed `STABLE_VAPID_KEYS` from `functions/api/_webpush.js`, `client/functions/api/_webpush.js`, and `server/src/webpush.js`.
+   - `resolveVapidKeys(env)` now strictly loads keys from `env.VAPID_PUBLIC_KEY` / `process.env` and safely returns `null` or configuration error when keys are missing.
+   - Strict Rule 1 zero-diff between `functions/` and `client/functions/` verified.
+2. **Zero-Secret Dynamic Testing**:
+   - In `server/test/webpush.test.js`, ephemeral in-memory ECDH keypair is generated dynamically at runtime (`crypto.createECDH('prime256v1')`), ensuring unit tests never require hardcoded keys in the repository.
+3. **Rule 13 Enacted**:
+   - Added Rule 13 ("Zero Hardcoded Secrets & Credentials Rule") to `rules.md` and `MEMORY.md`.
+4. **User Environment Deployment Step (Cloudflare Pages Dashboard)**:
+   - Navigate in Cloudflare to: **Workers & Pages → InsuMinder → Settings → Variables and secrets**
+   - Add the following variables with their exact Types:
+     - Variable: `VAPID_PUBLIC_KEY` | Type: `Text` (or `Secret`) | Value: `BKIv2PuDkWiWtMl8g80hszhwJxa37QsAcSMYIcyQjtHEvjX03YfJ6VLcMlOTbDeSYTmxLmGhoHLa0d3M-_gJ-qw`
+     - Variable: `VAPID_PRIVATE_KEY` | Type: `Secret` (Encrypted) | Value: `<secure_private_key_provided_in_deployment_notes>`
+     - Variable: `VAPID_SUBJECT` | Type: `Text` | Value: `mailto:insuminder@gmail.com`
+5. **GitGuardian Resolution**:
+   - In the GitGuardian email / dashboard, click **"Fix This Secret Leak"** and mark the incident as rotated & revoked.
 
 ---
 
@@ -48,7 +47,7 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 
 ### Task Details
 - **Branch Name**: `feat/android-native-permissions-and-notifications-v1.9.0`
-- **Target Version**: `v1.9.0` (versionCode `11`)
+- **Target Version**: `v1.9.0` (versionCode `12`)
 - **Status**: Ready to implement upon starting next branch.
 
 ### Background & Evidence
@@ -204,13 +203,27 @@ Verified by `node scripts/check-version.js`.
 - Standard icon sizing scale: `22px` card headers, `18px` buttons/controls, `16px` pills/badges.
 - Vector SVGs mandatory for paired controls (never raw OS emojis like 👤 vs 👥 which cause glyph size discrepancies).
 
-### Rule 13: Central Project Memory & "Save for Later" Single Source of Truth Rule
+### Rule 12: Central Project Memory & "Save for Later" Single Source of Truth Rule
 - Whenever the user mentions "write to memory", "remember this", "save for later", "write as next task", or anything related to persisting project context, tasks, bugs, or future plans, developers and AI agents MUST always record, write to, and update `MEMORY.md` in the repository root.
 - Machine-specific scratchpad files or ephemeral AI session storage do not synchronize across different developer machines or environments. `MEMORY.md` committed directly to Git is the authoritative, shared single source of truth across all devices.
+
+### Rule 13: Zero Hardcoded Secrets & Credentials Rule
+- **VAPID Key Generation Helper**: Run `npm run generate:vapid` (`node scripts/generate-vapid-keys.js`) at any time to generate a fresh RFC 8292 ECDSA P-256 keypair for Cloudflare Pages ("Variables and secrets") and local `.env`. Never commit generated keys to git.
+- Under NO circumstances may any real, default, fallback, or mock API keys, private keys (such as VAPID keys), auth secrets, webhook secrets, database credentials, or tokens ever be hardcoded into tracked files in this repository.
+- All secrets, private keys, and runtime credentials MUST be loaded strictly through environment variables (`context.env` in Cloudflare Pages Functions or `process.env` in Node.js).
+- If environment variables are not configured in a deployment or local runtime, the application code must degrade safely and return a clear, descriptive configuration error (e.g. 'VAPID keys not configured') rather than falling back to hardcoded secrets.
+- Automated tests requiring cryptographic keypairs (e.g. VAPID / ECDSA prime256v1 JWT signing) MUST generate ephemeral in-memory keys on the fly during test setup (`crypto.createECDH('prime256v1')`) and never store static keys in test code or mock fixtures.
 
 ---
 
 ## 3. Completed Milestones History
+
+### v1.8.1 (PR #44) — Zero Hardcoded Secrets Architecture & VAPID Credential Remediation
+- Fully eradicated hardcoded VAPID keys from `functions/api/_webpush.js`, `client/functions/api/_webpush.js`, and `server/src/webpush.js`.
+- Dynamic environment resolution with graceful fallback error handling when credentials are missing.
+- Ephemeral in-memory test keypair generation in `server/test/webpush.test.js` using `crypto.createECDH('prime256v1')`.
+- Enacted Rule 13 ("Zero Hardcoded Secrets & Credentials Rule") in `rules.md` and `MEMORY.md`.
+- Strict 100% version synchronization across all 9 manifest and code locations.
 
 ### v1.8.0 (PR #43) — Native Notification Channels, CORS Preflights, Privacy Acceptance & Cascade Account Deletion
 - Added `onRequestOptions` and global `Access-Control-Allow-Origin: *` headers to `/api/auth/privacy-accept` and `/api/auth/profile`.

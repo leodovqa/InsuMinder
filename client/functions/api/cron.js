@@ -10,7 +10,7 @@ export async function onRequest(context) {
       );
     }
 
-    const result = await dispatchDueNotifications(db);
+    const result = await dispatchDueNotifications(db, context.env);
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

@@ -537,7 +537,8 @@ async function dispatchMultiChannelReminderEdge({
   telegramConfig,
   pushSubs,
   userPrefs,
-  isLocal = false
+  isLocal = false,
+  env = null
 }) {
   const isBasal = type === 'basal';
   const prefKey = isBasal ? 'basal' : (type === '10m' ? 'rem10m' : (type === '2h' ? 'rem2h' : 'rem3h'));
@@ -594,7 +595,7 @@ async function dispatchMultiChannelReminderEdge({
   if (shouldSendPush) {
     const payload = buildPushPayload(type, { injectedAt, lang });
     for (const sub of pushSubs) {
-      const pRes = await sendWebPush(sub, payload);
+      const pRes = await sendWebPush(sub, payload, { env });
       if (pRes.ok) {
         successCount++;
       } else if (pRes.expired) {
@@ -611,7 +612,7 @@ async function dispatchMultiChannelReminderEdge({
   return { ok: false, error: errors.join('; ') || 'Failed to dispatch notification.' };
 }
 
-export async function dispatchDueNotifications(db) {
+export async function dispatchDueNotifications(db, env = null) {
   if (!db) return { dispatched: 0 };
   try {
     await ensureTablesExist(db);
@@ -729,7 +730,8 @@ export async function dispatchDueNotifications(db) {
           telegramConfig: cfg,
           pushSubs,
           userPrefs: prefs,
-          isLocal: false
+          isLocal: false,
+          env
         });
 
         if (res10m.ok) {
@@ -770,7 +772,8 @@ export async function dispatchDueNotifications(db) {
           telegramConfig: cfg,
           pushSubs,
           userPrefs: prefs,
-          isLocal: false
+          isLocal: false,
+          env
         });
 
         if (res2h.ok) {
@@ -811,7 +814,8 @@ export async function dispatchDueNotifications(db) {
           telegramConfig: cfg,
           pushSubs,
           userPrefs: prefs,
-          isLocal: false
+          isLocal: false,
+          env
         });
 
         if (res3h.ok) {
@@ -894,7 +898,8 @@ export async function dispatchDueNotifications(db) {
             telegramConfig: cfg,
             pushSubs: pushSubs || [],
             userPrefs: pendingUserPrefs,
-            isLocal: false
+            isLocal: false,
+            env
           });
 
           if (resBasal.ok) {

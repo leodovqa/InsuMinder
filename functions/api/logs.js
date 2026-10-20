@@ -57,7 +57,7 @@ export async function onRequestGet(context) {
 
     // Opportunistically check and dispatch notifications in background
     if (context.waitUntil) {
-      context.waitUntil(dispatchDueNotifications(db));
+      context.waitUntil(dispatchDueNotifications(db, context.env));
     }
 
     return new Response(

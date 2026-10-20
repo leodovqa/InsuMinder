@@ -1,27 +1,29 @@
 const crypto = require('crypto');
 
-const STABLE_VAPID_KEYS = {
-  publicKey: 'BF7pTPq0Grnklt77f1UujkSU-B-AqR3ZHKLGIyX8DyhYGdAI4mVsXwazKGEunwxykSosFApmHlVfGOlcl0ywA8I',
-  privateKey: 'kZTCIFztIITs-q4NGY2TZUgKst_o27AN4HUi7r9zUV0',
-  subject: 'mailto:support@insuminder.com'
-};
+const DEFAULT_VAPID_SUBJECT = 'mailto:insuminder@gmail.com';
 
-// Environment VAPID key resolution with persistent stable fallback
+function formatVapidSubject(sub) {
+  if (!sub) return DEFAULT_VAPID_SUBJECT;
+  const s = String(sub).trim();
+  if (s.startsWith('mailto:') || s.startsWith('https://')) return s;
+  if (s.includes('@')) return `mailto:${s}`;
+  return s;
+}
+// Environment VAPID key resolution strictly from process.env (Rule 13: Zero Hardcoded Secrets)
 function resolveVapidKeys() {
-  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  const pub = process.env.VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  const sub = formatVapidSubject(process.env.VAPID_SUBJECT);
+
+  if (pub && priv) {
     return {
-      publicKey: process.env.VAPID_PUBLIC_KEY,
-      privateKey: process.env.VAPID_PRIVATE_KEY,
-      subject: process.env.VAPID_SUBJECT || STABLE_VAPID_KEYS.subject
+      publicKey: pub,
+      privateKey: priv,
+      subject: sub
     };
   }
-  return STABLE_VAPID_KEYS;
+  return null;
 }
-
-const _vapid = resolveVapidKeys();
-const VAPID_PUBLIC_KEY = _vapid.publicKey;
-const VAPID_PRIVATE_KEY = _vapid.privateKey;
-const VAPID_SUBJECT = _vapid.subject;
 
 function base64UrlToUint8Array(base64Url) {
   const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);
@@ -213,9 +215,16 @@ async function sendWebPush(subscription, payload, options = {}) {
   }
 
   const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const subject = options.subject || VAPID_SUBJECT;
-  const privateKey = options.privateKey || VAPID_PRIVATE_KEY;
-  const publicKey = options.publicKey || VAPID_PUBLIC_KEY;
+  const subject = formatVapidSubject(options.subject || process.env.VAPID_SUBJECT);
+  const privateKey = options.privateKey || process.env.VAPID_PRIVATE_KEY;
+  const publicKey = options.publicKey || process.env.VAPID_PUBLIC_KEY;
+
+  if (!privateKey || !publicKey) {
+    return {
+      ok: false,
+      error: 'VAPID keys not configured. Please configure VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables.'
+    };
+  }
 
   try {
     const authHeader = await createVapidHeader(endpoint, subject, privateKey, publicKey);
@@ -249,9 +258,17 @@ async function sendWebPush(subscription, payload, options = {}) {
 }
 
 module.exports = {
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY,
-  VAPID_SUBJECT,
+  get VAPID_PUBLIC_KEY() {
+    return process.env.VAPID_PUBLIC_KEY || null;
+  },
+  get VAPID_PRIVATE_KEY() {
+    return process.env.VAPID_PRIVATE_KEY || null;
+  },
+  get VAPID_SUBJECT() {
+    return process.env.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
+  },
+  formatVapidSubject,
+  resolveVapidKeys,
   sendWebPush
 };
 

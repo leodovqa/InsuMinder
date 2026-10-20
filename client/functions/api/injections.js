@@ -206,7 +206,7 @@ export async function onRequestPost(context) {
 
     // Opportunistically check and dispatch notifications in background (bolus only)
     if (!isBasal && context.waitUntil) {
-      context.waitUntil(dispatchDueNotifications(db));
+      context.waitUntil(dispatchDueNotifications(db, context.env));
     } else if (isBasal) {
       const { dateStr: todayDate } = getJerusalemDateAndTime(now);
       const userRow = await db.prepare("SELECT basal_time FROM users WHERE id = ?").bind(userId).first();

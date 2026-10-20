@@ -1,5 +1,16 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
+const crypto = require('crypto');
+
+// Dynamically generate ephemeral in-memory VAPID keypair for tests (Rule 13: Zero Hardcoded Secrets)
+if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  const ecdh = crypto.createECDH('prime256v1');
+  ecdh.generateKeys();
+  process.env.VAPID_PUBLIC_KEY = ecdh.getPublicKey('base64url');
+  process.env.VAPID_PRIVATE_KEY = ecdh.getPrivateKey('base64url');
+  process.env.VAPID_SUBJECT = 'mailto:test@insuminder.com';
+}
+
 const db = require('../src/db');
 const webpush = require('../src/webpush');
 const scheduler = require('../src/scheduler');
@@ -80,6 +91,14 @@ describe('Web Push & Multi-Channel Reminder Integration Tests', () => {
       assert.ok(webpush.VAPID_PRIVATE_KEY);
       assert.ok(webpush.VAPID_SUBJECT);
       assert.match(webpush.VAPID_SUBJECT, /^mailto:/);
+    });
+
+    it('formats VAPID subject gracefully with or without mailto prefix', () => {
+      assert.strictEqual(webpush.formatVapidSubject('insuminder@gmail.com'), 'mailto:insuminder@gmail.com');
+      assert.strictEqual(webpush.formatVapidSubject('mailto:insuminder@gmail.com'), 'mailto:insuminder@gmail.com');
+      assert.strictEqual(webpush.formatVapidSubject('https://insuminder.pages.dev'), 'https://insuminder.pages.dev');
+      assert.strictEqual(webpush.formatVapidSubject(''), 'mailto:insuminder@gmail.com');
+      assert.strictEqual(webpush.formatVapidSubject(null), 'mailto:insuminder@gmail.com');
     });
 
     it('builds push payloads with appropriate clinical reminder text in en, he, ru', () => {
