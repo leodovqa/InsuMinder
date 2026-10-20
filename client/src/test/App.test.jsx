@@ -1610,10 +1610,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.9\.1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.9\.2/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.9.1')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.9.2')).toBeInTheDocument();
 
       // 3. Navigate to About & Info Tab
       const aboutNavBtn = screen.getByRole('button', { name: /About & Info/i, hidden: true });
@@ -1621,7 +1621,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.9.1')).toBeInTheDocument();
+      expect(screen.getByText('v1.9.2')).toBeInTheDocument();
 
       // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
       expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
@@ -1632,7 +1632,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Android native notification permission gating/i)).toBeInTheDocument();
+      expect(screen.getByText(/Xiaomi HyperOS/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
@@ -1644,7 +1644,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Android
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.9.1')).toBeInTheDocument();
+      expect(screen.getByText('v1.9.2')).toBeInTheDocument();
 
       // Android version MUST show "Up to Date" status and "Check for Updates" button
       expect(screen.getByText('Up to Date')).toBeInTheDocument();

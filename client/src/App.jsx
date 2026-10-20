@@ -740,10 +740,10 @@ function AppContent() {
   useEffect(() => {
     if (!isAndroidApp() || typeof window === 'undefined' || !window.AndroidBridge) return;
     try {
-      const hasPrompted = localStorage.getItem('insuminder_native_perm_prompted') === 'true';
+      const hasPrompted = sessionStorage.getItem('insuminder_native_perm_prompted_session') === 'true';
       const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
       if (isLoggedIn && !hasPrompted && !isGranted) {
-        localStorage.setItem('insuminder_native_perm_prompted', 'true');
+        sessionStorage.setItem('insuminder_native_perm_prompted_session', 'true');
         if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
           window.AndroidBridge.requestNotificationPermission();
         }
@@ -770,6 +770,16 @@ function AppContent() {
       void e;
     }
     setJustUpdatedVersion(null);
+    if (isAndroidApp() && typeof window !== 'undefined' && window.AndroidBridge) {
+      try {
+        const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
+        if (!isGranted && typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+          window.AndroidBridge.requestNotificationPermission();
+        }
+      } catch {
+        // ignore
+      }
+    }
   };
 
   // Strictly lock background body scrolling whenever ANY modal in the application is active
@@ -1087,10 +1097,10 @@ function AppContent() {
     // Android Onboarding: Prompt for native notification permission upon initial login/registration
     if (isAndroidApp() && typeof window !== 'undefined' && window.AndroidBridge) {
       try {
-        const hasPrompted = localStorage.getItem('insuminder_native_perm_prompted') === 'true';
+        const hasPrompted = sessionStorage.getItem('insuminder_native_perm_prompted_session') === 'true';
         const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
         if (!hasPrompted && !isGranted) {
-          localStorage.setItem('insuminder_native_perm_prompted', 'true');
+          sessionStorage.setItem('insuminder_native_perm_prompted_session', 'true');
           if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
             window.AndroidBridge.requestNotificationPermission();
           }
@@ -3291,26 +3301,34 @@ function AppContent() {
                   { id: 'DD/MM/YYYY', label: t('settings.dateFormatDDMMYYYY'), sample: '20/10/2026' },
                   { id: 'MM/DD/YYYY', label: t('settings.dateFormatMMDDYYYY'), sample: '10/20/2026' },
                   { id: 'YYYY-MM-DD', label: t('settings.dateFormatYYYYMMDD'), sample: '2026-10-20' }
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    className={`date-format-btn ${dateFormat === opt.id ? 'active' : ''}`}
-                    onClick={() => handleSelectDateFormat(opt.id)}
-                  >
-                    <div className="date-format-btn-content">
-                      <span className="date-format-label">{opt.label}</span>
-                      <span className="date-format-sample" dir="ltr">{opt.sample}</span>
-                    </div>
-                    {dateFormat === opt.id && (
-                      <span className="check-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                        </svg>
-                      </span>
-                    )}
-                  </button>
-                ))}
+                ].map((opt) => {
+                  const parts = opt.label.split(' (');
+                  const codeText = parts[0];
+                  const descText = parts[1] ? parts[1].replace(')', '') : '';
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`date-format-btn ${dateFormat === opt.id ? 'active' : ''}`}
+                      onClick={() => handleSelectDateFormat(opt.id)}
+                    >
+                      <div className="date-format-btn-content">
+                        <span className="date-format-code">{codeText}</span>
+                        {descText && <span className="date-format-desc">{descText}</span>}
+                      </div>
+                      <div className="date-format-meta">
+                        <span className="date-format-sample" dir="ltr">{opt.sample}</span>
+                        {dateFormat === opt.id && (
+                          <span className="check-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

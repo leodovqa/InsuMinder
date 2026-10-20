@@ -450,16 +450,25 @@ export default function NotificationSettings({
                       </button>
                     </>
                   ) : (
-                    <button
-                      type="button"
-                      className="push-action-btn btn-primary"
-                      onClick={handleTogglePush}
-                      disabled={pushLoading}
-                    >
-                      {pushLoading
-                        ? '...'
-                        : t('notificationSettings.devicePushEnableBtn')}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="push-action-btn btn-primary"
+                        onClick={handleTogglePush}
+                        disabled={pushLoading}
+                      >
+                        {pushLoading
+                          ? '...'
+                          : t('notificationSettings.devicePushEnableBtn')}
+                      </button>
+                      <button
+                        type="button"
+                        className="push-action-btn btn-secondary"
+                        onClick={handleOpenSettings}
+                      >
+                        ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
+                      </button>
+                    </>
                   )
                 ) : (
                   <>
