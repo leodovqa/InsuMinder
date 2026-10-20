@@ -70,7 +70,7 @@ export async function onRequestPost(context) {
 
     let sentCount = 0;
     for (const sub of subscriptions) {
-      const result = await sendWebPush(sub, payload);
+      const result = await sendWebPush(sub, payload, { env });
       if (result.ok) {
         sentCount++;
       } else if (result.expired) {

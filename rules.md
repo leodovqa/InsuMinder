@@ -69,3 +69,9 @@ These rules outline the guidelines for developing the web-based application.
 12. **Central Project Memory & "Save for Later" Single Source of Truth Rule**:
     - Whenever the user mentions "write to memory", "remember this", "save for later", "write as next task", or anything related to persisting project context, tasks, bugs, or future plans, you MUST always record, write to, and update [MEMORY.md](file:///d:/Github/InsuMinder/MEMORY.md) in the repository root.
     - Local agent memory and machine-specific scratchpad/artifact directories do not travel across different PCs or developer workstations. [MEMORY.md](file:///d:/Github/InsuMinder/MEMORY.md) is the authoritative, shared single source of truth across all devices and developer setups.
+13. **Zero Hardcoded Secrets & Credentials Rule**:
+    - Under NO circumstances may any real, default, fallback, or mock API keys, private keys (such as VAPID keys), auth secrets, webhook secrets, database credentials, or tokens ever be hardcoded into tracked files in this repository.
+    - All secrets, private keys, and runtime credentials MUST be loaded strictly through environment variables (e.g., context.env in Cloudflare Pages Functions or process.env in Node.js).
+    - If environment variables are not configured in a deployment or local runtime, the application code must degrade safely and return a clear, descriptive configuration error (e.g., 'VAPID keys not configured') rather than falling back to hardcoded secrets.
+    - Automated tests that require cryptographic keypairs (e.g. VAPID / ECDSA prime256v1 JWT signing) MUST generate ephemeral in-memory keys on the fly during test setup (crypto.createECDH('prime256v1')) and never store static keys in test code or mock fixtures.
+    - Always verify before committing that no keys, tokens, or credential strings have been introduced into source files, markdown docs, or configuration files.

@@ -319,7 +319,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.8.0',
+  version: '1.8.1',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -328,16 +328,16 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Device push notifications overhaul with native Android notification drawer integration',
-    'Direct system notification settings shortcut and instant test notification dispatch on activation'
+    'Security update: Removed all hardcoded VAPID keys and credentials from source code',
+    'Enforced zero hardcoded secrets architecture with dynamic environment-driven credential loading'
   ],
   he: [
-    'שדרוג מקיף להתראות דחיפה במכשיר עם אינטגרציה ישירה למגש ההתראות באנדרואיד',
-    'קיצור ישיר להגדרות ההתראות במערכת ושליחה מיידית של התראת בדיקה בהפעלה'
+    'עדכון אבטחה: הסרת כל מפתחות ה-VAPID וההרשאות המוטמעות מקוד המקור',
+    'אכיפת ארכיטקטורת אפס מפתחות מקודדים עם טעינת אישורים דינמית מסביבת העבודה'
   ],
   ru: [
-    'Полное обновление push-уведомлений на устройстве с интеграцией в шторку Android',
-    'Прямой переход к настройкам уведомлений системы и мгновенная отправка тестового уведомления'
+    'Обновление безопасности: удалены все жестко закодированные ключи VAPID и учетные данные из исходного кода',
+    'Внедрена архитектура нулевых жестко закодированных секретов с динамической загрузкой учетных данных'
   ]
 };
 

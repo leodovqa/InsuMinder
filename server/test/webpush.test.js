@@ -1,5 +1,16 @@
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert');
+const crypto = require('crypto');
+
+// Dynamically generate ephemeral in-memory VAPID keypair for tests (Rule 13: Zero Hardcoded Secrets)
+if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+  const ecdh = crypto.createECDH('prime256v1');
+  ecdh.generateKeys();
+  process.env.VAPID_PUBLIC_KEY = ecdh.getPublicKey('base64url');
+  process.env.VAPID_PRIVATE_KEY = ecdh.getPrivateKey('base64url');
+  process.env.VAPID_SUBJECT = 'mailto:test@insuminder.com';
+}
+
 const db = require('../src/db');
 const webpush = require('../src/webpush');
 const scheduler = require('../src/scheduler');
