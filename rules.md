@@ -66,5 +66,6 @@ These rules outline the guidelines for developing the web-based application.
 11. **Universal Modal Scroll Locking & Touch Containment Rule**:
     - Under NO circumstances may the background application page be allowed to scroll underneath ANY active modal, popover, sheet, or drawer.
     - Whenever creating, updating, changing, or fixing ANY modal in the application, developers and agents MUST bind the reference-counted `useLockBodyScroll` hook (`client/src/useLockBodyScroll.js`) and ensure modal cards contain all touch and scroll gestures (`overscroll-behavior: contain !important; touch-action: pan-y;`) in strict adherence to Section 7 of [UI_STANDARDS.md](file:///d:/Github/InsuMinder/UI_STANDARDS.md).
-
-
+12. **Central Project Memory & "Save for Later" Single Source of Truth Rule**:
+    - Whenever the user mentions "write to memory", "remember this", "save for later", "write as next task", or anything related to persisting project context, tasks, bugs, or future plans, you MUST always record, write to, and update [MEMORY.md](file:///d:/Github/InsuMinder/MEMORY.md) in the repository root.
+    - Local agent memory and machine-specific scratchpad/artifact directories do not travel across different PCs or developer workstations. [MEMORY.md](file:///d:/Github/InsuMinder/MEMORY.md) is the authoritative, shared single source of truth across all devices and developer setups.
