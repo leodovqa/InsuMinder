@@ -354,26 +354,51 @@ public class WebContainerActivity extends Activity {
     }
 
     public void openAppNotificationSettings() {
-        try {
-            Intent intent = new Intent();
+        runOnUiThread(() -> {
+            boolean opened = false;
+            // 1. Standard Android 8.0+ Notification Settings with Xiaomi/HyperOS/AOSP extras
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
-                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
-            } else {
-                intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                intent.setData(Uri.fromParts("package", getPackageName(), null));
+                try {
+                    Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                    intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                    intent.putExtra("android.provider.extra.APP_PACKAGE", getPackageName());
+                    intent.putExtra("app_package", getPackageName());
+                    intent.putExtra("app_uid", getApplicationInfo().uid);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                    opened = true;
+                } catch (Exception e) {
+                    Log.w("InsuMinder", "ACTION_APP_NOTIFICATION_SETTINGS failed: " + e.getMessage());
+                }
             }
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        } catch (Exception e) {
-            try {
-                Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                fallback.setData(Uri.fromParts("package", getPackageName(), null));
-                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(fallback);
-            } catch (Exception ignored) {
+
+            // 2. Direct Xiaomi MIUI / HyperOS Notification Filter Activity Fallback
+            if (!opened) {
+                try {
+                    Intent miuiIntent = new Intent("android.intent.action.MAIN");
+                    miuiIntent.setClassName("com.android.settings", "com.android.settings.Settings$NotificationFilterActivity");
+                    miuiIntent.putExtra("appName", getString(R.string.app_name));
+                    miuiIntent.putExtra("packageName", getPackageName());
+                    miuiIntent.putExtra("package_name", getPackageName());
+                    miuiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(miuiIntent);
+                    opened = true;
+                } catch (Exception ignored) {
+                }
             }
-        }
+
+            // 3. Universal Fallback: Application Details Settings (App Info page)
+            if (!opened) {
+                try {
+                    Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    fallback.setData(Uri.fromParts("package", getPackageName(), null));
+                    fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(fallback);
+                } catch (Exception e) {
+                    Log.e("InsuMinder", "ACTION_APPLICATION_DETAILS_SETTINGS failed: " + e.getMessage());
+                }
+            }
+        });
     }
 
     @Override
@@ -382,10 +407,15 @@ public class WebContainerActivity extends Activity {
         if (requestCode == RC_POST_NOTIFICATIONS) {
             boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED && NotificationManagerCompat.from(this).areNotificationsEnabled();
             notifyNotificationPermissionResult(granted);
-            if (granted && mPendingNotificationAfterPermission != null) {
-                Runnable action = mPendingNotificationAfterPermission;
-                mPendingNotificationAfterPermission = null;
-                action.run();
+            if (granted) {
+                if (mPendingNotificationAfterPermission != null) {
+                    Runnable action = mPendingNotificationAfterPermission;
+                    mPendingNotificationAfterPermission = null;
+                    action.run();
+                }
+            } else {
+                // When permission dialog is denied or suppressed by Xiaomi HyperOS, open system settings immediately
+                openAppNotificationSettings();
             }
         }
     }

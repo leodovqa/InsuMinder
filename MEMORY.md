@@ -159,7 +159,20 @@ Verified by `node scripts/check-version.js`.
 
 ## 3. Completed Milestones History
 
-### v1.9.1 (PR pending) — Android Native Permissions & Notification Lifecycle Overhaul
+### v1.9.2 (PR pending) — Xiaomi HyperOS / Android 14+ Notification Auto-Redirect & Date Format Settings UI
+- **Xiaomi HyperOS / Android 14+ Notification Auto-Redirect**:
+  * Rewrote openAppNotificationSettings() in WebContainerActivity.java with 3-tier fallback intents (Xiaomi/MIUI extras app_package and app_uid, standard EXTRA_APP_PACKAGE, and ACTION_APPLICATION_DETAILS_SETTINGS).
+  * Auto-redirect on permission denial/suppression: when HyperOS silently auto-denies runtime permission for sideloaded APKs, immediately redirects to device notification settings.
+  * In NotificationSettings.jsx, exposed persistent Open Device Notification Settings button alongside Enable Push button for Android even in default permission state.
+  * In App.jsx, changed permission prompt tracking from permanent localStorage to session-scoped sessionStorage, automatically re-checking permissions on login and after app update completion.
+- **Date Format Settings UI Collision & Wrapping Fix**:
+  * Fixed visual collision in Settings tab where date sample chip collided with checkmark icon in RTL Hebrew, and ISO format wrapped to two lines.
+  * Re-architected option layout into dedicated text description block and meta block (date-format-sample with white-space: nowrap; and checkmark icon flex-clustered with gap: 8px).
+  * Added light theme overrides for .date-format-desc.
+- **Full Version Parity & 0-Diff Functions**:
+  * Synchronized version bump to v1.9.2 (versionCode 14) across all 9 locations with 0 diff between functions/ and client/functions/.
+
+### v1.9.1 (PR #47) — Android Native Permissions & Notification Lifecycle Overhaul
 - **Strict Native Android Permission Gating (`POST_NOTIFICATIONS`)**: `WebContainerActivity.java` runtime permission prompt bridge with `window.__onNativeNotificationPermissionResult(granted)`. In `NotificationSettings.jsx`, wait for native callback before activating or dispatching test push, with explicit feedback banners and device settings redirection button.
 - **Android Onboarding Permission Prompt**: Prompt for runtime notification permissions upon login/registration in the Android container if not yet granted.
 - **Decoupled Test Push Delivery**: Decoupled test notifications from the clinical basal modal by targeting `/?page=notifications`.

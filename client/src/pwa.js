@@ -319,7 +319,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.1',
+  version: '1.9.2',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -328,19 +328,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Android native notification permission gating and instant test alert dispatch',
-    'Automatic notification permission prompt on Android installation and login',
-    'Premature basal injection timing guard and modal layout alignment'
+    'Xiaomi HyperOS / Android 13+ native notification settings auto-redirect on permission denial or suppression',
+    'Fixed Date Format button layout collision and multi-line wrapping in Settings',
+    'Automatic permission check on app launch, login, and updates'
   ],
   he: [
-    'אימות הרשאות התראה מקוריות באנדרואיד ושליחת התראת בדיקה מהירה',
-    'בקשת הרשאת התראות אוטומטית בהתקנה והתחברות באנדרואיד',
-    'הגנה מפני הזרקה בזאלית מוקדמת ויישור כותרת חלון האישור'
+    'הפניה אוטומטית להגדרות התראות מערכת ב-Xiaomi HyperOS וב-Android 13+ בעת דחייה או חסימה',
+    'תיקון התנגשות וגלישת שורות בכפתורי בחירת פורמט תאריך בהגדרות',
+    'בדיקת הרשאות התראה אוטומטית בפתיחת אפליקציה, התחברות ועדכונים'
   ],
   ru: [
-    'Проверка системных разрешений на уведомления Android и отправка тестового алерта',
-    'Автоматический запрос разрешений на уведомления при установке и входе в Android',
-    'Защита от преждевременного базального укола и выравнивание заголовка модального окна'
+    'Авто-переход в системные настройки уведомлений на Xiaomi HyperOS и Android 13+ при блокировке',
+    'Исправлено наложение текста и перенос строк в кнопках формата даты в настройках',
+    'Автоматическая проверка разрешений на уведомления при запуске, входе и обновлениях'
   ]
 };
 
