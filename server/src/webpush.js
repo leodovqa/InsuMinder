@@ -1,12 +1,19 @@
 const crypto = require('crypto');
 
-const DEFAULT_VAPID_SUBJECT = 'mailto:support@insuminder.com';
+const DEFAULT_VAPID_SUBJECT = 'mailto:insuminder@gmail.com';
 
+function formatVapidSubject(sub) {
+  if (!sub) return DEFAULT_VAPID_SUBJECT;
+  const s = String(sub).trim();
+  if (s.startsWith('mailto:') || s.startsWith('https://')) return s;
+  if (s.includes('@')) return `mailto:${s}`;
+  return s;
+}
 // Environment VAPID key resolution strictly from process.env (Rule 13: Zero Hardcoded Secrets)
 function resolveVapidKeys() {
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
-  const sub = process.env.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
+  const sub = formatVapidSubject(process.env.VAPID_SUBJECT);
 
   if (pub && priv) {
     return {
@@ -208,7 +215,7 @@ async function sendWebPush(subscription, payload, options = {}) {
   }
 
   const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const subject = options.subject || process.env.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
+  const subject = formatVapidSubject(options.subject || process.env.VAPID_SUBJECT);
   const privateKey = options.privateKey || process.env.VAPID_PRIVATE_KEY;
   const publicKey = options.publicKey || process.env.VAPID_PUBLIC_KEY;
 
@@ -260,6 +267,7 @@ module.exports = {
   get VAPID_SUBJECT() {
     return process.env.VAPID_SUBJECT || DEFAULT_VAPID_SUBJECT;
   },
+  formatVapidSubject,
   resolveVapidKeys,
   sendWebPush
 };

@@ -33,10 +33,11 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 3. **Rule 13 Enacted**:
    - Added Rule 13 ("Zero Hardcoded Secrets & Credentials Rule") to `rules.md` and `MEMORY.md`.
 4. **User Environment Deployment Step (Cloudflare Pages Dashboard)**:
-   - Set the following production environment variables in Cloudflare Pages Dashboard (Settings > Environment Variables):
-     - `VAPID_PUBLIC_KEY`: `BKIv2PuDkWiWtMl8g80hszhwJxa37QsAcSMYIcyQjtHEvjX03YfJ6VLcMlOTbDeSYTmxLmGhoHLa0d3M-_gJ-qw`
-     - `VAPID_PRIVATE_KEY`: `<secure_private_key_provided_in_deployment_notes>`
-     - `VAPID_SUBJECT`: `mailto:support@insuminder.com`
+   - Navigate in Cloudflare to: **Workers & Pages → InsuMinder → Settings → Variables and secrets**
+   - Add the following variables with their exact Types:
+     - Variable: `VAPID_PUBLIC_KEY` | Type: `Text` (or `Secret`) | Value: `BKIv2PuDkWiWtMl8g80hszhwJxa37QsAcSMYIcyQjtHEvjX03YfJ6VLcMlOTbDeSYTmxLmGhoHLa0d3M-_gJ-qw`
+     - Variable: `VAPID_PRIVATE_KEY` | Type: `Secret` (Encrypted) | Value: `<secure_private_key_provided_in_deployment_notes>`
+     - Variable: `VAPID_SUBJECT` | Type: `Text` | Value: `mailto:insuminder@gmail.com`
 5. **GitGuardian Resolution**:
    - In the GitGuardian email / dashboard, click **"Fix This Secret Leak"** and mark the incident as rotated & revoked.
 

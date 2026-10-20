@@ -1,8 +1,15 @@
 // functions/api/_webpush.js - RFC 8291 & RFC 8292 Zero-Dependency Web Push Dispatcher
 // Works 100% identically across Cloudflare Pages Functions and modern Node.js runtimes
 
-export const DEFAULT_VAPID_SUBJECT = 'mailto:support@insuminder.com';
+export const DEFAULT_VAPID_SUBJECT = 'mailto:insuminder@gmail.com';
 
+export function formatVapidSubject(sub) {
+  if (!sub) return DEFAULT_VAPID_SUBJECT;
+  const s = String(sub).trim();
+  if (s.startsWith('mailto:') || s.startsWith('https://')) return s;
+  if (s.includes('@')) return `mailto:${s}`;
+  return s;
+}
 /**
  * Resolves VAPID keys strictly from environment configuration (Cloudflare env or process.env).
  * Under Rule 13 (Zero Hardcoded Secrets), no keys or credentials may ever be hardcoded.
@@ -10,7 +17,8 @@ export const DEFAULT_VAPID_SUBJECT = 'mailto:support@insuminder.com';
 export async function resolveVapidKeys(env) {
   const pub = env?.VAPID_PUBLIC_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PUBLIC_KEY) || null;
   const priv = env?.VAPID_PRIVATE_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PRIVATE_KEY) || null;
-  const sub = env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || DEFAULT_VAPID_SUBJECT;
+  const rawSub = env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || DEFAULT_VAPID_SUBJECT;
+  const sub = formatVapidSubject(rawSub);
 
   if (pub && priv) {
     return { publicKey: pub, privateKey: priv, subject: sub };
@@ -241,7 +249,8 @@ export async function sendWebPush(subscription, payload, options = {}) {
   }
 
   const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  let subject = options.subject || options.env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || DEFAULT_VAPID_SUBJECT;
+  let rawSubject = options.subject || options.env?.VAPID_SUBJECT || (typeof process !== 'undefined' && process.env?.VAPID_SUBJECT) || DEFAULT_VAPID_SUBJECT;
+  let subject = formatVapidSubject(rawSubject);
   let privateKey = options.privateKey || options.env?.VAPID_PRIVATE_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PRIVATE_KEY);
   let publicKey = options.publicKey || options.env?.VAPID_PUBLIC_KEY || (typeof process !== 'undefined' && process.env?.VAPID_PUBLIC_KEY);
 

@@ -93,6 +93,14 @@ describe('Web Push & Multi-Channel Reminder Integration Tests', () => {
       assert.match(webpush.VAPID_SUBJECT, /^mailto:/);
     });
 
+    it('formats VAPID subject gracefully with or without mailto prefix', () => {
+      assert.strictEqual(webpush.formatVapidSubject('insuminder@gmail.com'), 'mailto:insuminder@gmail.com');
+      assert.strictEqual(webpush.formatVapidSubject('mailto:insuminder@gmail.com'), 'mailto:insuminder@gmail.com');
+      assert.strictEqual(webpush.formatVapidSubject('https://insuminder.pages.dev'), 'https://insuminder.pages.dev');
+      assert.strictEqual(webpush.formatVapidSubject(''), 'mailto:insuminder@gmail.com');
+      assert.strictEqual(webpush.formatVapidSubject(null), 'mailto:insuminder@gmail.com');
+    });
+
     it('builds push payloads with appropriate clinical reminder text in en, he, ru', () => {
       const iso = '2026-10-10T14:30:00.000Z';
 
