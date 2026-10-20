@@ -29,15 +29,57 @@ export const updateUrlForTab = (tab) => {
   }
 };
 
-export const formatDateOnly = (value) => {
+export const DATE_FORMATS = Object.freeze({
+  DD_MM_YYYY: 'DD/MM/YYYY',
+  MM_DD_YYYY: 'MM/DD/YYYY',
+  YYYY_MM_DD: 'YYYY-MM-DD'
+});
+
+export const getSavedDateFormat = () => {
+  if (typeof window === 'undefined') return 'DD/MM/YYYY';
+  try {
+    return localStorage.getItem('insuminder_date_format') || 'DD/MM/YYYY';
+  } catch {
+    return 'DD/MM/YYYY';
+  }
+};
+
+export const setSavedDateFormat = (format) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('insuminder_date_format', format);
+  } catch (err) {
+    console.error('Failed to save date format:', err);
+  }
+};
+
+export const formatDisplayDate = (value, customFormat) => {
   if (!value) return '';
   const date = new Date(value);
-  return date.toLocaleDateString('en-IL', {
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  if (isNaN(date.getTime())) return '';
+  const format = customFormat || getSavedDateFormat();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  });
+  }).formatToParts(date);
+  const d = parts.find(p => p.type === 'day')?.value || '01';
+  const m = parts.find(p => p.type === 'month')?.value || '01';
+  const y = parts.find(p => p.type === 'year')?.value || '1970';
+
+  if (format === 'MM/DD/YYYY') {
+    return `${m}/${d}/${y}`;
+  }
+  if (format === 'YYYY-MM-DD') {
+    return `${y}-${m}-${d}`;
+  }
+  return `${d}/${m}/${y}`;
+};
+
+export const formatDateOnly = (value, customFormat) => {
+  return formatDisplayDate(value, customFormat);
 };
 
 export const formatTimeOnly = (value) => {
@@ -51,22 +93,10 @@ export const formatTimeOnly = (value) => {
   });
 };
 
-export const formatDateTime = (value) => {
+export const formatDateTime = (value, customFormat) => {
   if (!value) return '';
-  const date = new Date(value);
-  const datePart = date.toLocaleDateString('en-IL', {
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
-  const timePart = date.toLocaleTimeString('en-IL', {
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
+  const datePart = formatDisplayDate(value, customFormat);
+  const timePart = formatTimeOnly(value);
   return `${datePart}, ${timePart}`;
 };
 
@@ -176,9 +206,22 @@ export const getWeekDisplayInfo = (selectedWeekStart, lang = 'en') => {
   };
 };
 
-export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => {
+export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en', dateFormat = null) => {
+  const fmt = dateFormat || getSavedDateFormat();
+  const formatDayMonth = (dObj) => {
+    const day = dObj.getDate();
+    const month = dObj.getMonth() + 1;
+    if (fmt === DATE_FORMATS.MM_DD_YYYY) {
+      return `${month}/${day}`;
+    }
+    if (fmt === DATE_FORMATS.YYYY_MM_DD) {
+      return `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+    return `${day}/${month}`;
+  };
+
   const days = [];
-  const todayStr = formatDateOnly(new Date().toISOString());
+  const todayStr = formatDateOnly(new Date().toISOString(), fmt);
   const anchorWednesday = new Date(
     selectedWeekStart.getFullYear(),
     selectedWeekStart.getMonth(),
@@ -196,16 +239,14 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
       0,
       0
     );
-    const dateStr = formatDateOnly(d.toISOString());
+    const dateStr = formatDateOnly(d.toISOString(), fmt);
     const dayKey = dayKeys[d.getDay()];
     const dayName = translate(`daysShort.${dayKey}`, {}, lang);
     const fullDayName = translate(`daysFull.${dayKey}`, {}, lang);
-    const dayNum = d.getDate();
-    const monthNum = d.getMonth() + 1;
     const isToday = dateStr === todayStr;
     const isOtherMonth = d.getMonth() !== anchorMonth;
 
-    const dayLogs = logsList.filter(log => formatDateOnly(log.injected_at) === dateStr);
+    const dayLogs = (logsList || []).filter(log => formatDateOnly(log.injected_at, fmt) === dateStr);
     const bolusCount = dayLogs.filter(log => !log.type || log.type === 'bolus').length;
     const basalCount = dayLogs.filter(log => log.type === 'basal').length;
     const count = bolusCount + basalCount;
@@ -215,7 +256,7 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
       dateStr,
       dayName,
       fullDayName,
-      shortDate: `${dayNum}/${monthNum}`,
+      shortDate: formatDayMonth(d),
       count,
       bolusCount,
       basalCount,
@@ -233,8 +274,8 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
 
   const startDay = days[0].date;
   const endDay = days[6].date;
-  const startDayMonth = `${startDay.getDate()}/${startDay.getMonth() + 1}`;
-  const endDayMonth = `${endDay.getDate()}/${endDay.getMonth() + 1}`;
+  const startDayMonth = formatDayMonth(startDay);
+  const endDayMonth = formatDayMonth(endDay);
   const weekRangeStr = `${startDayMonth} – ${endDayMonth}`;
 
   const todayWeekStart = getStartOfWeek(new Date());
@@ -256,7 +297,8 @@ export const getWeeklyTrendData = (logsList, selectedWeekStart, lang = 'en') => 
   };
 };
 
-export const getRapidInjections = (logsList, targetDateKey = null) => {
+export const getRapidInjections = (logsList, targetDateKey = null, dateFormat = null) => {
+  const fmt = dateFormat || getSavedDateFormat();
   const rapidList = [];
   const rapidIds = new Set();
   const bolusLogs = (logsList || []).filter(log => !log.type || log.type === 'bolus');
@@ -270,7 +312,7 @@ export const getRapidInjections = (logsList, targetDateKey = null) => {
     const threeHoursMs = 3 * 60 * 60 * 1000;
 
     if (diffMs > 0 && diffMs < threeHoursMs) {
-      if (targetDateKey && formatDateOnly(current.injected_at) !== targetDateKey) {
+      if (targetDateKey && formatDateOnly(current.injected_at, fmt) !== targetDateKey) {
         continue;
       }
 
@@ -292,7 +334,6 @@ export const getRapidInjections = (logsList, targetDateKey = null) => {
 
   return { rapidList, rapidIds };
 };
-
 export const maskBotToken = (token) => {
   if (!token || typeof token !== 'string') return '';
   const trimmed = token.trim();

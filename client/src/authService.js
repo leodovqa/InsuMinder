@@ -86,8 +86,16 @@ export const authService = {
       });
       const data = await res.json();
       if (data.success && data.user) {
-        this.setSession(token, data.user);
-        return data.user;
+        const currentUser = this.getCurrentUser();
+        const mergedUser = {
+          ...data.user,
+          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null
+        };
+        if (!data.user.privacyAcceptedAt && currentUser?.privacyAcceptedAt) {
+          this.acceptPrivacy().catch(() => {});
+        }
+        this.setSession(token, mergedUser);
+        return mergedUser;
       }
       return null;
     } catch {
@@ -118,8 +126,16 @@ export const authService = {
       });
       const data = await res.json();
       if (data.success && data.user) {
-        this.setSession(token, data.user);
-        return data.user;
+        const currentUser = this.getCurrentUser();
+        const mergedUser = {
+          ...data.user,
+          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null
+        };
+        if (!data.user.privacyAcceptedAt && currentUser?.privacyAcceptedAt) {
+          this.acceptPrivacy().catch(() => {});
+        }
+        this.setSession(token, mergedUser);
+        return mergedUser;
       }
       return null;
     } catch {
@@ -330,8 +346,16 @@ export const authService = {
       });
       const data = await res.json();
       if (data.success && data.user) {
-        this.setSession(token, data.user);
-        return data.user;
+        const currentUser = this.getCurrentUser();
+        const mergedUser = {
+          ...data.user,
+          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null
+        };
+        if (!data.user.privacyAcceptedAt && currentUser?.privacyAcceptedAt) {
+          this.acceptPrivacy().catch(() => {});
+        }
+        this.setSession(token, mergedUser);
+        return mergedUser;
       }
       this.clearSession();
       return null;

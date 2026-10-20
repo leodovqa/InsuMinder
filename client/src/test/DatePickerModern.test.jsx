@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+﻿import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DatePickerModern from '../DatePickerModern';
 import { LanguageProvider } from '../i18n';
@@ -117,5 +117,41 @@ describe('DatePickerModern Component', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('renders and parses dates using custom dateFormat MM/DD/YYYY', () => {
+    const handleChange = vi.fn();
+    renderWithLang(
+      <DatePickerModern
+        value="2026-10-17"
+        dateFormat="MM/DD/YYYY"
+        onChange={handleChange}
+      />
+    );
+
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveValue('10/17/2026');
+    expect(input).toHaveAttribute('placeholder', 'MM/DD/YYYY');
+
+    fireEvent.change(input, { target: { value: '11/05/2026' } });
+    expect(handleChange).toHaveBeenCalledWith('2026-11-05');
+  });
+
+  it('renders and parses dates using custom dateFormat YYYY-MM-DD', () => {
+    const handleChange = vi.fn();
+    renderWithLang(
+      <DatePickerModern
+        value="2026-10-17"
+        dateFormat="YYYY-MM-DD"
+        onChange={handleChange}
+      />
+    );
+
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveValue('2026-10-17');
+    expect(input).toHaveAttribute('placeholder', 'YYYY-MM-DD');
+
+    fireEvent.change(input, { target: { value: '2026-12-25' } });
+    expect(handleChange).toHaveBeenCalledWith('2026-12-25');
   });
 });

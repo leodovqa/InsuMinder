@@ -1,60 +1,78 @@
-# Plan for Web-Based Application
+# InsuMinder — Application Development Plan & Roadmap
 
-## Overview
-We will develop a web-based application using React as the client-side framework, with a server-side and database architecture to be determined later.
+## 1. Project Overview & Clinical Mission
+InsuMinder is a web and mobile platform for insulin-dependent individuals, caregivers, and families. The platform tracks rapid-acting (Bolus) and long-acting (Basal) insulin injections, prevents dangerous insulin stacking, and dispatches automated reminders at critical clinical intervals (10-minute meal window, 2-hour glucose check, 3-hour eligibility safety lock).
 
-## Technology Stack
-- **Client**: React
-- **Server**: To be decided
-- **Database**: To be decided
+---
 
-## Instructions
-1. **Set Up Development Environment**:
-   - Install Node.js and npm.
-   - Create a new React project using `npx create-react-app my-app`.
-   - Navigate to the project directory and start the development server with `npm start`.
+## 2. Technology Stack & Production Architecture
 
-2. **Design the User Interface**:
-   - Create a simple and modern user interface using React components.
-   - Ensure the design is responsive and looks good on various devices.
-   - Add a button labeled "Insulin Injected".
-   - When the button is clicked, display a notification after 2 hours and then after 3 hours.
+* **Frontend**: React 19, Vite, Vitest, CSS Design System (Theme Tokens, RTL/LTR bidirectional support).
+* **Local Backend**: Node.js, Express, SQLite (`server/insuminder.db`), background timer scheduler.
+* **Production Cloud**: Cloudflare Pages Functions (serverless edge API) + Cloudflare D1 (serverless SQLite database).
+* **Mobile & Notifications**: Android APK (AndroidX Custom Tabs / TWA WebContainer + Native GIS Bridge), Web Push (RFC 8291/8292 VAPID encryption), and Telegram Bot API.
+* **Testing & Quality Assurance**: Vitest (client components & clinical timers), Node.js built-in test runner (server API & database integration), GitHub Actions CI/CD with 100% theme, version, i18n, and cloud/client function parity gating.
 
-3. **Develop the Server**:
-   - Choose a server-side technology (e.g., Node.js with Express, Django, Flask, etc.).
-   - Set up the server to handle API requests and interact with the database.
-   - Implement endpoints to trigger notifications after 2 hours and 3 hours.
-   - Implement an endpoint to retrieve a log of button clicks and notification sends for the last 24 hours.
+---
 
-4. **Set Up the Database**:
-   - Choose a database technology (e.g., MongoDB, PostgreSQL, MySQL, etc.).
-   - Design the database schema and implement data models to store user information, notification timestamps, and log entries.
+## 3. Phase 1: Completed Milestones
 
-5. **Integrate Client and Server**:
-   - Create API endpoints in the server to handle client requests.
-   - Use Axios or Fetch to make API calls from the React client.
-   - Implement the logic to trigger notifications after 2 hours and 3 hours.
-   - Implement the logic to fetch and display the log on the client side.
+### 1. Development Environment & Setup
+- [x] Node.js, npm, Vite, and Express parallel startup scripts (`npm run dev`, `.\start-dev.ps1`, Docker Compose).
+- [x] Strict ESLint configuration and multi-tier parity validation scripts (`scripts/check-version.js`).
 
-6. **Testing**:
-   - Write unit tests for the React components.
-   - Write integration tests for the server and database.
-   - Test the notification functionality to ensure it triggers correctly after 2 hours and 3 hours.
-   - Test the log retrieval functionality to ensure it correctly displays the last 24 hours of data.
+### 2. User Interface & Clinical Safety Windows
+- [x] Modern responsive UI with dark/light theme parity and full RTL (Hebrew) and LTR (English, Russian) localization.
+- [x] Dynamic Bolus & Basal injection button with automatic 20:00 split and midnight reversion.
+- [x] 10-Minute Meal Time countdown with visual progress bar.
+- [x] 2-Hour Postprandial Glucose Check countdown and alert card.
+- [x] 3-Hour Active Insulin Eligibility countdown and safety guard (gray button state + Early Injection Confirmation Modal).
+- [x] Stacked Israeli Calendar Weekly Trend Chart (Sunday–Saturday).
+- [x] Manual historical injection logging with reusable `DatePickerModern` and `TimePicker24h`.
 
-7. **Deployment**:
-   - Choose a hosting provider (e.g., Heroku, AWS, Vercel, etc.).
-   - Deploy the React client and server to the chosen hosting platform.
+### 3. Server, Database & API Development
+- [x] REST API endpoints for bolus/basal injection tracking (`POST /api/injections`, `POST /api/injections/manual`, `GET /api/logs`).
+- [x] User authentication (passwordless email verification codes + Google Identity Services OAuth).
+- [x] Brute-force account protection (10-minute lockout after 5 failed attempts).
+- [x] Medical privacy consent agreement modal and mandatory onboarding flow.
+- [x] Cascade account & data deletion (`DELETE /api/auth/account`).
+- [x] Cloudflare Pages serverless edge API (`functions/api/`) maintaining 100% hash parity with client functions.
 
-## Rules
-- **Clarification**: If you are unsure about something, you must say it before doing anything.
-- **Error Reporting**: If there was a mistake, error, or something you couldn't test, you must report it. Explain what couldn't happen and why.
-- **Explain Decisions**: When you make a decision, explain why you did it and how. Avoid overcomplicating things when no needed. If you are unsure, ask before proceeding.
-- **Research**: When researching, provide the source of your data and avoid making assumptions. Always use real data from the code.
+### 4. Notifications & Cross-Channel Dispatch
+- [x] Multi-destination Telegram bot notification dispatcher with master toggle and destination active/pause controls.
+- [x] Web Push notifications with VAPID encryption and zero-secret dynamic architecture.
+- [x] Granular notification preferences with scoped controls for Personal Data vs Shared Caregiver Data.
+- [x] Opportunistic edge reminder dispatch (`context.waitUntil`) and external scheduled cron runner (`/api/cron`).
 
-## Next Steps
-- Determine the server-side and database technologies.
-- Begin implementing the server and database.
-- Continue developing the user interface and integrating the client and server.
-- Test the notification functionality thoroughly.
-- Test the log retrieval functionality thoroughly.
+### 5. Mobile & Android Ecosystem
+- [x] Native Android package (`com.insuminder.app`, `InsuMinder.apk`) with AndroidX Custom Tabs and WebContainer fallback.
+- [x] Native 1-Tap Google Sign-In bridge via Play Services Auth.
+- [x] Adaptive density launcher icons and v1/v2/v3 APK signing.
+- [x] In-app PWA update progress indicator and major upgrade notification modal.
+
+---
+
+## 4. Phase 2: Active & Upcoming Roadmap
+
+1. **Alternative Date Formats User Setting** (Active Sprint):
+   - Provide user configuration in Settings to toggle between `DD/MM/YYYY` (default), `MM/DD/YYYY`, and `YYYY-MM-DD`.
+   - Update `DatePickerModern` and clinical date helpers to respect the selected format dynamically across all locales.
+2. **Native Android Notification Permission Gating (`POST_NOTIFICATIONS`)**:
+   - Explicit runtime permission prompt on Android 13+ devices with settings navigation fallback.
+   - Decouple test notification targets from the Basal injection modal.
+   - Premature basal pop-up timing guard (minimum 5-minute threshold).
+3. **Multiple Concurrent Shared Caregiver Accounts**:
+   - Expand caregiver access from 1 active group to concurrent multi-group aggregation and switching.
+4. **Data Export & Clinical Reporting**:
+   - Generate CSV and printable PDF reports of injection logs for endocrinologist visits.
+5. **Offline Injection Queue**:
+   - Offline injection queuing in IndexedDB with automated Service Worker background sync.
+
+---
+
+## 5. Core Development & Collaboration Rules
+- **Rule 1 (Mandatory UI Standards)**: Strict adherence to [UI_STANDARDS.md](file:///e:/Leo/Github/InsuMinder/UI_STANDARDS.md) for centering, `--section-gap: 20px;`, icon scales, and modal scroll locking.
+- **Rule 5 (Branching & PR Gating)**: Never commit directly to `main`. Branches require explicit user agreement. PRs must pass 100% green CI status checks before merging.
+- **Rule 7 & 8 (i18n & Theme Parity)**: 100% 3-way translation parity across English, Hebrew, and Russian, plus seamless Dark and Light theme fidelity.
+- **Rule 9 (Unified Versioning)**: Every branch/release must synchronize version strings across all 9 manifest and code locations.
+- **Rule 12 & 13 (Memory & Secrets)**: Update [MEMORY.md](file:///e:/Leo/Github/InsuMinder/MEMORY.md) for persistent cross-machine context. Zero hardcoded secrets anywhere in the codebase.

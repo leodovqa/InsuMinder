@@ -1,4 +1,4 @@
-.counter {
+﻿.counter {
   font-size: 16px;
   padding: 5px 10px;
   border-radius: 5px;
@@ -2891,6 +2891,71 @@ body.is-android-apk .app-update-banner + .app-header {
   display: inline-flex;
   align-items: center;
   color: #ffffff;
+}
+
+/* Date Format Options */
+.date-format-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.date-format-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 18px;
+  background-color: var(--bg);
+  color: var(--text-h);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+
+  &:hover {
+    background-color: rgba(2, 132, 199, 0.1);
+    border-color: rgba(2, 132, 199, 0.4);
+  }
+
+  &.active {
+    background-color: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 2px 10px rgba(2, 132, 199, 0.3);
+
+    .date-format-sample {
+      background-color: rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+    }
+  }
+}
+
+.date-format-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.date-format-label {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.date-format-sample {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: var(--code-bg, rgba(255, 255, 255, 0.08));
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
 /* Settings Form (Telegram) */
@@ -5949,6 +6014,33 @@ html.modal-open {
 [data-theme="light"] .language-btn.active {
   background-color: #0284c7;
   border-color: #0284c7;
+  color: #ffffff;
+}
+
+[data-theme="light"] .date-format-btn {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .date-format-btn:hover {
+  background-color: rgba(2, 132, 199, 0.08);
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .date-format-btn.active {
+  background-color: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+[data-theme="light"] .date-format-sample {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+[data-theme="light"] .date-format-btn.active .date-format-sample {
+  background-color: rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }
 

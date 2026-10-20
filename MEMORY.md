@@ -216,6 +216,23 @@ Verified by `node scripts/check-version.js`.
 
 ---
 
+### Rule 14: Dynamic Date Formatting & Strict 24-Hour Time Standards
+- **Zero Hardcoded Date Formats**:
+  - No component, screen, view, modal, table, or chart may hardcode a date display format.
+  - All user-facing date displays, logs, and pickers MUST dynamically honor the active date format preference configured in Settings (`DD/MM/YYYY` [default], `MM/DD/YYYY`, or `YYYY-MM-DD`).
+- **Universal Date Formatting Architecture & Fallback Mechanism**:
+  - Always format dates using `formatDisplayDate(value, dateFormat)` or format-aware helpers (`formatDateOnly`, `formatDateTime`) from `src/utils.js`.
+  - **Failsafe Automatic Fallback**: If `dateFormat` is omitted in any call or component, the formatting utilities and `DatePickerModern` automatically retrieve the user's choice from `getSavedDateFormat()` (stored in `localStorage['insuminder_date_format']`), guaranteeing zero regressions even if a prop is not explicitly forwarded.
+- **Mandatory Reusable Date Picker Component (`DatePickerModern`)**:
+  - All date picking across the entire application MUST use `DatePickerModern`.
+  - Native `<input type="date">` is strictly prohibited.
+  - `DatePickerModern` must always bind to the active `dateFormat` (with automatic fallback to `getSavedDateFormat()`). It manages parsing, dynamic placeholders, and keyboard input masking.
+- **Strict 24-Hour Time (Zero AM/PM)**:
+  - We use ONLY 24-hour time without AM/PM throughout the entire application (`HH:mm`, e.g. `14:30`).
+  - Native `<input type="time">` is strictly banned; use `TimePicker24h`.
+
+---
+
 ## 3. Completed Milestones History
 
 ### v1.8.1 (PR #44) — Zero Hardcoded Secrets Architecture & VAPID Credential Remediation
@@ -281,3 +298,5 @@ Verified by `node scripts/check-version.js`.
    - Simplify Telegram onboarding by having users send `/start` to the bot to automatically bind `chat_id`.
 5. **CI Runner Infrastructure Proactive Maintenance**:
    - Track GitHub Actions runner migrations for Node 22/24 LTS and Ubuntu 26 images.
+6. **Concurrent Shared Caregiver Multi-Account Management**:
+   - Enable caregivers to simultaneously link, monitor, and switch between multiple family members or dependent patient profiles with individual notification preferences.

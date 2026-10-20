@@ -319,7 +319,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.8.1',
+  version: '1.9.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -328,16 +328,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Security update: Removed all hardcoded VAPID keys and credentials from source code',
-    'Enforced zero hardcoded secrets architecture with dynamic environment-driven credential loading'
+    'User date format settings: Choose between DD/MM/YYYY, MM/DD/YYYY, and YYYY-MM-DD',
+    'Dynamic date formatting across all reminders, logs, and manual injection pickers',
+    'Modernized project architecture roadmap and developer documentation'
   ],
   he: [
-    'עדכון אבטחה: הסרת כל מפתחות ה-VAPID וההרשאות המוטמעות מקוד המקור',
-    'אכיפת ארכיטקטורת אפס מפתחות מקודדים עם טעינת אישורים דינמית מסביבת העבודה'
+    'הגדרת פורמט תאריך מותאם אישית: בחירה בין DD/MM/YYYY, MM/DD/YYYY ו-YYYY-MM-DD',
+    'עיצוב תאריכים דינמי בכל התזכורות, היומנים ובבוחר התאריכים להזרקות ידניות',
+    'עדכון מפת הדרכים הארכיטקטונית ותיעוד המפתחים'
   ],
   ru: [
-    'Обновление безопасности: удалены все жестко закодированные ключи VAPID и учетные данные из исходного кода',
-    'Внедрена архитектура нулевых жестко закодированных секретов с динамической загрузкой учетных данных'
+    'Пользовательская настройка формата даты: выбор между DD/MM/YYYY, MM/DD/YYYY и YYYY-MM-DD',
+    'Динамическое форматирование дат во всех напоминаниях, журналах и выборе дат для ручных инъекций',
+    'Обновлена архитектурная дорожная карта и документация для разработчиков'
   ]
 };
 
