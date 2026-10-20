@@ -18,7 +18,11 @@ import {
   getReminderStatus,
   getBasalReminderStatus,
   getFriendlyReminderError,
-  getEffectiveNotificationPreferences
+  getEffectiveNotificationPreferences,
+  getSavedDateFormat,
+  setSavedDateFormat,
+  DATE_FORMATS,
+  formatDisplayDate
 } from '../utils';
 
 describe('Utility Functions & Helpers', () => {
@@ -132,6 +136,38 @@ describe('Utility Functions & Helpers', () => {
       expect(isPast(pastTime)).toBe(true);
       expect(isPast(futureTime)).toBe(false);
       expect(isPast(null)).toBe(false);
+    });
+
+    it('formats date only and date time with alternative formats', () => {
+      const d = new Date(2026, 9, 9, 14, 30);
+      expect(formatDateOnly(d, DATE_FORMATS.DD_MM_YYYY)).toBe('09/10/2026');
+      expect(formatDateOnly(d, DATE_FORMATS.MM_DD_YYYY)).toBe('10/09/2026');
+      expect(formatDateOnly(d, DATE_FORMATS.YYYY_MM_DD)).toBe('2026-10-09');
+
+      expect(formatDateTime(d, DATE_FORMATS.DD_MM_YYYY)).toBe('09/10/2026, 14:30');
+      expect(formatDateTime(d, DATE_FORMATS.MM_DD_YYYY)).toBe('10/09/2026, 14:30');
+      expect(formatDateTime(d, DATE_FORMATS.YYYY_MM_DD)).toBe('2026-10-09, 14:30');
+    });
+
+    it('persists and retrieves saved date format preference in localStorage', () => {
+      localStorage.clear();
+      expect(getSavedDateFormat()).toBe(DATE_FORMATS.DD_MM_YYYY);
+
+      setSavedDateFormat(DATE_FORMATS.MM_DD_YYYY);
+      expect(getSavedDateFormat()).toBe(DATE_FORMATS.MM_DD_YYYY);
+
+      setSavedDateFormat(DATE_FORMATS.YYYY_MM_DD);
+      expect(getSavedDateFormat()).toBe(DATE_FORMATS.YYYY_MM_DD);
+
+      setSavedDateFormat(DATE_FORMATS.DD_MM_YYYY);
+    });
+
+    it('formats display date correctly using formatDisplayDate', () => {
+      const d = new Date(2026, 0, 5);
+      expect(formatDisplayDate(d, DATE_FORMATS.DD_MM_YYYY)).toBe('05/01/2026');
+      expect(formatDisplayDate(d, DATE_FORMATS.MM_DD_YYYY)).toBe('01/05/2026');
+      expect(formatDisplayDate(d, DATE_FORMATS.YYYY_MM_DD)).toBe('2026-01-05');
+      expect(formatDisplayDate(null)).toBe('');
     });
   });
 
@@ -277,6 +313,26 @@ describe('Utility Functions & Helpers', () => {
       expect(data.days[3].count).toBe(1);
       expect(data.days[3].bolusCount).toBe(1);
       expect(data.days[3].basalCount).toBe(0);
+    });
+
+    it('formats shortDate and weekRangeStr according to date format settings', () => {
+      const weekStart = new Date(2026, 9, 4); // Sunday Oct 4, 2026
+      const mockLogs = [];
+
+      // DD/MM/YYYY (default)
+      const dataDD = getWeeklyTrendData(mockLogs, weekStart, 'en', DATE_FORMATS.DD_MM_YYYY);
+      expect(dataDD.days[0].shortDate).toBe('4/10');
+      expect(dataDD.weekRangeStr).toBe('4/10 – 10/10');
+
+      // MM/DD/YYYY
+      const dataMM = getWeeklyTrendData(mockLogs, weekStart, 'en', DATE_FORMATS.MM_DD_YYYY);
+      expect(dataMM.days[0].shortDate).toBe('10/4');
+      expect(dataMM.weekRangeStr).toBe('10/4 – 10/10');
+
+      // YYYY-MM-DD
+      const dataISO = getWeeklyTrendData(mockLogs, weekStart, 'en', DATE_FORMATS.YYYY_MM_DD);
+      expect(dataISO.days[0].shortDate).toBe('10-04');
+      expect(dataISO.weekRangeStr).toBe('10-04 – 10-10');
     });
   });
 

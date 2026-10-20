@@ -136,6 +136,11 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Multi-Channel Dispatch:** Dispatches clinical reminders concurrently across both Telegram and Web Push according to the user's granular preferences.
 - **Push Management in Notification Settings:** Full device push controls enabling instant subscription, unsubscription, status detection (Active, Not Subscribed, Blocked), and test push dispatch.
 
+
+### 11. Customizable Date Formatting & Regional Standards
+- **User Date Format Preference:** Choose between `DD/MM/YYYY` (Standard / Israeli default), `MM/DD/YYYY` (US format), and `YYYY-MM-DD` (ISO format) in Settings.
+- **Persistent Local Preference:** Instantly saved in localStorage (`insuminder_date_format`) and applied dynamically across the entire application without page reloads.
+- **Universal Date Display & Manual Injection Picker:** Seamlessly formats all reminder timestamps, weekly history tables, and the custom manual injection date picker (`DatePickerModern`) with live input masking and localized placeholders.
 ---
 
 ## 🛠️ Architecture & Tech Stack

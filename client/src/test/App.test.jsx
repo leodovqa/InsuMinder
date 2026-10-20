@@ -1610,10 +1610,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.8\.1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.9\.0/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v1.8.1')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v1.9.0')).toBeInTheDocument();
 
       // 3. Navigate to About & Info Tab
       const aboutNavBtn = screen.getByRole('button', { name: /About & Info/i, hidden: true });
@@ -1621,7 +1621,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.8.1')).toBeInTheDocument();
+      expect(screen.getByText('v1.9.0')).toBeInTheDocument();
 
       // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
       expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
@@ -1632,7 +1632,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Removed all hardcoded VAPID keys/i)).toBeInTheDocument();
+      expect(screen.getByText(/User date format settings/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
@@ -1644,7 +1644,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Android
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v1.8.1')).toBeInTheDocument();
+      expect(screen.getByText('v1.9.0')).toBeInTheDocument();
 
       // Android version MUST show "Up to Date" status and "Check for Updates" button
       expect(screen.getByText('Up to Date')).toBeInTheDocument();
@@ -1809,5 +1809,32 @@ describe('App Component - Home & Logs UI Tests', () => {
       });
     });
   });
-});
+  describe('Date Format Preference Settings', () => {
+    it('renders date format options in Settings tab and allows switching formats', async () => {
+      window.history.pushState({}, '', '/?page=settings');
+      localStorage.clear();
 
+      render(<App />);
+
+      expect(await screen.findByRole('heading', { name: /Date Format/i })).toBeInTheDocument();
+
+      const ddmmBtn = screen.getByRole('button', { name: /DD\/MM\/YYYY/i });
+      const mmddBtn = screen.getByRole('button', { name: /MM\/DD\/YYYY/i });
+      const isoBtn = screen.getByRole('button', { name: /YYYY-MM-DD/i });
+
+      expect(ddmmBtn).toHaveClass('active');
+      expect(mmddBtn).not.toHaveClass('active');
+      expect(isoBtn).not.toHaveClass('active');
+
+      fireEvent.click(mmddBtn);
+
+      expect(mmddBtn).toHaveClass('active');
+      expect(ddmmBtn).not.toHaveClass('active');
+      expect(localStorage.getItem('insuminder_date_format')).toBe('MM/DD/YYYY');
+
+      fireEvent.click(isoBtn);
+      expect(isoBtn).toHaveClass('active');
+      expect(localStorage.getItem('insuminder_date_format')).toBe('YYYY-MM-DD');
+    });
+  });
+});

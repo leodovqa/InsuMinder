@@ -17,7 +17,10 @@ import {
   isCustomConfigName,
   getReminderStatus,
   getBasalReminderStatus,
-  getEffectiveNotificationPreferences
+  getEffectiveNotificationPreferences,
+  getSavedDateFormat,
+  setSavedDateFormat,
+  DATE_FORMATS
 } from './utils';
 import AuthModal from './AuthModal';
 import Profile from './Profile';
@@ -189,6 +192,26 @@ function AppContent() {
   const { theme, setTheme } = useTheme();
   const [logs, setLogs] = useState([]);
   const [basalReminder, setBasalReminder] = useState(null);
+  const [dateFormat, setDateFormat] = useState(() => getSavedDateFormat());
+
+  useEffect(() => {
+    const handleFormatChange = (e) => {
+      if (e?.detail?.dateFormat) {
+        setDateFormat(e.detail.dateFormat);
+      }
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'insuminder_date_format' && e.newValue) {
+        setDateFormat(e.newValue);
+      }
+    };
+    window.addEventListener('insuminder_date_format_changed', handleFormatChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('insuminder_date_format_changed', handleFormatChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
   const [activeTab, setActiveTab] = useState(() => getTabFromUrl()); // 'home' | 'logs' | 'settings'
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -538,6 +561,12 @@ function AppContent() {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
     if (parts.length === 3) {
+      if (dateFormat === DATE_FORMATS.MM_DD_YYYY) {
+        return `${parts[1]}/${parts[2]}`;
+      }
+      if (dateFormat === DATE_FORMATS.YYYY_MM_DD) {
+        return `${parts[1]}-${parts[2]}`;
+      }
       return `${parts[2]}/${parts[1]}`;
     }
     return dateStr;
@@ -558,7 +587,8 @@ function AppContent() {
     try {
       const [year, month, day] = dateStr.split('-').map(Number);
       const date = new Date(year, month - 1, day);
-      return date.toLocaleDateString(language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-GB', {
+      const enLocale = dateFormat === DATE_FORMATS.MM_DD_YYYY ? 'en-US' : 'en-GB';
+      return date.toLocaleDateString(language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : enLocale, {
         weekday: 'short',
         day: 'numeric',
         month: 'short'
@@ -567,7 +597,6 @@ function AppContent() {
       return dateStr;
     }
   };
-
   const openManualModal = () => {
     const now = new Date();
     const todayStr = getTodayDateStr();
@@ -666,8 +695,8 @@ function AppContent() {
         return;
       }
 
-      const nowKey = formatDateOnly(new Date().toISOString());
-      const alreadyLogged = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at) === nowKey);
+      const nowKey = formatDateOnly(new Date().toISOString(), dateFormat);
+      const alreadyLogged = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at, dateFormat) === nowKey);
 
       if (alreadyLogged) {
         setNotification({
@@ -682,7 +711,7 @@ function AppContent() {
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [pendingBasalAction, isLoggedIn, logs, t]);
+  }, [pendingBasalAction, isLoggedIn, logs, t, dateFormat]);
 
   // Update Success Celebratory Modal State
   const [justUpdatedVersion, setJustUpdatedVersion] = useState(() => {
@@ -828,12 +857,12 @@ function AppContent() {
   const handleOpenReminderModal = (log, type) => {
     if (!log) return;
     if (type === 'basal') {
-      const hasLoggedBasalToday = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at) === todayDateKey);
+      const hasLoggedBasalToday = logs.some(l => l.type === 'basal' && formatDateOnly(l.injected_at, dateFormat) === todayDateKey);
       const statusInfo = getBasalReminderStatus(basalReminder, basalTime, isTelegramConfigured, language, hasLoggedBasalToday, notificationPreferences, activeContext);
       setReminderModalData({
         ...statusInfo,
         title: t('modals.basalReminderTitle'),
-        formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime) : (basalTime || '20:00')
+        formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime, dateFormat) : (basalTime || '20:00')
       });
       return;
     }
@@ -847,7 +876,7 @@ function AppContent() {
       ...statusInfo,
       logId: log.id,
       title,
-      formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime) : ''
+      formattedTime: statusInfo.targetTime ? formatDateTime(statusInfo.targetTime, dateFormat) : ''
     });
   };
 
@@ -1357,8 +1386,8 @@ function AppContent() {
       return;
     }
 
-    // Client-side validations against existing logs
-    const sameDayLogs = logs.filter(l => formatDateOnly(l.injected_at) === manualDate);
+    // Client-side validations against existing logs (canonical YYYY-MM-DD comparison)
+    const sameDayLogs = logs.filter(l => formatDateOnly(l.injected_at, DATE_FORMATS.YYYY_MM_DD) === manualDate);
 
     if (manualType === 'basal') {
       const existingBasal = sameDayLogs.find(l => l.type === 'basal');
@@ -1462,6 +1491,15 @@ function AppContent() {
     } finally {
       setIsClearingQueue(false);
     }
+  };
+
+  const handleSelectDateFormat = (newFormat) => {
+    setDateFormat(newFormat);
+    setSavedDateFormat(newFormat);
+    setNotification({
+      type: 'success',
+      message: t('settings.dateFormatSaved')
+    });
   };
 
   const handleSelectLanguage = (langCode) => {
@@ -1760,11 +1798,11 @@ function AppContent() {
     setTouchStartY(null);
   };
 
-  const todayDateKey = formatDateOnly(new Date().toISOString());
-  const todayLogs = logs.filter(log => formatDateOnly(log.injected_at) === todayDateKey);
+  const todayDateKey = formatDateOnly(new Date().toISOString(), dateFormat);
+  const todayLogs = logs.filter(log => formatDateOnly(log.injected_at, dateFormat) === todayDateKey);
   const weekInfo = getWeekDisplayInfo(selectedWeekStart, language);
-  const weeklyData = getWeeklyTrendData(logs, selectedWeekStart, language);
-  const rapidInjections = getRapidInjections(logs, todayDateKey);
+  const weeklyData = getWeeklyTrendData(logs, selectedWeekStart, language, dateFormat);
+  const rapidInjections = getRapidInjections(logs, todayDateKey, dateFormat);
 
   const [basalHour, basalMin] = (basalTime || '20:00').split(':').map(n => parseInt(n, 10));
   const currentHour = currentTime.getHours();
@@ -2362,7 +2400,7 @@ function AppContent() {
                 <div className="stat-label">{t('home.lastInjection')}</div>
                 {latestLog ? (
                   <div className="stat-datetime-group">
-                    <div className="stat-datetime"><span dir="ltr">{formatDateTime(latestLog.injected_at)}</span></div>
+                    <div className="stat-datetime"><span dir="ltr">{formatDateTime(latestLog.injected_at, dateFormat)}</span></div>
                     <div className="stat-relative">{formatRelativeTime(latestLog.injected_at, language)}</div>
                   </div>
                 ) : (
@@ -2405,7 +2443,7 @@ function AppContent() {
                     </div>
                     {latestBolusLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latest10m.targetTime)}</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latest10m.targetTime, dateFormat)}</span>
                         <span className="reminder-relative">({formatRelativeTime(latest10m.targetTime, language)})</span>
                       </div>
                     ) : (
@@ -2445,7 +2483,7 @@ function AppContent() {
                     </div>
                     {latestBolusLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestBolusLog.notify_2h_at)}</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestBolusLog.notify_2h_at, dateFormat)}</span>
                         <span className="reminder-relative">({formatRelativeTime(latestBolusLog.notify_2h_at, language)})</span>
                       </div>
                     ) : (
@@ -2485,7 +2523,7 @@ function AppContent() {
                     </div>
                     {latestBolusLog ? (
                       <div className="reminder-time-info">
-                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestBolusLog.notify_3h_at)}</span>
+                        <span className="reminder-timestamp" dir="ltr">{formatDateTime(latestBolusLog.notify_3h_at, dateFormat)}</span>
                         <span className="reminder-relative">({formatRelativeTime(latestBolusLog.notify_3h_at, language)})</span>
                       </div>
                     ) : (
@@ -2606,7 +2644,7 @@ function AppContent() {
                       </div>
 
                       <div className="latest-log-meta">
-                        <div className="latest-log-timestamp"><span dir="ltr">{formatDateTime(latestLog.injected_at)}</span></div>
+                        <div className="latest-log-timestamp"><span dir="ltr">{formatDateTime(latestLog.injected_at, dateFormat)}</span></div>
                         <div className="latest-log-relative">{formatRelativeTime(latestLog.injected_at, language)}</div>
                       </div>
 
@@ -2658,19 +2696,19 @@ function AppContent() {
                       <div className="latest-expanded-panel">
                         <div className="expanded-row">
                           <span className="expanded-label">{t('logs.injectedAt')}</span>
-                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.injected_at)}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.injected_at, dateFormat)}</span>
                         </div>
                         <div className="expanded-row">
                           <span className="expanded-label">{t('logs.mealTarget10m')}</span>
-                          <span className="expanded-value" dir="ltr">{formatDateTime(latest10m.targetTime)}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latest10m.targetTime, dateFormat)}</span>
                         </div>
                         <div className="expanded-row">
                           <span className="expanded-label">{t('logs.targetTime2h')}</span>
-                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.notify_2h_at)}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.notify_2h_at, dateFormat)}</span>
                         </div>
                         <div className="expanded-row">
                           <span className="expanded-label">{t('logs.targetTime3h')}</span>
-                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.notify_3h_at)}</span>
+                          <span className="expanded-value" dir="ltr">{formatDateTime(latestLog.notify_3h_at, dateFormat)}</span>
                         </div>
                       </div>
                     )}
@@ -2897,7 +2935,7 @@ function AppContent() {
                         {rapidInjections.rapidList.map((item, idx) => (
                           <div key={idx} className="rapid-incident-item">
                             <div className="incident-time-row">
-                              <span className="incident-time" dir="ltr">{formatDateTime(item.currentInjectedAt)}</span>
+                              <span className="incident-time" dir="ltr">{formatDateTime(item.currentInjectedAt, dateFormat)}</span>
                               <span className="incident-interval-badge">+{item.intervalStr} {t('logs.afterPriorDose')}</span>
                             </div>
                             <div className="incident-prior-info">
@@ -3184,7 +3222,52 @@ function AppContent() {
               </div>
             </div>
 
-            {/* 2. Basal Insulin Schedule Card */}
+            {/* 2. Date Format Card */}
+            <div className="settings-card date-format-settings-card">
+              <div className="card-header">
+                <div className="card-icon-wrapper calendar-icon-wrapper">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+                <div className="card-header-text">
+                  <h2 className="card-title">{t('settings.dateFormatTitle')}</h2>
+                  <p className="card-subtitle">{t('settings.dateFormatSubtitle')}</p>
+                </div>
+              </div>
+
+              <div className="date-format-options">
+                {[
+                  { id: 'DD/MM/YYYY', label: t('settings.dateFormatDDMMYYYY'), sample: '20/10/2026' },
+                  { id: 'MM/DD/YYYY', label: t('settings.dateFormatMMDDYYYY'), sample: '10/20/2026' },
+                  { id: 'YYYY-MM-DD', label: t('settings.dateFormatYYYYMMDD'), sample: '2026-10-20' }
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={`date-format-btn ${dateFormat === opt.id ? 'active' : ''}`}
+                    onClick={() => handleSelectDateFormat(opt.id)}
+                  >
+                    <div className="date-format-btn-content">
+                      <span className="date-format-label">{opt.label}</span>
+                      <span className="date-format-sample" dir="ltr">{opt.sample}</span>
+                    </div>
+                    {dateFormat === opt.id && (
+                      <span className="check-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Basal Insulin Schedule Card */}
             <div className="settings-card basal-settings-card">
               <div className="card-header">
                 <div className="card-icon-wrapper moon-icon-wrapper">
@@ -3885,7 +3968,7 @@ function AppContent() {
             <div className="privacy-settings-status-row">
               <span className={`privacy-status-badge ${user?.privacyAcceptedAt ? 'status-verified' : ''}`}>
                 {user?.privacyAcceptedAt
-                  ? t('privacy.statusAccepted', { date: new Date(user.privacyAcceptedAt).toLocaleDateString(language === 'he' ? 'he-IL' : (language === 'ru' ? 'ru-RU' : 'en-US')) })
+                  ? t('privacy.statusAccepted', { date: formatDateOnly(user.privacyAcceptedAt, dateFormat) })
                   : t('privacy.statusNotAccepted')}
               </span>
             </div>
@@ -4416,6 +4499,7 @@ function AppContent() {
                   </div>
 
                   <DatePickerModern
+                    dateFormat={dateFormat}
                     id="manual-injection-date"
                     name="manualDate"
                     value={manualDate}

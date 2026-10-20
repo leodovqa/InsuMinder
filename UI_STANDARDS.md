@@ -206,28 +206,39 @@ When displaying status indicators belonging to the same element family (such as 
 
 ---
 
-## 8. Strict 24-Hour Time & DD/MM/YYYY Date Standards
+## 8. Strict 24-Hour Time & Dynamic Date Standards
 
 ### 8.1 Universal 24-Hour Time Mandate (Zero AM/PM)
 - **WE USE ONLY 24-HOUR TIME WITHOUT ANY AM/PM THROUGHOUT THE ENTIRE APPLICATION**.
 - Under no circumstances may any component, view, modal, table, badge, chart, log, notification, or tooltip display "AM", "PM", "am", "pm", or 12-hour clock representations.
 - All times must be strictly rendered in 24-hour format with zero-padded hours and minutes: `HH:mm` (e.g., `09:05`, `14:30`, `23:59`).
 
-### 8.2 Universal DD/MM/YYYY Date Standard (Non-Negotiable)
-- **WE USE ONLY DD/MM/YYYY DATE FORMAT THROUGHOUT THE ENTIRE USER INTERFACE**.
-- All user-facing date inputs, displays, pickers, placeholders, and tooltips must strictly present dates in **`DD/MM/YYYY`** format (e.g., `17/10/2026`).
-- **Strict Prohibition of Raw `YYYY-MM-DD` in the UI**:
-  - Never display raw ISO `YYYY-MM-DD` directly inside input boxes, labels, or user-facing elements.
-  - `YYYY-MM-DD` is strictly reserved for internal state serialization, API payloads, and database storage.
-  - Later, an application setting will allow users to configure alternative date formats; until then, `DD/MM/YYYY` is the mandatory application-wide standard.
-  - The reusable `DatePickerModern` component renders dates as `DD/MM/YYYY` with placeholder `DD/MM/YYYY` while converting to canonical ISO format for API submission.
+### 8.2 Configurable User Date Format Standard (Default: DD/MM/YYYY)
+- **Zero Hardcoded Date Formats**:
+  - No component, screen, view, modal, table, or chart may hardcode a date display format.
+  - Users can configure their preferred date format in Settings:
+    - **`DD/MM/YYYY`** (Default / Israeli standard, e.g., `20/10/2026`)
+    - **`MM/DD/YYYY`** (US standard, e.g., `10/20/2026`)
+    - **`YYYY-MM-DD`** (ISO standard, e.g., `2026-10-20`)
+  - All user-facing date displays, injection logs, reminder headers, modal timestamps, and input placeholders **MUST dynamically reflect the active user format preference**.
+- **Universal Date Formatting Architecture & Fallback Mechanism**:
+  - Always use `formatDisplayDate(value, dateFormat)` or `formatDateOnly(value, dateFormat)` / `formatDateTime(value, dateFormat)` from `src/utils.js`.
+  - **Failsafe Automatic Fallback**: If `dateFormat` is omitted in any call or component, the formatting utilities and `DatePickerModern` automatically retrieve the user's choice from `getSavedDateFormat()` (stored in `localStorage['insuminder_date_format']`), guaranteeing zero regressions even if a prop is not explicitly forwarded.
+- **Strict Prohibition of Raw Timestamps & ISO Leakage**:
+  - Never display raw ISO strings (`2026-10-20T10:00:00.000Z`) or raw unformatted dates directly inside UI elements, labels, or badges.
+  - ISO `YYYY-MM-DD` and ISO 8601 strings are strictly reserved for internal state serialization, API payloads, and database storage.
+- **Cross-Component & Cross-Tab Synchronization**:
+  - When the date format is updated, `setSavedDateFormat(format)` updates `localStorage` and dispatches `insuminder_date_format_changed`.
+  - Top-level components listen for `insuminder_date_format_changed` and `storage` events to ensure immediate, zero-reload synchronization across the entire application and across multiple browser tabs.
 
 ### 8.3 Mandatory Reusable Pickers (DatePickerModern & TimePicker24h)
 - **Strict Prohibition of Raw `<input type="date">` and `<input type="time">`**:
   - Native browser `<input type="date">` and `<input type="time">` are strictly banned from direct usage. They delegate rendering to host operating system locales, creating inconsistent, unstyled dialogs and forcing 12-hour AM/PM dials on US regional settings.
 - **Mandatory Reusable Components**:
   1. **`DatePickerModern`**:
-     - Single unified input trigger with calendar icon, `DD/MM/YYYY` formatted display, and chevron.
+     - Single unified input trigger with calendar icon, dynamic date display conforming to the active `dateFormat`, and chevron.
+     - Dynamic placeholder mirroring active format (`DD/MM/YYYY`, `MM/DD/YYYY`, or `YYYY-MM-DD`).
+     - Real-time keyboard input masking conforming to active format slashes/hyphens.
      - Fully styled popover calendar dialog in Dark and Light themes.
      - Localized month and weekday headers in English, Hebrew, and Russian via `Intl.DateTimeFormat`.
      - Strict `min` and `max` date boundary enforcement (disables out-of-range dates).
@@ -238,17 +249,27 @@ When displaying status indicators belonging to the same element family (such as 
      - Configurable quick presets (e.g. evening basal `['20:00', '21:00', '22:00', '23:00']` or relative injection hours).
      - Zero AM/PM controls or text.
 
-### 8.4 Standard Quick Selection Chips
+### 8.4 Standard Quick Selection Chips & Chart Date Representations
 - **Date Quick Chips (3-Day Fast Window)**:
   - Chip 1: `Today` (`t('time.today')`).
-  - Chip 2: `-1 day` formatted as `DD/MM` (e.g. `16/10`).
-  - Chip 3: `-2 days` formatted as `DD/MM` (e.g. `15/10`).
+  - Chip 2: `-1 day` dynamically formatted via `formatDayMonthChip(dateStr, dateFormat)` (`DD/MM`, `MM/DD`, or `MM-DD`).
+  - Chip 3: `-2 days` dynamically formatted via `formatDayMonthChip(dateStr, dateFormat)`.
   - Allows immediate one-tap selection of recent dates within the 3-day period.
+- **Charts and Historical Trend Ranges**:
+  - Weekly Injections chart day labels (`shortDate`) and week range summary (`weekRangeStr`) MUST use the format-aware helpers in `getWeeklyTrendData(..., dateFormat)`.
+  - Rapid dose interval trend dates MUST use format-aware helpers in `getRapidInjections(..., dateFormat)`.
 - **Time Quick Chips & Relative Presets**:
   - Quick Chip: `Current Time` (`t('logs.currentTime')`).
   - Relative Popover Presets: In manual injection logging, presets display 4 relative hours from current time (`-1h`, `-2h`, `-3h`, `-4h`, e.g. `09:30`, `08:30`, `07:30`, `06:30`).
 
-### 8.5 Primary Action Button Visual Feedback (No Dull Gray)
+### 8.5 Non-Negotiable Protocol for Future Work
+- For **ANY** component, card, modal, log, chart, export, or table created or updated in the future:
+  1. It **must** format all dates using `formatDisplayDate(value, dateFormat)` or format-aware helpers (`formatDateOnly`, `formatDateTime`).
+  2. Any date input **must** use `DatePickerModern` with `dateFormat={dateFormat}` prop.
+  3. Never hardcode date separators or assumptions about day/month positions.
+  4. Developers and agents **must test and verify** in all 3 date formats (`DD/MM/YYYY`, `MM/DD/YYYY`, and `YYYY-MM-DD`) and across all 3 supported languages (`en`, `he`, `ru`).
+
+### 8.6 Primary Action Button Visual Feedback (No Dull Gray)
 - **Primary Confirm / Add Action Buttons** (e.g., `.modal-btn.confirm-btn`, `.manual-submit-btn`) must **NEVER appear dull gray** or visually disabled when active.
 - Primary buttons must always use vibrant InsuMinder cyan-blue gradients (`linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)`), crisp borders, and distinct hover/active states (`filter: brightness(1.1)`), reserving opacity reduction solely for the `:disabled` state.
 
@@ -257,5 +278,4 @@ When displaying status indicators belonging to the same element family (such as 
 ## 9. Zero Guesswork & Approval Protocol
 - Every UI element must be aligned, predictable, and follow these rules.
 - If a developer or agent considers introducing a new layout pattern, differing spacing, or novel icon size, **they must ask and obtain explicit user approval before writing the code**.
-
 

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from './i18n';
+import { getSavedDateFormat } from './utils';
 
 /**
  * Modern DatePicker Component (Reusable across InsuMinder)
  *
  * Mandatory Standard:
- * - User-facing display and input format: DD/MM/YYYY (Day/Month/Year)
+ * - User-facing display and input format: Configurable via dateFormat setting (DD/MM/YYYY [default], MM/DD/YYYY, YYYY-MM-DD)
  * - Internal canonical serialization: YYYY-MM-DD (ISO 8601 standard)
  * - Popover calendar dialog styled with InsuMinder modern theme (Dark & Light)
  * - Full localization support (en, he, ru) for month names and weekday abbreviations
@@ -14,25 +15,49 @@ import { useTranslation } from './i18n';
  * - Click-outside and Escape key dismissal
  */
 
-function formatIsoToDisplayDate(str) {
+function formatIsoToDisplayDate(str, activeFormat = 'DD/MM/YYYY') {
   if (!str) return '';
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     const [y, m, d] = str.split('-');
+    if (activeFormat === 'MM/DD/YYYY') {
+      return `${m.padStart(2, '0')}/${d.padStart(2, '0')}/${y}`;
+    }
+    if (activeFormat === 'YYYY-MM-DD') {
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
     return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
   }
   return str;
 }
 
-function parseDisplayDateToIso(str) {
+function parseDisplayDateToIso(str, activeFormat = 'DD/MM/YYYY') {
   if (!str) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  const match = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
-  if (match) {
-    const d = match[1].padStart(2, '0');
-    const m = match[2].padStart(2, '0');
-    const y = match[3];
-    return `${y}-${m}-${d}`;
+  if (activeFormat === 'MM/DD/YYYY') {
+    const match = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+    if (match) {
+      const m = match[1].padStart(2, '0');
+      const d = match[2].padStart(2, '0');
+      const y = match[3];
+      return `${y}-${m}-${d}`;
+    }
+  } else if (activeFormat === 'YYYY-MM-DD') {
+    const match = str.match(/^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})$/);
+    if (match) {
+      const y = match[1];
+      const m = match[2].padStart(2, '0');
+      const d = match[3].padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  } else {
+    // DD/MM/YYYY
+    const match = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+    if (match) {
+      const d = match[1].padStart(2, '0');
+      const m = match[2].padStart(2, '0');
+      const y = match[3];
+      return `${y}-${m}-${d}`;
+    }
   }
   return str;
 }
@@ -44,7 +69,8 @@ export default function DatePickerModern({
   name,
   min,
   max,
-  placeholder = 'DD/MM/YYYY',
+  dateFormat,
+  placeholder,
   required = false,
   className = ''
 }) {
@@ -52,7 +78,10 @@ export default function DatePickerModern({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  // Parse YYYY-MM-DD or DD/MM/YYYY safely
+  const activeFormat = dateFormat || getSavedDateFormat();
+  const effectivePlaceholder = placeholder || activeFormat || 'DD/MM/YYYY';
+
+  // Parse YYYY-MM-DD or display format safely
   const parseDate = (str) => {
     if (!str) {
       const now = new Date();
@@ -66,9 +95,9 @@ export default function DatePickerModern({
       const [y, m, d] = str.split('-').map(n => parseInt(n, 10));
       return { year: y, month: m - 1, day: d };
     }
-    const match = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
-    if (match) {
-      const [, d, m, y] = match.map(n => parseInt(n, 10));
+    const iso = parseDisplayDateToIso(str, activeFormat);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      const [y, m, d] = iso.split('-').map(n => parseInt(n, 10));
       return { year: y, month: m - 1, day: d };
     }
     const now = new Date();
@@ -87,13 +116,15 @@ export default function DatePickerModern({
   const viewYear = navOffset.year !== null ? navOffset.year : parsedValue.year;
   const viewMonth = navOffset.month !== null ? navOffset.month : parsedValue.month;
 
-  // Local text input state for seamless DD/MM/YYYY typing
+  // Local text input state for seamless typing
   const [prevValue, setPrevValue] = useState(value);
-  const [displayInput, setDisplayInput] = useState(() => formatIsoToDisplayDate(value));
+  const [prevFormat, setPrevFormat] = useState(activeFormat);
+  const [displayInput, setDisplayInput] = useState(() => formatIsoToDisplayDate(value, activeFormat));
 
-  if (value !== prevValue) {
+  if (value !== prevValue || activeFormat !== prevFormat) {
     setPrevValue(value);
-    setDisplayInput(formatIsoToDisplayDate(value));
+    setPrevFormat(activeFormat);
+    setDisplayInput(formatIsoToDisplayDate(value, activeFormat));
   }
 
   // Close on click outside or Escape
@@ -149,64 +180,66 @@ export default function DatePickerModern({
         year: 'numeric'
       }).format(date);
     } catch {
-      return `${viewYear}-${viewMonth + 1}`;
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return `${monthNames[viewMonth]} ${viewYear}`;
     }
   };
 
-  // Localized weekdays (Su, Mo, Tu, We, Th, Fr, Sa)
+  // Get localized weekday abbreviations (Sunday to Saturday)
   const getWeekdayLabels = () => {
-    const labels = [];
-    const baseSunday = new Date(2023, 0, 1); // Jan 1, 2023 was a Sunday
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(baseSunday);
-      d.setDate(baseSunday.getDate() + i);
-      try {
-        labels.push(
-          new Intl.DateTimeFormat(language || 'en', { weekday: 'short' }).format(d)
-        );
-      } catch {
-        labels.push(['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][i]);
+    try {
+      // Find a Sunday to start (e.g. 2026-10-18 was a Sunday)
+      const baseSunday = new Date(2026, 9, 18);
+      const labels = [];
+      const formatter = new Intl.DateTimeFormat(language || 'en', { weekday: 'narrow' });
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(baseSunday);
+        d.setDate(baseSunday.getDate() + i);
+        labels.push(formatter.format(d));
       }
+      return labels;
+    } catch {
+      return ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     }
-    return labels;
   };
 
-  // Days in current view month
+  // Number of days in viewMonth
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Sun
 
-  const todayStr = (() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  })();
+  // Day of week the 1st of month falls on (0 = Sunday)
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
+
+  // Today in YYYY-MM-DD
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const handleSelectDay = (day) => {
-    const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    if (min && dateStr < min) return;
-    if (max && dateStr > max) return;
+    const formattedMonth = String(viewMonth + 1).padStart(2, '0');
+    const formattedDay = String(day).padStart(2, '0');
+    const isoStr = `${viewYear}-${formattedMonth}-${formattedDay}`;
+
     if (onChange) {
-      onChange(dateStr);
+      onChange(isoStr);
     }
-    setDisplayInput(formatIsoToDisplayDate(dateStr));
+    setDisplayInput(formatIsoToDisplayDate(isoStr, activeFormat));
     setIsOpen(false);
-    setNavOffset({ year: null, month: null });
   };
 
   const handleTodayClick = () => {
-    if (min && todayStr < min) return;
-    if (max && todayStr > max) return;
-    setNavOffset({ year: null, month: null });
     if (onChange) {
       onChange(todayStr);
     }
-    setDisplayInput(formatIsoToDisplayDate(todayStr));
+    setDisplayInput(formatIsoToDisplayDate(todayStr, activeFormat));
     setIsOpen(false);
   };
 
   const handleInputChange = (e) => {
     const rawVal = e.target.value;
     setDisplayInput(rawVal);
-    const isoVal = parseDisplayDateToIso(rawVal);
+    const isoVal = parseDisplayDateToIso(rawVal, activeFormat);
     if (/^\d{4}-\d{2}-\d{2}$/.test(isoVal)) {
       if (onChange) onChange(isoVal);
     } else if (rawVal === '') {
@@ -216,7 +249,7 @@ export default function DatePickerModern({
 
   const handleInputBlur = () => {
     if (value) {
-      setDisplayInput(formatIsoToDisplayDate(value));
+      setDisplayInput(formatIsoToDisplayDate(value, activeFormat));
     }
   };
 
@@ -260,7 +293,7 @@ export default function DatePickerModern({
           type="text"
           className="form-input datepicker-text-input"
           value={displayInput}
-          placeholder={placeholder}
+          placeholder={effectivePlaceholder}
           maxLength={10}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
