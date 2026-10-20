@@ -133,6 +133,19 @@ export default function NotificationSettings({
         const res = await subscribeToPush(authHeader, language);
         if (res.pendingPrompt) {
           // Native Android OS runtime permission dialog is active; wait for callback
+          // Fallback timer: if the native OS suppresses dialogs (e.g. Xiaomi HyperOS/MIUI),
+          // ensure the loading spinner is cleared after 2s and device settings can be opened
+          setTimeout(() => {
+            setPushLoading(false);
+            const current = getNotificationPermission();
+            if (current !== 'granted') {
+              setPermission('denied');
+              setPushFeedback({
+                text: t('notificationSettings.devicePushDeclinedBanner'),
+                isError: true
+              });
+            }
+          }, 2000);
           return;
         }
         const currentPerm = getNotificationPermission();
@@ -423,8 +436,7 @@ export default function NotificationSettings({
                       </button>
                       <button
                         type="button"
-                        className="push-action-btn btn-secondary"
-                        onClick={handleOpenSettings}
+                        className="push-action-btn btn-settings" onClick={handleOpenSettings}
                       >
                         ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
                       </button>
@@ -463,8 +475,7 @@ export default function NotificationSettings({
                       </button>
                       <button
                         type="button"
-                        className="push-action-btn btn-secondary"
-                        onClick={handleOpenSettings}
+                        className="push-action-btn btn-settings" onClick={handleOpenSettings}
                       >
                         ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
                       </button>

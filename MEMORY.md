@@ -159,7 +159,18 @@ Verified by `node scripts/check-version.js`.
 
 ## 3. Completed Milestones History
 
-### v1.9.2 (PR pending) — Xiaomi HyperOS / Android 14+ Notification Auto-Redirect & Date Format Settings UI
+### v1.9.3 (PR pending) — Xiaomi HyperOS Direct App Info Intent Fallback, Spinner Timeout & Settings UI Visibility
+- **Xiaomi HyperOS Direct App Info Intent Fallback**:
+  * In WebContainerActivity.java, added isXiaomiDevice() detection. On Xiaomi/HyperOS/MIUI devices, directly dispatch Settings.ACTION_APPLICATION_DETAILS_SETTINGS (App Info) and miui.intent.action.APP_PERM_EDITOR to guarantee access to notification, permission, and autostart toggles without being blocked by Xiaomi's security manager.
+  * In requestNotificationPermission(), immediately invoke openAppNotificationSettings() for Xiaomi devices since sideloaded APKs have runtime permission dialogs suppressed by default.
+- **Permission Suppression Spinner Freeze Fix**:
+  * In NotificationSettings.jsx, added a 2-second timeout fallback on res.pendingPrompt to clear pushLoading and prompt the user if the OS silently drops requestPermissions() without returning a result.
+- **Enhanced Settings Button Visibility**:
+  * Added .push-action-btn.btn-settings styling with bright cyan accent in both dark and light modes, eliminating the perceived "grayed out" appearance.
+- **Full Version Parity & 0-Diff Functions**:
+  * Synchronized version bump to v1.9.3 (versionCode 15) across all 9 locations with 0 diff between functions/ and client/functions/.
+
+### v1.9.2 (PR #48) — Xiaomi HyperOS / Android 14+ Notification Auto-Redirect & Date Format Settings UI
 - **Xiaomi HyperOS / Android 14+ Notification Auto-Redirect**:
   * Rewrote openAppNotificationSettings() in WebContainerActivity.java with 3-tier fallback intents (Xiaomi/MIUI extras app_package and app_uid, standard EXTRA_APP_PACKAGE, and ACTION_APPLICATION_DETAILS_SETTINGS).
   * Auto-redirect on permission denial/suppression: when HyperOS silently auto-denies runtime permission for sideloaded APKs, immediately redirects to device notification settings.
