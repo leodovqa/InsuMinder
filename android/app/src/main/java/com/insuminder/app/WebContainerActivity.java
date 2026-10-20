@@ -337,9 +337,29 @@ public class WebContainerActivity extends Activity {
         return true;
     }
 
+    private boolean isXiaomiDevice() {
+        return "xiaomi".equalsIgnoreCase(Build.MANUFACTURER) ||
+               "xiaomi".equalsIgnoreCase(Build.BRAND) ||
+               "redmi".equalsIgnoreCase(Build.BRAND) ||
+               "poco".equalsIgnoreCase(Build.BRAND);
+    }
+
     public void requestNotificationPermission() {
         if (hasNotificationPermission()) {
             notifyNotificationPermissionResult(true);
+            return;
+        }
+
+        if (isXiaomiDevice()) {
+            // Xiaomi HyperOS / MIUI suppresses runtime permission dialogs for sideloaded APKs.
+            // Dispatch standard requestPermissions, but immediately route to app notification settings
+            // so the user is never left hanging on a suppressed dialog.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                try {
+                    requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, RC_POST_NOTIFICATIONS);
+                } catch (Exception ignored) {}
+            }
+            openAppNotificationSettings();
             return;
         }
 
@@ -355,48 +375,52 @@ public class WebContainerActivity extends Activity {
 
     public void openAppNotificationSettings() {
         runOnUiThread(() -> {
-            boolean opened = false;
-            // 1. Standard Android 8.0+ Notification Settings with Xiaomi/HyperOS/AOSP extras
+            if (isXiaomiDevice()) {
+                // On Xiaomi HyperOS / MIUI, ACTION_APPLICATION_DETAILS_SETTINGS (App Info)
+                // is the only intent guaranteed to bypass Xiaomi's security manager restrictions
+                // and directly expose the notification and permission toggles.
+                try {
+                    Intent appInfoIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    appInfoIntent.setData(Uri.fromParts("package", getPackageName(), null));
+                    appInfoIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(appInfoIntent);
+                    return;
+                } catch (Exception e) {
+                    Log.w("InsuMinder", "Xiaomi ACTION_APPLICATION_DETAILS_SETTINGS failed: " + e.getMessage());
+                }
+
+                try {
+                    Intent permIntent = new Intent("miui.intent.action.APP_PERM_EDITOR");
+                    permIntent.setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity");
+                    permIntent.putExtra("extra_pkgname", getPackageName());
+                    permIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(permIntent);
+                    return;
+                } catch (Exception ignored) {
+                }
+            }
+
+            // Standard Android 8.0+ Notification Settings (Samsung, Pixel, OnePlus, etc.)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 try {
                     Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
                     intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
-                    intent.putExtra("android.provider.extra.APP_PACKAGE", getPackageName());
-                    intent.putExtra("app_package", getPackageName());
-                    intent.putExtra("app_uid", getApplicationInfo().uid);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(intent);
-                    opened = true;
+                    return;
                 } catch (Exception e) {
                     Log.w("InsuMinder", "ACTION_APP_NOTIFICATION_SETTINGS failed: " + e.getMessage());
                 }
             }
 
-            // 2. Direct Xiaomi MIUI / HyperOS Notification Filter Activity Fallback
-            if (!opened) {
-                try {
-                    Intent miuiIntent = new Intent("android.intent.action.MAIN");
-                    miuiIntent.setClassName("com.android.settings", "com.android.settings.Settings$NotificationFilterActivity");
-                    miuiIntent.putExtra("appName", getString(R.string.app_name));
-                    miuiIntent.putExtra("packageName", getPackageName());
-                    miuiIntent.putExtra("package_name", getPackageName());
-                    miuiIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(miuiIntent);
-                    opened = true;
-                } catch (Exception ignored) {
-                }
-            }
-
-            // 3. Universal Fallback: Application Details Settings (App Info page)
-            if (!opened) {
-                try {
-                    Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    fallback.setData(Uri.fromParts("package", getPackageName(), null));
-                    fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(fallback);
-                } catch (Exception e) {
-                    Log.e("InsuMinder", "ACTION_APPLICATION_DETAILS_SETTINGS failed: " + e.getMessage());
-                }
+            // Universal Fallback: Application Details Settings (App Info page)
+            try {
+                Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                fallback.setData(Uri.fromParts("package", getPackageName(), null));
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(fallback);
+            } catch (Exception e) {
+                Log.e("InsuMinder", "ACTION_APPLICATION_DETAILS_SETTINGS failed: " + e.getMessage());
             }
         });
     }

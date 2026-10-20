@@ -319,7 +319,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.2',
+  version: '1.9.3',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -328,19 +328,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Xiaomi HyperOS / Android 13+ native notification settings auto-redirect on permission denial or suppression',
-    'Fixed Date Format button layout collision and multi-line wrapping in Settings',
-    'Automatic permission check on app launch, login, and updates'
+    'Xiaomi HyperOS / Android 14+ App Info intent fallback directly to notification and permission settings',
+    'Automatic timeout fallback when notification dialogs are suppressed by OEM security',
+    'High-visibility device notification settings button with direct Xiaomi/One UI/OxygenOS support'
   ],
   he: [
-    'הפניה אוטומטית להגדרות התראות מערכת ב-Xiaomi HyperOS וב-Android 13+ בעת דחייה או חסימה',
-    'תיקון התנגשות וגלישת שורות בכפתורי בחירת פורמט תאריך בהגדרות',
-    'בדיקת הרשאות התראה אוטומטית בפתיחת אפליקציה, התחברות ועדכונים'
+    'הפניה ישירה להגדרות אפליקציה והתראות ב-Xiaomi HyperOS וב-Android 14+ ללא חסימה שקטה',
+    'מנגנון השהיה אוטומטי המונע תקיעה כאשר מערכת ההפעלה חוסמת את חלונית ההרשאות',
+    'כפתור פתיחת הגדרות מערכת בולט ונגיש עם תמיכה ישירה ב-Xiaomi, Samsung One UI ו-OnePlus'
   ],
   ru: [
-    'Авто-переход в системные настройки уведомлений на Xiaomi HyperOS и Android 13+ при блокировке',
-    'Исправлено наложение текста и перенос строк в кнопках формата даты в настройках',
-    'Автоматическая проверка разрешений на уведомления при запуске, входе и обновлениях'
+    'Прямой переход в настройки приложения и уведомлений на Xiaomi HyperOS и Android 14+',
+    'Автоматический сброс ожидания при подавлении системного диалога разрешений',
+    'Улучшенная видимость кнопки настроек устройства с поддержкой Xiaomi, One UI и OxygenOS'
   ]
 };
 
