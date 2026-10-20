@@ -43,15 +43,28 @@ export function getNotificationPermission() {
 
 // Open Android system notification settings if running in native app
 export function openDeviceNotificationSettings() {
-  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.openNotificationSettings === 'function') {
+  if (isAndroidApp()) {
+    if (window.AndroidBridge && typeof window.AndroidBridge.openNotificationSettings === 'function') {
+      try {
+        window.AndroidBridge.openNotificationSettings();
+        return true;
+      } catch (e) {
+        console.warn('[PWA] Failed to open notification settings via bridge:', e);
+      }
+    }
     try {
-      window.AndroidBridge.openNotificationSettings();
+      window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.insuminder.app;end';
       return true;
-    } catch (e) {
-      console.warn('[PWA] Failed to open notification settings:', e);
+    } catch {
+      // ignore
     }
   }
-  return false;
+  try {
+    window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.insuminder.app;end';
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Register service worker
@@ -102,8 +115,9 @@ export async function subscribeToPush(authHeader = null, lang = 'en') {
       }
       if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
         window.AndroidBridge.requestNotificationPermission();
+        return { ok: true, isNative: true, pendingPrompt: true };
       }
-      return { ok: true, isNative: true, pendingPrompt: true };
+      return { ok: false, isNative: true, isOutdatedApk: true, error: 'outdatedApk' };
     }
     return { ok: true, isNative: true };
   }
@@ -319,7 +333,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.3',
+  version: '1.9.4',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -328,19 +342,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Xiaomi HyperOS / Android 14+ App Info intent fallback directly to notification and permission settings',
-    'Automatic timeout fallback when notification dialogs are suppressed by OEM security',
-    'High-visibility device notification settings button with direct Xiaomi/One UI/OxygenOS support'
+    'Pure intent URI fallback to open device settings on Xiaomi HyperOS and older APKs',
+    'Outdated APK shell detection with direct in-app upgrade banner',
+    'CI server unit tests concurrency and asynchronous socket teardown stabilization'
   ],
   he: [
-    'הפניה ישירה להגדרות אפליקציה והתראות ב-Xiaomi HyperOS וב-Android 14+ ללא חסימה שקטה',
-    'מנגנון השהיה אוטומטי המונע תקיעה כאשר מערכת ההפעלה חוסמת את חלונית ההרשאות',
-    'כפתור פתיחת הגדרות מערכת בולט ונגיש עם תמיכה ישירה ב-Xiaomi, Samsung One UI ו-OnePlus'
+    'פתיחת הגדרות מערכת באמצעות intent URI ישיר גם במכולות APK ישנות',
+    'זיהוי מכולת APK ישנה עם התראה וכפתור שדרוג ישיר לגרסה העדכנית',
+    'ייצוב בדיקות שרת אוטומטיות ב-CI ומניעת תקלות סגירת שרתים'
   ],
   ru: [
-    'Прямой переход в настройки приложения и уведомлений на Xiaomi HyperOS и Android 14+',
-    'Автоматический сброс ожидания при подавлении системного диалога разрешений',
-    'Улучшенная видимость кнопки настроек устройства с поддержкой Xiaomi, One UI и OxygenOS'
+    'Переход в настройки устройства через прямой intent URI даже на старых APK',
+    'Определение устаревшей оболочки APK с баннером прямого обновления',
+    'Стабилизация серверных тестов CI и корректное закрытие сокетов'
   ]
 };
 

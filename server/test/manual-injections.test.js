@@ -32,8 +32,9 @@ describe('Manual Injection Logging Integration Tests', () => {
 
   before(async () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
+    const uniqueEmail = `manual_tester_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@test.org`;
     const user = await new Promise((resolve, reject) => {
-      db.createUser({ email: 'manual_tester@test.org', password_hash: 'HashPass123!', name: 'Manual Tester' }, (err, u) => {
+      db.createUser({ email: uniqueEmail, password_hash: 'HashPass123!', name: 'Manual Tester' }, (err, u) => {
         if (err) return reject(err);
         resolve(u);
       });
@@ -41,7 +42,14 @@ describe('Manual Injection Logging Integration Tests', () => {
     testUserId = user.id;
   });
 
-  after(() => {
+  after(async () => {
+    await new Promise((resolve) => {
+      if (db.close) {
+        db.close(resolve);
+      } else {
+        resolve();
+      }
+    });
     try {
       if (fs.existsSync(testDbPath)) {
         fs.unlinkSync(testDbPath);

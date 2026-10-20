@@ -1183,6 +1183,8 @@ module.exports = {
   clearNotificationQueue,
   savePushSubscription,
   getPushSubscriptions,
-  deletePushSubscription
+  deletePushSubscription,
+  db,
+  close: (cb) => db.close(cb)
 };
 
