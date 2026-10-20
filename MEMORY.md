@@ -159,7 +159,7 @@ Verified by `node scripts/check-version.js`.
 
 ## 3. Completed Milestones History
 
-### v1.9.1 (PR pending) — Android Native Permissions & Notification Lifecycle Overhaul
+### v1.9.1 (PR #46) — Android Native Permissions & Notification Lifecycle Overhaul
 - **Strict Native Android Permission Gating (`POST_NOTIFICATIONS`)**: `WebContainerActivity.java` runtime permission prompt bridge with `window.__onNativeNotificationPermissionResult(granted)`. In `NotificationSettings.jsx`, wait for native callback before activating or dispatching test push, with explicit feedback banners and device settings redirection button.
 - **Android Onboarding Permission Prompt**: Prompt for runtime notification permissions upon login/registration in the Android container if not yet granted.
 - **Decoupled Test Push Delivery**: Decoupled test notifications from the clinical basal modal by targeting `/?page=notifications`.
