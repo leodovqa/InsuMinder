@@ -1,4 +1,4 @@
-﻿export async function onRequestGet(context) {
+export async function onRequestGet(context) {
   const { request } = context;
   const url = new URL(request.url);
 

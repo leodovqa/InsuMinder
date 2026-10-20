@@ -1,4 +1,4 @@
-﻿package com.insuminder.app;
+package com.insuminder.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;

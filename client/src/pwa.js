@@ -1,4 +1,4 @@
-﻿// client/src/pwa.js - Service Worker, Web Push & PWA installation helper
+// client/src/pwa.js - Service Worker, Web Push & PWA installation helper
 
 let deferredPrompt = null;
 const installPromptListeners = new Set();

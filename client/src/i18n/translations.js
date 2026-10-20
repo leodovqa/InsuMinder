@@ -1,4 +1,4 @@
-﻿/**
+/**
  * InsuMinder Internationalization (i18n) Dictionary
  * 
  * Languages supported:
