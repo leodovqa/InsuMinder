@@ -208,6 +208,7 @@ Verified by `node scripts/check-version.js`.
 - Machine-specific scratchpad files or ephemeral AI session storage do not synchronize across different developer machines or environments. `MEMORY.md` committed directly to Git is the authoritative, shared single source of truth across all devices.
 
 ### Rule 13: Zero Hardcoded Secrets & Credentials Rule
+- **VAPID Key Generation Helper**: Run `npm run generate:vapid` (`node scripts/generate-vapid-keys.js`) at any time to generate a fresh RFC 8292 ECDSA P-256 keypair for Cloudflare Pages ("Variables and secrets") and local `.env`. Never commit generated keys to git.
 - Under NO circumstances may any real, default, fallback, or mock API keys, private keys (such as VAPID keys), auth secrets, webhook secrets, database credentials, or tokens ever be hardcoded into tracked files in this repository.
 - All secrets, private keys, and runtime credentials MUST be loaded strictly through environment variables (`context.env` in Cloudflare Pages Functions or `process.env` in Node.js).
 - If environment variables are not configured in a deployment or local runtime, the application code must degrade safely and return a clear, descriptive configuration error (e.g. 'VAPID keys not configured') rather than falling back to hardcoded secrets.

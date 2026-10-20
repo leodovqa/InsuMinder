@@ -10,7 +10,8 @@
     "check:theme": "npm --prefix client run check:theme",
     "check:version": "node scripts/check-version.js",
     "docker": "docker compose up --build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "generate:vapid": "node scripts/generate-vapid-keys.js"
   },
   "dependencies": {
     "moment-timezone": "^0.6.5"
