@@ -27,6 +27,41 @@ export function isPushSupported() {
 }
 
 // Get current browser/Android permission state ('default' | 'granted' | 'denied' | 'unsupported')
+
+// Automated notification onboarding for install, login, and updates
+export async function promptNotificationPermissionIfNeeded(authHeader = null, lang = 'en') {
+  if (typeof window === 'undefined') return { outcome: 'unavailable' };
+
+  const perm = getNotificationPermission();
+  // ONLY prompt if notifications are not already granted
+  if (perm === 'granted') {
+    return { outcome: 'already_granted' };
+  }
+
+  // 1. If running in Android APK with native bridge
+  if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+    try {
+      window.AndroidBridge.requestNotificationPermission();
+      return { outcome: 'prompted_native' };
+    } catch (e) {
+      console.warn('[PWA] Failed native notification prompt:', e);
+    }
+  }
+
+  // 2. If running on Web / PWA and Push is supported
+  if (isPushSupported()) {
+    try {
+      const res = await subscribeToPush(authHeader, lang);
+      return { outcome: res.ok ? 'subscribed' : 'failed', res };
+    } catch (e) {
+      console.warn('[PWA] Failed push prompt:', e);
+      return { outcome: 'error', error: e.message };
+    }
+  }
+
+  return { outcome: 'unsupported' };
+}
+
 export function getNotificationPermission() {
   if (typeof window === 'undefined') return 'unsupported';
   if (isAndroidApp()) {
@@ -43,28 +78,16 @@ export function getNotificationPermission() {
 
 // Open Android system notification settings if running in native app
 export function openDeviceNotificationSettings() {
-  if (isAndroidApp()) {
-    if (window.AndroidBridge && typeof window.AndroidBridge.openNotificationSettings === 'function') {
-      try {
-        window.AndroidBridge.openNotificationSettings();
-        return true;
-      } catch (e) {
-        console.warn('[PWA] Failed to open notification settings via bridge:', e);
-      }
-    }
+  if (isAndroidApp() && typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.openNotificationSettings === 'function') {
     try {
-      window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.insuminder.app;end';
+      window.AndroidBridge.openNotificationSettings();
       return true;
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('[PWA] Failed to open notification settings via bridge:', e);
     }
   }
-  try {
-    window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.insuminder.app;end';
-    return true;
-  } catch {
-    return false;
-  }
+  // Return false so caller can open the safe in-app manual guide modal without crashing WebView
+  return false;
 }
 
 // Register service worker
@@ -333,7 +356,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.4',
+  version: '1.9.5',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -342,28 +365,37 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Pure intent URI fallback to open device settings on Xiaomi HyperOS and older APKs',
-    'Outdated APK shell detection with direct in-app upgrade banner',
-    'CI server unit tests concurrency and asynchronous socket teardown stabilization'
+    'Native APK download handler and DownloadListener for smooth direct updates on Xiaomi HyperOS and all devices',
+    'Safe in-app manual notification guide modal preventing any Android white screen errors',
+    'Automated notification permission onboarding on install, login, and updates'
   ],
   he: [
-    'פתיחת הגדרות מערכת באמצעות intent URI ישיר גם במכולות APK ישנות',
-    'זיהוי מכולת APK ישנה עם התראה וכפתור שדרוג ישיר לגרסה העדכנית',
-    'ייצוב בדיקות שרת אוטומטיות ב-CI ומניעת תקלות סגירת שרתים'
+    'מנגנון הורדה ישיר לקובץ APK ומאזין הורדות מובנה למניעת תקיעות',
+    'מדריך הפעלת התראות מובנה וידידותי למניעת מסכי שגיאה לבנים באנדרואיד',
+    'הפעלת התראות אוטומטית בעת התקנה, התחברות ועדכוני גרסה'
   ],
   ru: [
-    'Переход в настройки устройства через прямой intent URI даже на старых APK',
-    'Определение устаревшей оболочки APK с баннером прямого обновления',
-    'Стабилизация серверных тестов CI и корректное закрытие сокетов'
+    'Прямая загрузка APK и встроенный DownloadListener для плавного обновления',
+    'Безопасное модальное руководство по включению уведомлений без белых экранов',
+    'Автоматический запрос разрешений на уведомления при установке, входе и обновлении'
   ]
 };
 
 export function downloadAndroidApk() {
   if (typeof window === 'undefined') return;
+  const directApkUrl = ANDROID_PACKAGE_INFO.releaseUrl;
+  if (window.AndroidBridge && typeof window.AndroidBridge.downloadApk === 'function') {
+    try {
+      window.AndroidBridge.downloadApk(directApkUrl);
+      return;
+    } catch (e) {
+      console.warn('[PWA] Native downloadApk error:', e);
+    }
+  }
   try {
-    window.location.href = ANDROID_PACKAGE_INFO.downloadUrl;
+    window.open(directApkUrl, '_blank') || (window.location.href = directApkUrl);
   } catch {
-    window.open(ANDROID_PACKAGE_INFO.releaseUrl, '_blank');
+    window.location.href = directApkUrl;
   }
 }
 

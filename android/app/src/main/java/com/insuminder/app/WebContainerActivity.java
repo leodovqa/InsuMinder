@@ -216,6 +216,21 @@ public class WebContainerActivity extends Activity {
                 Uri uri = request.getUrl();
                 String host = uri.getHost();
 
+                                // Direct APK and release downloads open in external system browser/installer
+                if (uri != null && (
+                        uri.toString().endsWith(".apk") ||
+                        (uri.getPath() != null && (uri.getPath().contains("/download") || uri.getPath().contains("/releases/")))
+                )) {
+                    try {
+                        Intent downloadIntent = new Intent(Intent.ACTION_VIEW, uri);
+                        downloadIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(downloadIntent);
+                        return true;
+                    } catch (Exception e) {
+                        Log.w("InsuMinder", "Failed to launch external download: " + e.getMessage());
+                    }
+                }
+
                 // Keep app domains, Google Identity Services, and OAuth inside container
                 if (host != null && (
                         host.endsWith("pages.dev") ||
@@ -598,6 +613,39 @@ public class WebContainerActivity extends Activity {
     }
 
     public class AndroidBridge {
+        @JavascriptInterface
+        public String getNativeVersion() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+                return "1.9.5";
+            }
+        }
+
+        @JavascriptInterface
+        public int getNativeVersionCode() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+            } catch (Exception e) {
+                return 17;
+            }
+        }
+
+        @JavascriptInterface
+        public void downloadApk(String url) {
+            runOnUiThread(() -> {
+                try {
+                    String targetUrl = (url != null && !url.trim().isEmpty())
+                            ? url.trim()
+                            : "https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk";
+                    Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl));
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(i);
+                } catch (Exception e) {
+                    Log.w("InsuMinder", "Native downloadApk failed: " + e.getMessage());
+                }
+            });
+        }
         @JavascriptInterface
         public boolean isNativeAndroid() {
             return true;

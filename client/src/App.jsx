@@ -41,7 +41,8 @@ import {
   checkForAppUpdate,
   subscribeToAppUpdates,
   ANDROID_PACKAGE_INFO,
-  APP_CURRENT_CHANGELOG
+  APP_CURRENT_CHANGELOG,
+  promptNotificationPermissionIfNeeded
 } from './pwa';
 import { LanguageProvider, useTranslation } from './i18n';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
@@ -447,6 +448,9 @@ function AppContent() {
       if (isMounted) {
         setIsAppInstalled(true);
         markAppInstalled(true);
+        const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
+        const currentLang = localStorage.getItem('insuminder_language') || 'en';
+        promptNotificationPermissionIfNeeded(authHeader, currentLang);
       }
     };
     window.addEventListener('appinstalled', onAppInstalled);
@@ -770,16 +774,9 @@ function AppContent() {
       void e;
     }
     setJustUpdatedVersion(null);
-    if (isAndroidApp() && typeof window !== 'undefined' && window.AndroidBridge) {
-      try {
-        const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
-        if (!isGranted && typeof window.AndroidBridge.requestNotificationPermission === 'function') {
-          window.AndroidBridge.requestNotificationPermission();
-        }
-      } catch {
-        // ignore
-      }
-    }
+    const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
+    const currentLang = localStorage.getItem('insuminder_language') || 'en';
+    promptNotificationPermissionIfNeeded(authHeader, currentLang);
   };
 
   // Strictly lock background body scrolling whenever ANY modal in the application is active
@@ -1094,21 +1091,10 @@ function AppContent() {
       setTheme(authUser.theme);
     }
 
-    // Android Onboarding: Prompt for native notification permission upon initial login/registration
-    if (isAndroidApp() && typeof window !== 'undefined' && window.AndroidBridge) {
-      try {
-        const hasPrompted = sessionStorage.getItem('insuminder_native_perm_prompted_session') === 'true';
-        const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
-        if (!hasPrompted && !isGranted) {
-          sessionStorage.setItem('insuminder_native_perm_prompted_session', 'true');
-          if (typeof window.AndroidBridge.requestNotificationPermission === 'function') {
-            window.AndroidBridge.requestNotificationPermission();
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
+    // Onboarding: Prompt for notification permission upon initial login/registration if not already enabled
+    const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
+    const currentLang = authUser?.language || localStorage.getItem('insuminder_language') || 'en';
+    promptNotificationPermissionIfNeeded(authHeader, currentLang);
 
     // Security: Clear referral / share code from URL so it cannot be reused
     if (typeof window !== 'undefined') {
