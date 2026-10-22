@@ -7,7 +7,6 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   sendTestPush,
-  openDeviceNotificationSettings,
   isAndroidApp,
   isStandaloneApp,
   checkIsAppInstalled,
@@ -207,13 +206,6 @@ export default function NotificationSettings({
       text: t('notificationSettings.devicePushActiveSuccess'),
       isError: false
     });
-  };
-
-  const handleOpenSettings = () => {
-    const opened = openDeviceNotificationSettings();
-    if (!opened) {
-      setShowManualGuide(true);
-    }
   };
 
   const handleTestPush = async () => {

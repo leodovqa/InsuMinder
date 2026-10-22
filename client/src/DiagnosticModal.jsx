@@ -15,7 +15,7 @@ import {
 
 export default function DiagnosticModal({ isOpen, onClose }) {
   const { t } = useTranslation();
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState(() => getDiagnosticLogs());
   const [copyStatus, setCopyStatus] = useState('');
   const [sendStatus, setSendStatus] = useState('');
   const [activeFlag, setActiveFlag] = useState(() => {
@@ -31,7 +31,10 @@ export default function DiagnosticModal({ isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return;
 
-    setLogs(getDiagnosticLogs());
+    const timeout = setTimeout(() => {
+      setLogs(getDiagnosticLogs());
+    }, 0);
+
     const interval = setInterval(() => {
       setLogs(getDiagnosticLogs());
     }, 1000);
@@ -44,6 +47,7 @@ export default function DiagnosticModal({ isOpen, onClose }) {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      clearTimeout(timeout);
       clearInterval(interval);
       window.removeEventListener('keydown', handleKeyDown);
     };
