@@ -197,6 +197,24 @@ Verified by `node scripts/check-version.js`.
 - Strict 24-hour time standardization application-wide with zero AM/PM.
 - Local storage session fallback persistence preventing repeated privacy modal prompts on page refresh.
 
+### v1.9.6 (PR #52) — Direct APK Download, OS Notification Detection, QA Tester Account & Diagnostics
+- Eradicated APK download freeze and modal screen dimming in WebView: eliminated window.open download traps in pwa.js and AndroidInstallModal.jsx and added download handling to onCreateWindow in WebContainerActivity.java.
+- Enhanced getNotificationPermission() in pwa.js to inspect window.Notification?.permission and persistent localStorage flag, instantly recognizing when notifications are permitted in Android OS settings and rendering the status as **Active ("פעיל")**.
+- Eliminated confusing double buttons in NotificationSettings.jsx, consolidating to a single, contextual action button ("בדיקת התראות" when active, "הפעל התראות" when pending).
+- Added "I enabled it in settings - Activate now" direct confirmation button in ManualNotificationGuideModal.jsx.
+- Dedicated QA tester user (qa-tester or qa@insuminder.com with password A123456!) supported across Cloudflare Functions and Express server, automatically creating the user if missing and bypassing email OTPs.
+- Built interactive In-App Diagnostics Center (DiagnosticModal.jsx) accessible for QA user and via 5-tap gesture on the app footer version, featuring live subsystem introspection, action triggers, event stream log, and /api/dev/device-logs telemetry.
+- 100% version synchronization across all 9 locations to 1.9.6 (versionCode 18).
+
+### v1.9.6 (PR #52) — Direct APK Download, OS Notification Detection, QA Tester Account & Diagnostics
+- Eradicated APK download freeze and modal screen dimming in WebView: eliminated window.open download traps in pwa.js and AndroidInstallModal.jsx and added download handling to onCreateWindow in WebContainerActivity.java.
+- Enhanced getNotificationPermission() in pwa.js to inspect window.Notification?.permission and persistent localStorage flag, instantly recognizing when notifications are permitted in Android OS settings and rendering the status as **Active ("פעיל")**.
+- Eliminated confusing double buttons in NotificationSettings.jsx, consolidating to a single, contextual action button ("בדיקת התראות" when active, "הפעל התראות" when pending).
+- Added "I enabled it in settings - Activate now" direct confirmation button in ManualNotificationGuideModal.jsx.
+- Dedicated QA tester user (qa-tester or qa@insuminder.com with password A123456!) supported across Cloudflare Functions and Express server, automatically creating the user if missing and bypassing email OTPs.
+- Built interactive In-App Diagnostics Center (DiagnosticModal.jsx) accessible for QA user and via 5-tap gesture on the app footer version, featuring live subsystem introspection, action triggers, event stream log, and /api/dev/device-logs telemetry.
+- 100% version synchronization across all 9 locations to 1.9.6 (versionCode 18).
+
 ### v1.9.5 (PR #51) — Native APK Download Handler, Safe In-App Manual Guide & Notification Onboarding
 - Native APK Download Handler & DownloadListener in `WebContainerActivity.java` and `pwa.js` resolving WebView stuck download loading lines by routing external downloads to GitHub Releases via system browser / Android DownloadManager.
 - Built `ManualNotificationGuideModal.jsx` with 3 clear step-by-step instructions for device settings, completely eradicating Android `net::ERR_UNKNOWN_URL_SCHEME` white screen errors.

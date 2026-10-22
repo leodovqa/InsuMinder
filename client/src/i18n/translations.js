@@ -463,6 +463,7 @@ export const translations = {
       manualGuideStep3: 'Tap "Notifications" and switch "Allow notifications" ON.',
       manualGuideCloseBtn: 'Got It',
       manualGuideDownloadBtn: 'Download Latest APK',
+      manualGuideActivatedBtn: 'I Turned It On - Activate Now',
       devicePushBlockedHint: 'Notifications are blocked in your browser site permissions. Please allow notifications in browser settings to receive alerts.',
       devicePushBlockedHintDevice: 'Notifications are disabled in device settings. Please open settings and allow notifications for InsuMinder.',
       devicePushOpenSettingsBtn: 'Open Device Notification Settings',
@@ -472,6 +473,17 @@ export const translations = {
       pwaInstalledBadge: 'Android App Active',
       pwaInstalling: 'Downloading APK...',
       pwaInstallUnavailable: 'App is already installed or running natively.'
+    },
+    diagnostic: {
+      title: 'Diagnostics & QA Center',
+      subtitle: 'Live subsystem status, telemetry, and debugging controls',
+      triggerDownload: 'Test APK Download',
+      triggerPush: 'Test Bridge Notification',
+      forceActive: 'Force Active Flag',
+      copy: 'Copy Report',
+      copied: 'Report Copied!',
+      sendServer: 'Send Telemetry to Server',
+      sent: 'Sent Successfully'
     },
     androidModal: {
       title: 'InsuMinder for Android',
@@ -1037,6 +1049,7 @@ export const translations = {
       manualGuideStep3: 'לחצו על "התראות" והפעילו את המתג "אפשר התראות".',
       manualGuideCloseBtn: 'הבנתי',
       manualGuideDownloadBtn: 'הורד את ה-APK העדכני',
+      manualGuideActivatedBtn: 'הפעלתי בהגדרות - הפעל עכשיו',
       devicePushBlockedHint: 'ההתראות חסומות בהגדרות הדפדפן. יש לאשר הרשאת התראות בהגדרות האתר כדי לקבל תזכורות.',
       devicePushBlockedHintDevice: 'ההתראות מבוטלות בהגדרות המכשיר. אנא פתח את ההגדרות ואשר קבלת התראות עבור InsuMinder.',
       devicePushOpenSettingsBtn: 'פתח הגדרות התראות במכשיר',
@@ -1046,6 +1059,17 @@ export const translations = {
       pwaInstalledBadge: 'אפליקציית אנדרואיד פעילה',
       pwaInstalling: 'מוריד APK...',
       pwaInstallUnavailable: 'האפליקציה כבר מותקנת או פועלת במצב עצמאי.'
+    },
+    diagnostic: {
+      title: 'מרכז דיאגנוסטיקה ובדיקות QA',
+      subtitle: 'מעקב טלמטריה בזמן אמת ובקרות בדיקה לרכיבי המערכת',
+      triggerDownload: 'בדיקת הורדת APK',
+      triggerPush: 'בדיקת התראת Bridge',
+      forceActive: 'כפיית מצב פעיל',
+      copy: 'העתק דוח דיאגנוסטי',
+      copied: 'הדוח הועתק!',
+      sendServer: 'שליחת טלמטריה לשרת',
+      sent: 'נשלח בהצלחה'
     },
     androidModal: {
       title: 'InsuMinder לאנדרואיד',
@@ -1611,6 +1635,7 @@ export const translations = {
       manualGuideStep3: 'Нажмите «Уведомления» и включите переключатель разрешений.',
       manualGuideCloseBtn: 'Понятно',
       manualGuideDownloadBtn: 'Скачать свежий APK',
+      manualGuideActivatedBtn: 'Я включил в настройках - Активировать',
       devicePushBlockedHint: 'Уведомления заблокированы в настройках браузера. Разрешите уведомления в настройках сайта для получения напоминаний.',
       devicePushBlockedHintDevice: 'Уведомления отключены в настройках устройства. Пожалуйста, откройте настройки и включите уведомления для InsuMinder.',
       devicePushOpenSettingsBtn: 'Открыть настройки уведомлений на устройстве',
@@ -1620,6 +1645,17 @@ export const translations = {
       pwaInstalledBadge: 'Приложение Android активно',
       pwaInstalling: 'Загрузка APK...',
       pwaInstallUnavailable: 'Приложение уже установлено или работает автономно.'
+    },
+    diagnostic: {
+      title: 'Центр диагностики и QA',
+      subtitle: 'Телеметрия подсистем в реальном времени и средства отладки',
+      triggerDownload: 'Проверить загрузку APK',
+      triggerPush: 'Проверить уведомление Bridge',
+      forceActive: 'Принудительный активный статус',
+      copy: 'Скопировать отчёт',
+      copied: 'Отчёт скопирован!',
+      sendServer: 'Отправить телеметрию на сервер',
+      sent: 'Успешно отправлено'
     },
     androidModal: {
       title: 'InsuMinder для Android',

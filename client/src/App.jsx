@@ -49,6 +49,7 @@ import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import useLockBodyScroll from './useLockBodyScroll';
 import UpdateSuccessModal from './UpdateSuccessModal';
 import PrivacyModal from './PrivacyModal';
+import DiagnosticModal from './DiagnosticModal';
 
 const isLocalEnv = Boolean(
   typeof window !== 'undefined' &&
@@ -287,6 +288,32 @@ function AppContent() {
   const [isDeclinePromptOpen, setIsDeclinePromptOpen] = useState(false);
   const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
+  const [isQaMode, setIsQaMode] = useState(() => {
+    try {
+      return localStorage.getItem('insuminder_qa_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [versionClickCount, setVersionClickCount] = useState(0);
+
+  const handleFooterVersionClick = () => {
+    setVersionClickCount((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        try {
+          localStorage.setItem('insuminder_qa_mode', 'true');
+        } catch (e) {
+          void e;
+        }
+        setIsQaMode(true);
+        setShowDiagnosticModal(true);
+        return 0;
+      }
+      return next;
+    });
+  };
 
   const handleAcceptPrivacyConsent = async () => {
     setIsAcceptingPrivacy(true);
@@ -4847,10 +4874,26 @@ function AppContent() {
 
       {/* Application Footer */}
       <footer className="app-footer">
-        <p className="footer-copyright">
+        <p className="footer-copyright" onClick={handleFooterVersionClick} style={{ cursor: 'pointer' }} title="Tap 5 times for QA Diagnostics">
           &copy; {new Date().getFullYear()} Dovgans &bull; InsuMinder v{ANDROID_PACKAGE_INFO.version}
         </p>
       </footer>
+
+      {(user?.email === 'qa@insuminder.com' || user?.is_qa || isQaMode) && (
+        <button
+          type="button"
+          className="qa-floating-diag-btn"
+          onClick={() => setShowDiagnosticModal(true)}
+          aria-label={t('diagnostic.title')}
+        >
+          🛠️ QA
+        </button>
+      )}
+
+      <DiagnosticModal
+        isOpen={showDiagnosticModal}
+        onClose={() => setShowDiagnosticModal(false)}
+      />
     </div>
   );
 }

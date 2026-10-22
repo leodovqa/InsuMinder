@@ -189,11 +189,36 @@ public class WebContainerActivity extends Activity {
                 popupDialog.setContentView(popupView);
                 popupDialog.show();
 
+                popupView.setDownloadListener((url, userAgent1, contentDisposition, mimetype, contentLength) -> {
+                    try {
+                        Intent downloadIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        downloadIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(downloadIntent);
+                    } catch (Exception e) {
+                        Log.w("InsuMinder", "Failed to launch external download from popup: " + e.getMessage());
+                    }
+                    popupDialog.dismiss();
+                });
+
                 popupView.setWebViewClient(new WebViewClient() {
                     @Override
                     public boolean shouldOverrideUrlLoading(WebView pView, WebResourceRequest pRequest) {
                         Uri pUri = pRequest.getUrl();
-                        String pHost = pUri.getHost();
+                        if (pUri != null && (
+                                pUri.toString().endsWith(".apk") ||
+                                (pUri.getPath() != null && (pUri.getPath().contains("/download") || pUri.getPath().contains("/releases/")))
+                        )) {
+                            try {
+                                Intent downloadIntent = new Intent(Intent.ACTION_VIEW, pUri);
+                                downloadIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                startActivity(downloadIntent);
+                            } catch (Exception e) {
+                                Log.w("InsuMinder", "Failed to launch external download from popup: " + e.getMessage());
+                            }
+                            popupDialog.dismiss();
+                            return true;
+                        }
+                        String pHost = pUri != null ? pUri.getHost() : null;
                         if (pHost != null && (pHost.endsWith("pages.dev") || pHost.contains("insuminder"))) {
                             mWebView.loadUrl(pUri.toString());
                             popupDialog.dismiss();
@@ -618,7 +643,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
-                return "1.9.5";
+                return "1.9.6";
             }
         }
 
@@ -627,7 +652,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             } catch (Exception e) {
-                return 17;
+                return 18;
             }
         }
 
