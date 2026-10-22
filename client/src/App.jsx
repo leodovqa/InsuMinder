@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import {
   pad2,
@@ -296,23 +296,20 @@ function AppContent() {
       return false;
     }
   });
-  const [versionClickCount, setVersionClickCount] = useState(0);
+  const versionClickCountRef = useRef(0);
 
   const handleFooterVersionClick = () => {
-    setVersionClickCount((prev) => {
-      const next = prev + 1;
-      if (next >= 5) {
-        try {
-          localStorage.setItem('insuminder_qa_mode', 'true');
-        } catch (e) {
-          void e;
-        }
-        setIsQaMode(true);
-        setShowDiagnosticModal(true);
-        return 0;
+    versionClickCountRef.current += 1;
+    if (versionClickCountRef.current >= 5) {
+      versionClickCountRef.current = 0;
+      try {
+        localStorage.setItem('insuminder_qa_mode', 'true');
+      } catch (e) {
+        void e;
       }
-      return next;
-    });
+      setIsQaMode(true);
+      setShowDiagnosticModal(true);
+    }
   };
 
   const handleAcceptPrivacyConsent = async () => {
