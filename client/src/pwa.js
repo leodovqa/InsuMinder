@@ -17,6 +17,31 @@ export function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+// Diagnostic in-memory event buffer for QA & dev telemetry
+const diagnosticLogBuffer = [];
+const MAX_DIAGNOSTIC_LOGS = 100;
+
+export function addDiagnosticLog(level, message, data = null) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level: level || 'info',
+    message: typeof message === 'string' ? message : JSON.stringify(message),
+    data: data || null
+  };
+  diagnosticLogBuffer.unshift(entry);
+  if (diagnosticLogBuffer.length > MAX_DIAGNOSTIC_LOGS) {
+    diagnosticLogBuffer.pop();
+  }
+}
+
+export function getDiagnosticLogs() {
+  return [...diagnosticLogBuffer];
+}
+
+export function clearDiagnosticLogs() {
+  diagnosticLogBuffer.length = 0;
+}
+
 // Check if Push & Service Worker or Native Android notifications are supported
 export function isPushSupported() {
   if (typeof window === 'undefined') return false;
@@ -25,8 +50,6 @@ export function isPushSupported() {
     'PushManager' in window &&
     'Notification' in window;
 }
-
-// Get current browser/Android permission state ('default' | 'granted' | 'denied' | 'unsupported')
 
 // Automated notification onboarding for install, login, and updates
 export async function promptNotificationPermissionIfNeeded(authHeader = null, lang = 'en') {
@@ -64,12 +87,41 @@ export async function promptNotificationPermissionIfNeeded(authHeader = null, la
 
 export function getNotificationPermission() {
   if (typeof window === 'undefined') return 'unsupported';
-  if (isAndroidApp()) {
-    if (window.AndroidBridge && typeof window.AndroidBridge.isNotificationPermissionGranted === 'function') {
-      return window.AndroidBridge.isNotificationPermissionGranted() ? 'granted' : 'denied';
+
+  // 1. Check if user already confirmed or active on this device
+  try {
+    if (localStorage.getItem('insuminder_device_notifications_active') === 'true') {
+      return 'granted';
     }
+  } catch (e) {
+    void e;
+  }
+
+  // 2. Check native AndroidBridge
+  if (window.AndroidBridge && typeof window.AndroidBridge.isNotificationPermissionGranted === 'function') {
+    try {
+      if (window.AndroidBridge.isNotificationPermissionGranted()) {
+        return 'granted';
+      }
+    } catch (e) {
+      console.warn('[PWA] Error checking native permission:', e);
+    }
+  }
+
+  // 3. Check browser / WebView Notification API
+  if (typeof window.Notification !== 'undefined' && window.Notification.permission) {
+    if (window.Notification.permission === 'granted') {
+      return 'granted';
+    }
+    if (window.Notification.permission === 'denied') {
+      return 'denied';
+    }
+  }
+
+  if (isAndroidApp()) {
     return 'default';
   }
+
   if (!('Notification' in window)) {
     return 'unsupported';
   }
@@ -133,6 +185,11 @@ export async function subscribeToPush(authHeader = null, lang = 'en') {
           const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
           const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
           window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-active', '/?page=notifications');
+        }
+        try {
+          localStorage.setItem('insuminder_device_notifications_active', 'true');
+        } catch (e) {
+          void e;
         }
         return { ok: true, isNative: true, granted: true };
       }
@@ -210,6 +267,12 @@ export async function subscribeToPush(authHeader = null, lang = 'en') {
       return { ok: false, error: saveData.error || 'Failed to save push subscription on server.' };
     }
 
+    try {
+      localStorage.setItem('insuminder_device_notifications_active', 'true');
+    } catch (e) {
+      void e;
+    }
+
     return { ok: true, subscription: sub };
   } catch (err) {
     console.error('[PWA] subscribeToPush error:', err);
@@ -223,6 +286,12 @@ export async function subscribeToPush(authHeader = null, lang = 'en') {
 // Unsubscribe from Web Push
 export async function unsubscribeFromPush(authHeader = null) {
   try {
+    try {
+      localStorage.removeItem('insuminder_device_notifications_active');
+    } catch (e) {
+      void e;
+    }
+
     const existing = await getExistingPushSubscription();
     if (!existing) {
       return { ok: true };
@@ -356,7 +425,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.5',
+  version: '1.9.6',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -365,35 +434,43 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Native APK download handler and DownloadListener for smooth direct updates on Xiaomi HyperOS and all devices',
-    'Safe in-app manual notification guide modal preventing any Android white screen errors',
-    'Automated notification permission onboarding on install, login, and updates'
+    'Seamless direct APK download navigation eliminating dialog freezes and screen dimming',
+    'Automatic detection of device notification permissions when enabled in Android OS settings',
+    'Integrated in-app QA diagnostics center with real-time subsystem telemetry and logging'
   ],
   he: [
-    'מנגנון הורדה ישיר לקובץ APK ומאזין הורדות מובנה למניעת תקיעות',
-    'מדריך הפעלת התראות מובנה וידידותי למניעת מסכי שגיאה לבנים באנדרואיד',
-    'הפעלת התראות אוטומטית בעת התקנה, התחברות ועדכוני גרסה'
+    'הורדה ישירה ותקינה של קובץ APK ללא תקיעות או החשכת מסך',
+    'זיהוי אוטומטי של הרשאות התראה במכשיר לאחר הפעלתן בהגדרות אנדרואיד',
+    'מרכז דיאגנוסטיקה ובדיקות QA מובנה עם טלמטריה ויומן אירועים בזמן אמת'
   ],
   ru: [
-    'Прямая загрузка APK и встроенный DownloadListener для плавного обновления',
-    'Безопасное модальное руководство по включению уведомлений без белых экранов',
-    'Автоматический запрос разрешений на уведомления при установке, входе и обновлении'
+    'Прямая загрузка APK без зависаний, всплывающих окон и затемнения экрана',
+    'Автоматическое распознавание разрешений на уведомления при их включении в настройках Android',
+    'Встроенный центр диагностики и QA с телеметрией подсистем и журналом в реальном времени'
   ]
 };
 
 export function downloadAndroidApk() {
   if (typeof window === 'undefined') return;
   const directApkUrl = ANDROID_PACKAGE_INFO.releaseUrl;
+  addDiagnosticLog('info', 'downloadAndroidApk invoked', { url: directApkUrl });
+
   if (window.AndroidBridge && typeof window.AndroidBridge.downloadApk === 'function') {
     try {
       window.AndroidBridge.downloadApk(directApkUrl);
+      addDiagnosticLog('info', 'AndroidBridge.downloadApk executed');
       return;
     } catch (e) {
+      addDiagnosticLog('error', 'AndroidBridge.downloadApk failed', { error: e.message });
       console.warn('[PWA] Native downloadApk error:', e);
     }
   }
+
+  // Do NOT call window.open() inside WebView - it triggers onCreateWindow popup dialog which dims screen
+  // Always use direct window.location navigation so WebView intercepts host/extension into Intent.ACTION_VIEW
   try {
-    window.open(directApkUrl, '_blank') || (window.location.href = directApkUrl);
+    addDiagnosticLog('info', 'Direct window.location navigation to release APK URL');
+    window.location.assign(directApkUrl);
   } catch {
     window.location.href = directApkUrl;
   }
@@ -749,5 +826,3 @@ export async function applyAppUpdate(newVersion = null, onProgress = null) {
     window.location.reload();
   }
 }
-
-

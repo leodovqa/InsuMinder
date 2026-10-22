@@ -23,8 +23,7 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const handleDownloadAgain = (e) => {
-    e.preventDefault();
+  const handleDownloadAgain = () => {
     downloadAndroidApk();
   };
 
@@ -75,9 +74,10 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
               <strong>{t('androidModal.downloadStarted')}</strong>
               <p>
                 <a
-                  href={ANDROID_PACKAGE_INFO.downloadUrl}
+                  href={ANDROID_PACKAGE_INFO.releaseUrl}
                   onClick={handleDownloadAgain}
                   className="android-manual-download-link"
+                  download="InsuMinder.apk"
                 >
                   {t('androidModal.downloadManual')}
                 </a>
@@ -161,9 +161,10 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
 
         <div className="modal-footer android-modal-footer">
           <a
-            href={ANDROID_PACKAGE_INFO.downloadUrl}
+            href={ANDROID_PACKAGE_INFO.releaseUrl}
             onClick={handleDownloadAgain}
             className="android-direct-download-btn"
+            download="InsuMinder.apk"
           >
             <svg
               className="download-btn-icon"

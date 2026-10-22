@@ -7,7 +7,6 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
   sendTestPush,
-  openDeviceNotificationSettings,
   isAndroidApp,
   isStandaloneApp,
   checkIsAppInstalled,
@@ -51,7 +50,8 @@ export default function NotificationSettings({
   const [showManualGuide, setShowManualGuide] = useState(false);
 
   const isAndroid = isAndroidApp();
-  const isOutdatedApk = isAndroid && typeof window !== 'undefined' && (!window.AndroidBridge || typeof window.AndroidBridge.openNotificationSettings !== 'function' || typeof window.AndroidBridge.requestNotificationPermission !== 'function');
+  // NEVER flag an APK as outdated if notification permission is already active or granted
+  const isOutdatedApk = isAndroid && typeof window !== 'undefined' && permission !== 'granted' && (!window.AndroidBridge || typeof window.AndroidBridge.openNotificationSettings !== 'function' || typeof window.AndroidBridge.requestNotificationPermission !== 'function');
 
   // PWA install state
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
@@ -94,6 +94,11 @@ export default function NotificationSettings({
         setPermission(granted ? 'granted' : 'denied');
         if (granted) {
           setIsSubscribed(true);
+          try {
+            localStorage.setItem('insuminder_device_notifications_active', 'true');
+          } catch (e) {
+            void e;
+          }
           const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
           await sendTestPush(authHeader, language);
           setPushFeedback({
@@ -141,8 +146,6 @@ export default function NotificationSettings({
         }
         if (res.pendingPrompt) {
           // Native Android OS runtime permission dialog is active; wait for callback
-          // Fallback timer: if the native OS suppresses dialogs (e.g. Xiaomi HyperOS/MIUI),
-          // ensure the loading spinner is cleared after 2s and device settings can be opened
           setTimeout(() => {
             setPushLoading(false);
             const current = getNotificationPermission();
@@ -161,13 +164,23 @@ export default function NotificationSettings({
         if (res.ok && (currentPerm === 'granted' || !isAndroid)) {
           setIsSubscribed(true);
           setPermission('granted');
+          try {
+            localStorage.setItem('insuminder_device_notifications_active', 'true');
+          } catch (e) {
+            void e;
+          }
           await sendTestPush(authHeader, language);
           setPushFeedback({ text: t('notificationSettings.devicePushActiveSuccess'), isError: false });
         } else if (currentPerm === 'denied') {
           setIsSubscribed(false);
           setPushFeedback({ text: t('notificationSettings.devicePushDeclinedBanner'), isError: true });
         } else {
-          setPushFeedback({ text: res.error || 'Failed to enable push notifications.', isError: true });
+          // If native bridge is not available to request directly, safely guide user
+          if (isAndroid && !window.AndroidBridge?.requestNotificationPermission) {
+            setShowManualGuide(true);
+          } else {
+            setPushFeedback({ text: res.error || 'Failed to enable push notifications.', isError: true });
+          }
         }
       }
     } catch (err) {
@@ -179,11 +192,20 @@ export default function NotificationSettings({
     }
   };
 
-  const handleOpenSettings = () => {
-    const opened = openDeviceNotificationSettings();
-    if (!opened) {
-      setShowManualGuide(true);
+  const handleGuideActivated = async () => {
+    try {
+      localStorage.setItem('insuminder_device_notifications_active', 'true');
+    } catch (e) {
+      void e;
     }
+    setPermission('granted');
+    setIsSubscribed(true);
+    const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
+    await sendTestPush(authHeader, language);
+    setPushFeedback({
+      text: t('notificationSettings.devicePushActiveSuccess'),
+      isError: false
+    });
   };
 
   const handleTestPush = async () => {
@@ -451,63 +473,27 @@ export default function NotificationSettings({
               <div className="device-push-actions">
                 {isAndroid ? (
                   permission === 'granted' ? (
-                    <>
-                      <button
-                        type="button"
-                        className="push-action-btn btn-primary"
-                        onClick={handleTestPush}
-                        disabled={testPushLoading}
-                      >
-                        {testPushLoading
-                          ? t('notificationSettings.devicePushTesting')
-                          : t('notificationSettings.devicePushTestBtn')}
-                      </button>
-                      <button
-                        type="button"
-                        className="push-action-btn btn-settings" onClick={handleOpenSettings}
-                      >
-                        ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
-                      </button>
-                    </>
-                  ) : permission === 'denied' ? (
-                    <>
-                      <button
-                        type="button"
-                        className="push-action-btn btn-settings"
-                        onClick={handleOpenSettings}
-                      >
-                        ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
-                      </button>
-                      <button
-                        type="button"
-                        className="push-action-btn btn-primary"
-                        onClick={handleTogglePush}
-                        disabled={pushLoading}
-                      >
-                        {pushLoading
-                          ? '...'
-                          : t('notificationSettings.devicePushEnableBtn')}
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      className="push-action-btn btn-primary"
+                      onClick={handleTestPush}
+                      disabled={testPushLoading}
+                    >
+                      {testPushLoading
+                        ? t('notificationSettings.devicePushTesting')
+                        : t('notificationSettings.devicePushTestBtn')}
+                    </button>
                   ) : (
-                    <>
-                      <button
-                        type="button"
-                        className="push-action-btn btn-primary"
-                        onClick={handleTogglePush}
-                        disabled={pushLoading}
-                      >
-                        {pushLoading
-                          ? '...'
-                          : t('notificationSettings.devicePushEnableBtn')}
-                      </button>
-                      <button
-                        type="button"
-                        className="push-action-btn btn-settings" onClick={handleOpenSettings}
-                      >
-                        ⚙️ {t('notificationSettings.devicePushOpenSettingsBtn')}
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      className="push-action-btn btn-primary"
+                      onClick={handleTogglePush}
+                      disabled={pushLoading}
+                    >
+                      {pushLoading
+                        ? '...'
+                        : t('notificationSettings.devicePushEnableBtn')}
+                    </button>
                   )
                 ) : (
                   <>
@@ -575,6 +561,7 @@ export default function NotificationSettings({
       <ManualNotificationGuideModal
         isOpen={showManualGuide}
         onClose={() => setShowManualGuide(false)}
+        onActivated={handleGuideActivated}
       />
     </section>
   );

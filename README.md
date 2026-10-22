@@ -135,6 +135,7 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Encrypted Web Push Notifications:** Zero-dependency native RFC 8291 / RFC 8292 Web Push encryption using VAPID keys, delivering native real-time reminder alerts directly to Android notification trays and desktop browsers even when the app is closed.
 - **Multi-Channel Dispatch:** Dispatches clinical reminders concurrently across both Telegram and Web Push according to the user's granular preferences.
 - **Push Management in Notification Settings:** Full device push controls enabling instant subscription, unsubscription, status detection (Active, Not Subscribed, Blocked), and test push dispatch.
+- **In-App Diagnostic Center & QA Tester Account:** Dedicated QA testing account (`qa-tester` or `qa@insuminder.com` / `A123456!`) and in-app diagnostics modal (activated via floating `🛠️ QA` badge or by tapping the footer version 5 times) providing live inspection of AndroidBridge, Web Push status, APK version codes, and device telemetry.
 
 
 ### 11. Customizable Date Formatting & Regional Standards

@@ -265,7 +265,7 @@ describe('PWA Installation Detection & Persistence Tests', () => {
   });
 
   it('exports valid ANDROID_PACKAGE_INFO and APP_CURRENT_CHANGELOG with 3-language parity', () => {
-    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.9.5');
+    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.9.6');
     expect(pwa.ANDROID_PACKAGE_INFO.fileName).toBe('InsuMinder.apk');
     expect(pwa.APP_CURRENT_CHANGELOG.en.length).toBeGreaterThan(0);
     expect(pwa.APP_CURRENT_CHANGELOG.he.length).toBeGreaterThan(0);

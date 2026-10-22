@@ -319,4 +319,23 @@ Explain changes in 1–2 sentences before writing code.
     2. All notification preferences (Telegram toggle, reminder checkboxes, basal schedule).
     3. Active form inputs, page tab navigation, and opened modal dialogues.
 - **Pre-Work Verification**: Whenever working on user profile handling, settings persistence, or language selection, verify that toggling between English, Hebrew, and Russian maintains 100% state continuity without resetting to default or previous values.
+
+---
+
+## QA Testing Account & In-App Diagnostics Center
+
+- **Dedicated QA Testing Account**:
+  - Email: `qa@insuminder.com` or identifier `qa-tester` with password `A123456!`.
+  - Automatically provisions verified tester state (`is_verified = 1`) on login without requiring email OTP verification.
+  - Grants a persistent floating `🛠️ QA` badge in the application header for opening diagnostics instantly.
+- **In-App Diagnostics Center (`DiagnosticModal.jsx`)**:
+  - Can also be opened on ANY device or user account by tapping the version label in the page footer 5 times.
+  - Provides real-time inspection of:
+    - Web version, build timestamp, environment.
+    - Android native APK shell detection, package name, version name, and version code.
+    - `AndroidBridge` interface availability (`openNotificationSettings`, `isNotificationPermissionGranted`, `downloadApk`, etc.).
+    - Native `Notification.permission` and device notification active flags.
+    - User-Agent, screen geometry, network status, and local storage state.
+  - Interactive test actions: trigger test push, test vibration, test browser notification, inspect bridge methods, send device telemetry to `/api/dev/device-logs`.
+
 

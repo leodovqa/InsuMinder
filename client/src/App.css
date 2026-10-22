@@ -10701,3 +10701,277 @@ body.nav-drawer-open {
 [data-theme="light"] .manual-guide-apk-hint {
   color: #dc2626;
 }
+
+
+/* =========================================================================
+   DIAGNOSTIC & QA MODAL STYLES (v1.9.6)
+   ========================================================================= */
+
+.qa-floating-diag-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 9990;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.45);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[dir="rtl"] .qa-floating-diag-btn {
+  left: auto;
+  right: 24px;
+}
+
+.qa-floating-diag-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(2, 132, 199, 0.6);
+}
+
+.diagnostic-modal-card {
+  max-width: 620px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.diagnostic-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.diagnostic-title-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.diagnostic-icon {
+  font-size: 26px;
+}
+
+.diagnostic-modal-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.diagnostic-modal-subtitle {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.8;
+  margin: 2px 0 0 0;
+}
+
+.diagnostic-modal-body {
+  padding: 18px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.diagnostic-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diagnostic-label {
+  font-size: 11.5px;
+  color: var(--text);
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.diagnostic-val {
+  font-size: 14px;
+  color: var(--text-h);
+  word-break: break-all;
+}
+
+.val-good {
+  color: #10b981 !important;
+}
+
+.val-warn {
+  color: #f59e0b !important;
+}
+
+.val-danger {
+  color: #ef4444 !important;
+}
+
+.diagnostic-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diagnostic-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.diagnostic-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.diagnostic-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pill-active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.pill-disabled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.diagnostic-action-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diagnostic-logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.diagnostic-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.diagnostic-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.diagnostic-log-window {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diagnostic-log-empty {
+  color: var(--text);
+  opacity: 0.6;
+  text-align: center;
+  padding: 12px;
+}
+
+.diagnostic-log-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.log-info .log-level {
+  color: #38bdf8;
+}
+
+.log-warn .log-level {
+  color: #fbbf24;
+}
+
+.log-error .log-level {
+  color: #f87171;
+}
+
+.log-time {
+  opacity: 0.6;
+  font-size: 10px;
+}
+
+.log-msg {
+  color: var(--text-h);
+}
+
+.log-data {
+  margin: 0;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  color: #94a3b8;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diagnostic-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+}
+
+/* Light Theme Overrides for Diagnostic Modal */
+[data-theme="light"] .diagnostic-card {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .diagnostic-log-window {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .log-data {
+  background: #e2e8f0;
+  color: #334155;
+}
