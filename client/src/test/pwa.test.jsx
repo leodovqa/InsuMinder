@@ -265,7 +265,7 @@ describe('PWA Installation Detection & Persistence Tests', () => {
   });
 
   it('exports valid ANDROID_PACKAGE_INFO and APP_CURRENT_CHANGELOG with 3-language parity', () => {
-    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.9.4');
+    expect(pwa.ANDROID_PACKAGE_INFO.version).toBe('1.9.5');
     expect(pwa.ANDROID_PACKAGE_INFO.fileName).toBe('InsuMinder.apk');
     expect(pwa.APP_CURRENT_CHANGELOG.en.length).toBeGreaterThan(0);
     expect(pwa.APP_CURRENT_CHANGELOG.he.length).toBeGreaterThan(0);
@@ -370,5 +370,44 @@ describe('PWA Installation Detection & Persistence Tests', () => {
       globalThis.fetch = originalFetch;
     }
   });
-});
+  it('promptNotificationPermissionIfNeeded returns already_granted when permission is granted', async () => {
+    const origNotif = globalThis.Notification;
+    globalThis.Notification = { permission: 'granted' };
+    try {
+      const res = await pwa.promptNotificationPermissionIfNeeded();
+      expect(res.outcome).toBe('already_granted');
+    } finally {
+      globalThis.Notification = origNotif;
+    }
+  });
 
+  it('promptNotificationPermissionIfNeeded requests native permission when in Android app and not granted', async () => {
+    let nativePromptCalled = false;
+    window.AndroidBridge = {
+      isNotificationPermissionGranted: () => false,
+      requestNotificationPermission: () => { nativePromptCalled = true; }
+    };
+
+    try {
+      const res = await pwa.promptNotificationPermissionIfNeeded();
+      expect(res.outcome).toBe('prompted_native');
+      expect(nativePromptCalled).toBe(true);
+    } finally {
+      delete window.AndroidBridge;
+    }
+  });
+
+  it('downloadAndroidApk delegates to AndroidBridge.downloadApk if available', () => {
+    let downloadedUrl = null;
+    window.AndroidBridge = {
+      downloadApk: (url) => { downloadedUrl = url; }
+    };
+
+    try {
+      pwa.downloadAndroidApk();
+      expect(downloadedUrl).toBe('https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk');
+    } finally {
+      delete window.AndroidBridge;
+    }
+  });
+});

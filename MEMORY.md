@@ -197,6 +197,13 @@ Verified by `node scripts/check-version.js`.
 - Strict 24-hour time standardization application-wide with zero AM/PM.
 - Local storage session fallback persistence preventing repeated privacy modal prompts on page refresh.
 
+### v1.9.5 (PR #51) — Native APK Download Handler, Safe In-App Manual Guide & Notification Onboarding
+- Native APK Download Handler & DownloadListener in `WebContainerActivity.java` and `pwa.js` resolving WebView stuck download loading lines by routing external downloads to GitHub Releases via system browser / Android DownloadManager.
+- Built `ManualNotificationGuideModal.jsx` with 3 clear step-by-step instructions for device settings, completely eradicating Android `net::ERR_UNKNOWN_URL_SCHEME` white screen errors.
+- Automatic Notification Permission Onboarding on Install, Login, and Update in `App.jsx` (calling `promptNotificationPermissionIfNeeded`, strictly restricted to when permission is not yet granted).
+- Resolved duplicate alert rendering in `NotificationSettings.jsx` and added native version introspection (`getNativeVersion()`, `getNativeVersionCode()`, `downloadApk(url)`).
+- 100% version synchronization across all 9 locations to `v1.9.5` (versionCode `17`).
+
 ### v1.9.4 (PR #50) — Pure Intent URI Fallback, Outdated APK Shell Auto-Detection & CI Suite Stabilization
 - Pure Android `intent:` scheme fallback (`intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.insuminder.app;end`) to open system settings directly even when the native bridge method is missing.
 - Implemented `Intent.parseUri(..., Intent.URI_INTENT_SCHEME)` in `WebContainerActivity.java` to properly handle intent URIs within WebView.

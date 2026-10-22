@@ -14,6 +14,7 @@ import {
   downloadAndroidApk
 } from './pwa';
 import { authService } from './authService';
+import ManualNotificationGuideModal from './ManualNotificationGuideModal';
 
 export default function NotificationSettings({
   preferences,
@@ -47,6 +48,7 @@ export default function NotificationSettings({
   const [pushLoading, setPushLoading] = useState(false);
   const [testPushLoading, setTestPushLoading] = useState(false);
   const [pushFeedback, setPushFeedback] = useState(null);
+  const [showManualGuide, setShowManualGuide] = useState(false);
 
   const isAndroid = isAndroidApp();
   const isOutdatedApk = isAndroid && typeof window !== 'undefined' && (!window.AndroidBridge || typeof window.AndroidBridge.openNotificationSettings !== 'function' || typeof window.AndroidBridge.requestNotificationPermission !== 'function');
@@ -134,10 +136,7 @@ export default function NotificationSettings({
         const res = await subscribeToPush(authHeader, language);
         if (res.isOutdatedApk) {
           setPushLoading(false);
-          setPushFeedback({
-            text: t('notificationSettings.outdatedApkWarning'),
-            isError: true
-          });
+          setShowManualGuide(true);
           return;
         }
         if (res.pendingPrompt) {
@@ -181,7 +180,10 @@ export default function NotificationSettings({
   };
 
   const handleOpenSettings = () => {
-    openDeviceNotificationSettings();
+    const opened = openDeviceNotificationSettings();
+    if (!opened) {
+      setShowManualGuide(true);
+    }
   };
 
   const handleTestPush = async () => {
@@ -570,6 +572,10 @@ export default function NotificationSettings({
           </div>
         )}
       </div>
+      <ManualNotificationGuideModal
+        isOpen={showManualGuide}
+        onClose={() => setShowManualGuide(false)}
+      />
     </section>
   );
 }
