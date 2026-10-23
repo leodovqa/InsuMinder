@@ -43,19 +43,29 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 
 ---
 
-## 1. Immediate Next Sprint Task (Highest Priority)
+## 1. Active Sprint Task (v1.9.9)
 
 ### Task Details
-- **Task**: Android Hardware Back Button Hierarchy, Real-Time Cross-Device Refresh & Pull-To-Refresh
-- **Target Version**: 1.9.7 (versionCode 19)
-- **Status**: Implemented in branch ix/android-back-button-navigation-and-notification-lifecycle-v1.9.7.
+- **Task**: Android Hardware Back Key Dispatch, Exit Modal Single-Row UI & Floating Pull-To-Refresh
+- **Target Version**: 1.9.9 (versionCode 21)
+- **Status**: Implemented on branch fix/android-back-key-dispatch-exit-modal-and-pull-refresh-v1.9.9 (uncommitted, awaiting user return & review).
 
-### Background & Objective
-- Pure native Android hardware back button hierarchy (modals/drawers close first, subpages return to Home, Home stays without history rewinds).
-- Immediate, silent cross-device live state refresh (efreshAppData) triggered on page switch, app resume/visibility, and window focus.
-- Pull-to-refresh gesture strictly on Home dashboard for immediate on-demand synchronization.
-- Streamlined notification permission flow: no unsolicited settings popups; test alert fired strictly on user test request or initial activation.
----
+### Key Architectural Solutions
+1. **Android Hardware Back Key Dispatch Interception**:
+   - In `WebContainerActivity.java`, override `dispatchKeyEvent` and `onKeyDown` for `KeyEvent.KEYCODE_BACK` to prevent WebView internal history exhaustion from finishing the Activity.
+   - Comprehensive exit handlers: `window.AndroidBridge.exitApp()`, `insuminder://exit` custom URL scheme interception in `shouldOverrideUrlLoading` and `resolveTargetUri`, and `WebChromeClient.onCloseWindow()`.
+2. **Back Navigation Hierarchy**:
+   - 1st back: Closes any active modal/drawer.
+   - 2nd back: Navigates immediately to Home (`activeTab = 'home'`).
+   - 3rd back (on Home): Opens Exit Confirmation Modal.
+   - Inside Exit Modal: Back or "Stay" dismisses the modal and remains on Home; "Exit" terminates the native Android activity.
+3. **Exit App Confirmation Modal UI**:
+   - Replaced stacked bulky buttons with side-by-side single-row layout (`flex-direction: row; gap: 12px; flex: 1 1 0; min-width: 0`).
+   - 100% responsive and tested in modern Dark and Light themes.
+4. **Modern Native Floating Pull-To-Refresh**:
+   - Replaced in-flow expanding text pill with Material/iOS-style floating circular badge overlay (`position: fixed; left: 50%; transform: translate(-50%, ...)`).
+   - Zero layout shift: underlying clock, action buttons, and cards stay completely static.
+   - Crisp vector SVG spinner with proportional drag rotation and smooth spinning animation on release.
 
 ## 2. Core Development Rules & Non-Negotiable Standards
 

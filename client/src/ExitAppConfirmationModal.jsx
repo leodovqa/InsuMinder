@@ -52,10 +52,10 @@ export default function ExitAppConfirmationModal({ isOpen, onClose, onConfirm })
           </p>
         </div>
 
-        <div className="modal-actions">
+        <div className="modal-actions exit-app-modal-actions">
           <button
             type="button"
-            className="modal-btn cancel-btn"
+            className="modal-btn cancel-btn exit-cancel-btn"
             onClick={onClose}
           >
             {t('modals.exitAppCancelBtn')}

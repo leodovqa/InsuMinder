@@ -20,6 +20,7 @@ import android.os.Bundle;
 import android.os.Message;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -155,6 +156,12 @@ public class WebContainerActivity extends Activity {
 
         mWebView.setWebChromeClient(new WebChromeClient() {
             @Override
+            public void onCloseWindow(WebView window) {
+                super.onCloseWindow(window);
+                finishAffinity();
+            }
+
+            @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 if (newProgress < 100) {
                     mProgressBar.setVisibility(View.VISIBLE);
@@ -203,6 +210,15 @@ public class WebContainerActivity extends Activity {
                 popupView.setWebViewClient(new WebViewClient() {
                     @Override
                     public boolean shouldOverrideUrlLoading(WebView pView, WebResourceRequest pRequest) {
+                        // insuminder://exit from popup
+                        Uri pUriCheck = pRequest.getUrl();
+                        if (pUriCheck != null && "insuminder".equalsIgnoreCase(pUriCheck.getScheme())) {
+                            if ("exit".equalsIgnoreCase(pUriCheck.getHost()) || pUriCheck.toString().contains("action=exit") || pUriCheck.toString().contains("insuminder://exit")) {
+                                popupDialog.dismiss();
+                                finishAffinity();
+                                return true;
+                            }
+                        }
                         Uri pUri = pRequest.getUrl();
                         if (pUri != null && (
                                 pUri.toString().endsWith(".apk") ||
@@ -240,6 +256,14 @@ public class WebContainerActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String host = uri.getHost();
+
+                // insuminder://exit from main webview
+                if (uri != null && "insuminder".equalsIgnoreCase(uri.getScheme())) {
+                    if ("exit".equalsIgnoreCase(uri.getHost()) || uri.toString().contains("action=exit") || uri.toString().contains("insuminder://exit")) {
+                        finishAffinity();
+                        return true;
+                    }
+                }
 
                                 // Direct APK and release downloads open in external system browser/installer
                 if (uri != null && (
@@ -351,6 +375,11 @@ public class WebContainerActivity extends Activity {
 
         // Support custom scheme insuminder:// (e.g. insuminder://open?action=basal or insuminder://?action=basal)
         if ("insuminder".equalsIgnoreCase(rawUri.getScheme())) {
+            // insuminder exit in resolveTargetUri
+            if ("exit".equalsIgnoreCase(rawUri.getHost()) || rawUri.toString().contains("action=exit") || rawUri.toString().contains("insuminder://exit")) {
+                finishAffinity();
+                return rawUri;
+            }
             String query = rawUri.getEncodedQuery();
             String path = rawUri.getPath() != null ? rawUri.getPath() : "";
             if (path.startsWith("/open")) {
@@ -639,7 +668,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
-                return "1.9.8";
+                return "1.9.9";
             }
         }
 
@@ -648,7 +677,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             } catch (Exception e) {
-                return 20;
+                return 21;
             }
         }
 
@@ -787,6 +816,24 @@ public class WebContainerActivity extends Activity {
         if (mWebView == null) return;
         final String safeError = errorMsg != null ? errorMsg.replace("\\", "\\\\").replace("'", "\\'") : "Authentication failed";
         runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeGoogleSignInError && window.__onNativeGoogleSignInError('" + safeError + "');", null));
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_DOWN) {
+            handleBackPressed();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            handleBackPressed();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override

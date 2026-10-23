@@ -570,12 +570,22 @@ function AppContent() {
   const handleConfirmExit = useCallback(() => {
     setIsExitConfirmModalOpen(false);
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.exitApp === 'function') {
-      window.AndroidBridge.exitApp();
-    } else if (typeof window !== 'undefined') {
+      try {
+        window.AndroidBridge.exitApp();
+      } catch (err) {
+        console.warn('AndroidBridge.exitApp error:', err);
+      }
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        window.location.href = 'insuminder://exit';
+      } catch {
+        // ignore
+      }
       try {
         window.close();
       } catch {
-        window.history.back();
+        // ignore
       }
     }
   }, []);
@@ -699,33 +709,45 @@ function AppContent() {
     activeTab
   ]);
 
+  const handleNativeBackPressedRef = useRef(handleNativeBackPressed);
+  handleNativeBackPressedRef.current = handleNativeBackPressed;
+
   useEffect(() => {
-    window.__onNativeBackPressed = handleNativeBackPressed;
+    window.__onNativeBackPressed = () => {
+      if (typeof handleNativeBackPressedRef.current === 'function') {
+        return handleNativeBackPressedRef.current();
+      }
+      return false;
+    };
     return () => {
       window.__onNativeBackPressed = null;
     };
-  }, [handleNativeBackPressed]);
+  }, []);
 
   useEffect(() => {
     try {
-      window.history.pushState({ insuminderApp: true }, '');
+      if (!window.history.state || !window.history.state.insuminderApp) {
+        window.history.replaceState({ insuminderApp: true, page: getTabFromUrl() }, '');
+      }
     } catch {
       // ignore
     }
 
     const handlePopState = () => {
       try {
-        window.history.pushState({ insuminderApp: true }, '');
+        window.history.pushState({ insuminderApp: true, page: getTabFromUrl() }, '');
       } catch {
         // ignore
       }
-      handleNativeBackPressed();
+      if (typeof handleNativeBackPressedRef.current === 'function') {
+        handleNativeBackPressedRef.current();
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [handleNativeBackPressed]);
+  }, []);
 
 
   const getTodayDateStr = () => {
@@ -810,39 +832,7 @@ function AppContent() {
     setManualError('');
   };
 
-  // Handle browser Back / Forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      setActiveTab(getTabFromUrl());
-      if (isAuthModalOpen) {
-        setIsAuthModalOpen(false);
-      }
-      if (isManualModalOpen) {
-        setIsManualModalOpen(false);
-      }
-      if (isEarlyBolusModalOpen) {
-        setIsEarlyBolusModalOpen(false);
-      }
-      if (isAndroidModalOpen) {
-        setIsAndroidModalOpen(false);
-      }
-      if (removeMemberModalData) {
-        setRemoveMemberModalData(null);
-      }
-      if (leaveGroupModalData) {
-        setLeaveGroupModalData(null);
-      }
-      if (viewingExplanationModal) {
-        setViewingExplanationModal(null);
-      }
-      if (isBasalConfirmModalOpen) {
-        setIsBasalConfirmModalOpen(false);
-      }
-    };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthModalOpen, isManualModalOpen, isEarlyBolusModalOpen, isAndroidModalOpen, removeMemberModalData, leaveGroupModalData, viewingExplanationModal, isBasalConfirmModalOpen]);
 
   // Prevent background page scrolling when sidebar navigation drawer is open (Task 3)
   useEffect(() => {
@@ -1226,7 +1216,7 @@ function AppContent() {
 
   const handlePullTouchStart = (e) => {
     if (activeTab !== 'home' || isRefreshing) return;
-    if (window.scrollY <= 5) {
+    if (window.scrollY <= 5 && e.touches && e.touches[0]) {
       touchStartYRef.current = e.touches[0].clientY;
       isPullingRef.current = true;
     } else {
@@ -1235,11 +1225,11 @@ function AppContent() {
   };
 
   const handlePullTouchMove = (e) => {
-    if (!isPullingRef.current || isRefreshing || activeTab !== 'home') return;
+    if (!isPullingRef.current || isRefreshing || activeTab !== 'home' || !e.touches || !e.touches[0]) return;
     const currentY = e.touches[0].clientY;
     const diff = currentY - touchStartYRef.current;
     if (diff > 0 && window.scrollY <= 5) {
-      const distance = Math.min(Math.round(diff * 0.4), 70);
+      const distance = Math.min(Math.round(Math.pow(diff, 0.78)), 52);
       setPullDistance(distance);
     } else {
       setPullDistance(0);
@@ -1249,12 +1239,12 @@ function AppContent() {
   const handlePullTouchEnd = async () => {
     if (!isPullingRef.current || isRefreshing || activeTab !== 'home') return;
     isPullingRef.current = false;
-    if (pullDistance >= 45) {
+    if (pullDistance >= 38) {
       setIsRefreshing(true);
-      setPullDistance(45);
+      setPullDistance(46);
       try {
         await refreshAppData(false);
-        await new Promise((resolve) => setTimeout(resolve, 400));
+        await new Promise((resolve) => setTimeout(resolve, 450));
       } finally {
         setIsRefreshing(false);
         setPullDistance(0);
@@ -2474,18 +2464,37 @@ function AppContent() {
           onTouchEnd={handlePullTouchEnd}
         >
           <div className="home-container">
-            {/* Pull to Refresh Visual Indicator */}
+            {/* Native-style Floating Circular Pull-to-Refresh Spinner */}
             {(pullDistance > 0 || isRefreshing) && (
               <div
-                className={`pull-to-refresh-indicator ${isRefreshing ? 'refreshing' : ''}`}
-                style={{ height: `${pullDistance}px`, opacity: Math.min(pullDistance / 35, 1) }}
+                className={`pull-to-refresh-indicator floating-spinner ${isRefreshing ? 'refreshing' : ''}`}
+                style={{
+                  transform: `translate(-50%, ${isRefreshing ? 48 : Math.min(pullDistance, 52)}px)`,
+                  opacity: isRefreshing ? 1 : Math.min(pullDistance / 24, 1),
+                }}
                 aria-live="polite"
+                aria-label={isRefreshing ? t('home.refreshing') : t('home.pullToRefresh')}
               >
-                <div className="pull-to-refresh-content">
-                  <span className={`pull-refresh-icon ${isRefreshing ? 'spin' : ''}`}>🔄</span>
-                  <span className="pull-refresh-text">
-                    {isRefreshing ? t('home.refreshing') : (pullDistance >= 45 ? t('home.releaseToRefresh') : t('home.pullToRefresh'))}
-                  </span>
+                <div
+                  className={`pull-spinner-circle ${isRefreshing ? 'spinning' : ''}`}
+                  style={{
+                    transform: isRefreshing ? 'none' : `rotate(${pullDistance * 5}deg)`,
+                  }}
+                >
+                  <svg
+                    className="pull-spinner-svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
                 </div>
               </div>
             )}
