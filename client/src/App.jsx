@@ -571,6 +571,132 @@ function AppContent() {
   const [manualError, setManualError] = useState('');
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
 
+  // Pull to Refresh State & Handlers (ONLY for Home view)
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartYRef = useRef(0);
+  const isPullingRef = useRef(false);
+
+  // Native Android Hardware Back Button Handler & Browser PopState
+  const handleNativeBackPressed = useCallback(() => {
+    if (showDiagnosticModal) {
+      setShowDiagnosticModal(false);
+      return true;
+    }
+    if (isManualModalOpen) {
+      setIsManualModalOpen(false);
+      return true;
+    }
+    if (isAndroidModalOpen) {
+      setIsAndroidModalOpen(false);
+      return true;
+    }
+    if (isAuthModalOpen) {
+      setIsAuthModalOpen(false);
+      return true;
+    }
+    if (isBasalConfirmModalOpen) {
+      setIsBasalConfirmModalOpen(false);
+      return true;
+    }
+    if (isEarlyBolusModalOpen) {
+      setIsEarlyBolusModalOpen(false);
+      return true;
+    }
+    if (deleteModalConfig) {
+      setDeleteModalConfig(null);
+      return true;
+    }
+    if (reminderModalData) {
+      setReminderModalData(null);
+      return true;
+    }
+    if (removeMemberModalData) {
+      setRemoveMemberModalData(null);
+      return true;
+    }
+    if (leaveGroupModalData) {
+      setLeaveGroupModalData(null);
+      return true;
+    }
+    if (viewingExplanationModal) {
+      setViewingExplanationModal(null);
+      return true;
+    }
+    if (isPrivacyModalOpen) {
+      setIsPrivacyModalOpen(false);
+      return true;
+    }
+    if (isDeclinePromptOpen) {
+      setIsDeclinePromptOpen(false);
+      return true;
+    }
+    if (isDeleteAccountModalOpen) {
+      setIsDeleteAccountModalOpen(false);
+      return true;
+    }
+    if (showWhatsNew) {
+      setShowWhatsNew(false);
+      return true;
+    }
+    if (availableUpdate) {
+      setAvailableUpdate(null);
+      return true;
+    }
+    if (isNavOpen) {
+      setIsNavOpen(false);
+      return true;
+    }
+
+    if (activeTab !== 'home') {
+      setActiveTab('home');
+      updateUrlForTab('home');
+      return true;
+    }
+
+    return false;
+  }, [
+    showDiagnosticModal,
+    isManualModalOpen,
+    isAndroidModalOpen,
+    isAuthModalOpen,
+    isBasalConfirmModalOpen,
+    isEarlyBolusModalOpen,
+    deleteModalConfig,
+    reminderModalData,
+    removeMemberModalData,
+    leaveGroupModalData,
+    viewingExplanationModal,
+    isPrivacyModalOpen,
+    isDeclinePromptOpen,
+    isDeleteAccountModalOpen,
+    showWhatsNew,
+    availableUpdate,
+    isNavOpen,
+    activeTab
+  ]);
+
+  useEffect(() => {
+    window.__onNativeBackPressed = handleNativeBackPressed;
+    return () => {
+      window.__onNativeBackPressed = null;
+    };
+  }, [handleNativeBackPressed]);
+
+  useEffect(() => {
+    const handlePopState = (e) => {
+      const handled = handleNativeBackPressed();
+      if (handled && e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [handleNativeBackPressed]);
+
+
   const getTodayDateStr = () => {
     const now = new Date();
     const y = now.getFullYear();
@@ -1022,6 +1148,88 @@ function AppContent() {
       }
     } catch {
       // ignore network errors
+    }
+  };
+
+  const refreshAppData = useCallback(async (isSilent = true) => {
+    try {
+      fetchLogs();
+      fetchTelegramConfigs();
+      if (authService.getToken()) {
+        await fetchShareStatus();
+      }
+    } catch (e) {
+      if (!isSilent) console.warn('[Refresh] Error refreshing app data:', e);
+    }
+  }, []);
+
+  // Live state refresh on tab change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      refreshAppData(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [activeTab, refreshAppData]);
+
+  // Live state refresh on visibility, window focus, and native Android onResume
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAppData(true);
+      }
+    };
+    const handleFocus = () => {
+      refreshAppData(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.__onNativeResume = () => {
+      refreshAppData(true);
+    };
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      window.__onNativeResume = null;
+    };
+  }, [refreshAppData]);
+
+  const handlePullTouchStart = (e) => {
+    if (activeTab !== 'home' || isRefreshing) return;
+    if (window.scrollY <= 5) {
+      touchStartYRef.current = e.touches[0].clientY;
+      isPullingRef.current = true;
+    } else {
+      isPullingRef.current = false;
+    }
+  };
+
+  const handlePullTouchMove = (e) => {
+    if (!isPullingRef.current || isRefreshing || activeTab !== 'home') return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartYRef.current;
+    if (diff > 0 && window.scrollY <= 5) {
+      const distance = Math.min(Math.round(diff * 0.4), 70);
+      setPullDistance(distance);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const handlePullTouchEnd = async () => {
+    if (!isPullingRef.current || isRefreshing || activeTab !== 'home') return;
+    isPullingRef.current = false;
+    if (pullDistance >= 45) {
+      setIsRefreshing(true);
+      setPullDistance(45);
+      try {
+        await refreshAppData(false);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      } finally {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
     }
   };
 
@@ -2228,8 +2436,28 @@ function AppContent() {
 
       {/* VIEW 1: HOME */}
       {activeTab === 'home' && (
-        <section className="tab-view home-view">
+        <section
+          className="tab-view home-view"
+          onTouchStart={handlePullTouchStart}
+          onTouchMove={handlePullTouchMove}
+          onTouchEnd={handlePullTouchEnd}
+        >
           <div className="home-container">
+            {/* Pull to Refresh Visual Indicator */}
+            {(pullDistance > 0 || isRefreshing) && (
+              <div
+                className={`pull-to-refresh-indicator ${isRefreshing ? 'refreshing' : ''}`}
+                style={{ height: `${pullDistance}px`, opacity: Math.min(pullDistance / 35, 1) }}
+                aria-live="polite"
+              >
+                <div className="pull-to-refresh-content">
+                  <span className={`pull-refresh-icon ${isRefreshing ? 'spin' : ''}`}>🔄</span>
+                  <span className="pull-refresh-text">
+                    {isRefreshing ? t('home.refreshing') : (pullDistance >= 45 ? t('home.releaseToRefresh') : t('home.pullToRefresh'))}
+                  </span>
+                </div>
+              </div>
+            )}
             {/* Real-time Digital Clock */}
             <LiveClock />
 

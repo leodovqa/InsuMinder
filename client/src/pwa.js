@@ -88,34 +88,48 @@ export async function promptNotificationPermissionIfNeeded(authHeader = null, la
 export function getNotificationPermission() {
   if (typeof window === 'undefined') return 'unsupported';
 
-  // 1. Check if user already confirmed or active on this device
-  try {
-    if (localStorage.getItem('insuminder_device_notifications_active') === 'true') {
-      return 'granted';
-    }
-  } catch (e) {
-    void e;
-  }
-
-  // 2. Check native AndroidBridge
+  // 1. Authoritative check: Native AndroidBridge (direct OS NotificationManager check)
   if (window.AndroidBridge && typeof window.AndroidBridge.isNotificationPermissionGranted === 'function') {
     try {
       if (window.AndroidBridge.isNotificationPermissionGranted()) {
         return 'granted';
+      } else {
+        // Real Android OS reports notifications are disabled.
+        // Synchronize and remove stale local active flag so app never claims active.
+        try {
+          localStorage.removeItem('insuminder_device_notifications_active');
+        } catch {
+          // ignore
+        }
+        return 'denied';
       }
     } catch (e) {
       console.warn('[PWA] Error checking native permission:', e);
     }
   }
 
-  // 3. Check browser / WebView Notification API
+  // 2. Browser / WebView Notification API
   if (typeof window.Notification !== 'undefined' && window.Notification.permission) {
     if (window.Notification.permission === 'granted') {
       return 'granted';
     }
     if (window.Notification.permission === 'denied') {
+      try {
+        localStorage.removeItem('insuminder_device_notifications_active');
+      } catch {
+        // ignore
+      }
       return 'denied';
     }
+  }
+
+  // 3. Check if user already confirmed or active on this device (fallback only)
+  try {
+    if (localStorage.getItem('insuminder_device_notifications_active') === 'true') {
+      return 'granted';
+    }
+  } catch (e) {
+    void e;
   }
 
   if (isAndroidApp()) {
@@ -177,15 +191,11 @@ export async function getExistingPushSubscription() {
 
 // Subscribe to Push Notifications / Request Android Native Notification Permission
 export async function subscribeToPush(authHeader = null, lang = 'en') {
+  void lang;
   if (isAndroidApp()) {
     if (window.AndroidBridge) {
       const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
       if (isGranted) {
-        if (typeof window.AndroidBridge.postNativeNotification === 'function') {
-          const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
-          const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
-          window.AndroidBridge.postNativeNotification(testTitle, testBody, 'insuminder-active', '/?page=notifications');
-        }
         try {
           localStorage.setItem('insuminder_device_notifications_active', 'true');
         } catch (e) {
@@ -425,7 +435,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.6',
+  version: '1.9.7',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -434,19 +444,22 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Seamless direct APK download navigation eliminating dialog freezes and screen dimming',
-    'Automatic detection of device notification permissions when enabled in Android OS settings',
-    'Integrated in-app QA diagnostics center with real-time subsystem telemetry and logging'
+    'Pure native Android hardware back button hierarchy (modals -> home -> terminal exit guard)',
+    'Live background state refresh across all devices on page navigation and app resume',
+    'Pull to refresh gesture strictly on Home dashboard for instant on-demand sync',
+    'Streamlined notification permission flow with isolated test alert dispatch'
   ],
   he: [
-    'הורדה ישירה ותקינה של קובץ APK ללא תקיעות או החשכת מסך',
-    'זיהוי אוטומטי של הרשאות התראה במכשיר לאחר הפעלתן בהגדרות אנדרואיד',
-    'מרכז דיאגנוסטיקה ובדיקות QA מובנה עם טלמטריה ויומן אירועים בזמן אמת'
+    'היררכיית כפתור חזרה חומרתי מקורי באנדרואיד (מודאלים -> דף בית -> חסימת גלילה היסטורית)',
+    'רענון נתונים חי ושקט ברקע בעת מעבר דפים וחזרה לאפליקציה בכל המכשירים',
+    'מחוות משיכה לרענון (Pull to Refresh) בדף הבית לסנכרון מיידי לפי דרישה',
+    'תהליך הפעלת התראות מדויק ומניעת שליחת התראות בדיקה כפולות בכניסה'
   ],
   ru: [
-    'Прямая загрузка APK без зависаний, всплывающих окон и затемнения экрана',
-    'Автоматическое распознавание разрешений на уведомления при их включении в настройках Android',
-    'Встроенный центр диагностики и QA с телеметрией подсистем и журналом в реальном времени'
+    'Иерархия аппаратной кнопки «Назад» Android (модальные окна -> главная -> защита от лишней истории)',
+    'Живое фоновое обновление данных на всех устройствах при переходе по страницам и возврате в приложение',
+    'Жест «Потяните для обновления» (Pull to Refresh) на главной странице для мгновенной синхронизации',
+    'Оптимизированный процесс включения уведомлений без лишних тестовых алертов при входе'
   ]
 };
 

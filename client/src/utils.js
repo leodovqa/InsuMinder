@@ -25,7 +25,7 @@ export const updateUrlForTab = (tab) => {
   const currentSearchStr = new URLSearchParams(window.location.search).toString();
 
   if (searchStr !== currentSearchStr) {
-    window.history.pushState({ page: tab }, '', newRelativePathQuery);
+    window.history.replaceState({ page: tab }, '', newRelativePathQuery);
   }
 };
 

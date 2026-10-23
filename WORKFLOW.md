@@ -339,3 +339,15 @@ Explain changes in 1–2 sentences before writing code.
   - Interactive test actions: trigger test push, test vibration, test browser notification, inspect bridge methods, send device telemetry to `/api/dev/device-logs`.
 
 
+---
+
+## Native Android Hardware Back Button & Live Data Refresh Standards
+
+- **Hardware Back Button Hierarchy (window.__onNativeBackPressed)**:
+  - WebContainerActivity.java never calls mWebView.goBack().
+  - Priority 1: Closes any active modal, drawer, or dialog.
+  - Priority 2: If on a subview (ctiveTab !== 'home'), navigates directly to the Home screen (/).
+  - Priority 3: If on the Home screen with no modals open, does nothing (terminal destination), preventing browser history rewinds.
+- **Cross-Device Live State Refresh & Pull-to-Refresh**:
+  - efreshAppData({ silent: true }) runs automatically on page navigation, visibility change, window focus, and Android onResume.
+  - Pull-to-refresh is enabled strictly on the Home view with smooth rubber-band resistance curve and localized feedback.

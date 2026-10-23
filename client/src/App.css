@@ -10975,3 +10975,66 @@ body.nav-drawer-open {
   background: #e2e8f0;
   color: #334155;
 }
+/* Pull-to-Refresh Indicator */
+.pull-to-refresh-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: height 0.15s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
+  width: 100%;
+}
+
+.pull-to-refresh-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.pull-refresh-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.pull-refresh-icon.spin {
+  animation: spinPull 0.8s linear infinite;
+}
+
+@keyframes spinPull {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pull-refresh-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+/* Light Theme Overrides for Pull-to-Refresh */
+[data-theme="light"] .pull-to-refresh-content {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .pull-refresh-text {
+  color: #1e293b;
+}

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from './i18n';
 import useLockBodyScroll from './useLockBodyScroll';
-import { downloadAndroidApk, isAndroidApp } from './pwa';
+import { downloadAndroidApk, isAndroidApp, openDeviceNotificationSettings } from './pwa';
 
 export default function ManualNotificationGuideModal({ isOpen, onClose, onActivated = null }) {
   const { t } = useTranslation();
@@ -102,6 +102,16 @@ export default function ManualNotificationGuideModal({ isOpen, onClose, onActiva
         </div>
 
         <div className="manual-guide-actions">
+          {isAndroid && typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.openNotificationSettings === 'function' && (
+            <button
+              type="button"
+              className="push-action-btn btn-secondary manual-guide-settings-btn"
+              onClick={() => openDeviceNotificationSettings()}
+              style={{ marginBottom: '8px' }}
+            >
+              {t('notificationSettings.manualGuideOpenSettingsBtn')}
+            </button>
+          )}
           <button
             type="button"
             className="push-action-btn btn-primary manual-guide-activated-btn"

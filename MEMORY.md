@@ -46,15 +46,15 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 ## 1. Immediate Next Sprint Task (Highest Priority)
 
 ### Task Details
-- **Task**: Android APK Direct Download, Intent URI Settings Fallback & CI Server Stabilization
-- **Target Version**: 1.9.4 (versionCode 16)
-- **Status**: Ready for user review and PR creation upon approval.
+- **Task**: Android Hardware Back Button Hierarchy, Real-Time Cross-Device Refresh & Pull-To-Refresh
+- **Target Version**: 1.9.7 (versionCode 19)
+- **Status**: Implemented in branch ix/android-back-button-navigation-and-notification-lifecycle-v1.9.7.
 
 ### Background & Objective
-- Pure intent URI fallback for opening system app notification settings directly even if native bridge methods are absent.
-- Outdated APK container shell detection and prominent 1-tap download & install card for the latest APK (1.9.4).
-- Stabilization of server CI tests with proper asynchronous socket teardown and clean database close.
-
+- Pure native Android hardware back button hierarchy (modals/drawers close first, subpages return to Home, Home stays without history rewinds).
+- Immediate, silent cross-device live state refresh (efreshAppData) triggered on page switch, app resume/visibility, and window focus.
+- Pull-to-refresh gesture strictly on Home dashboard for immediate on-demand synchronization.
+- Streamlined notification permission flow: no unsolicited settings popups; test alert fired strictly on user test request or initial activation.
 ---
 
 ## 2. Core Development Rules & Non-Negotiable Standards
