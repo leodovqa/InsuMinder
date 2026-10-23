@@ -1189,7 +1189,7 @@ function AppContent() {
     };
   }, [refreshAppData]);
 
-  const handleTouchStart = (e) => {
+  const handlePullTouchStart = (e) => {
     if (activeTab !== 'home' || isRefreshing) return;
     if (window.scrollY <= 5) {
       touchStartYRef.current = e.touches[0].clientY;
@@ -1199,7 +1199,7 @@ function AppContent() {
     }
   };
 
-  const handleTouchMove = (e) => {
+  const handlePullTouchMove = (e) => {
     if (!isPullingRef.current || isRefreshing || activeTab !== 'home') return;
     const currentY = e.touches[0].clientY;
     const diff = currentY - touchStartYRef.current;
@@ -1211,7 +1211,7 @@ function AppContent() {
     }
   };
 
-  const handleTouchEnd = async () => {
+  const handlePullTouchEnd = async () => {
     if (!isPullingRef.current || isRefreshing || activeTab !== 'home') return;
     isPullingRef.current = false;
     if (pullDistance >= 45) {
@@ -2434,9 +2434,9 @@ function AppContent() {
       {activeTab === 'home' && (
         <section
           className="tab-view home-view"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handlePullTouchStart}
+          onTouchMove={handlePullTouchMove}
+          onTouchEnd={handlePullTouchEnd}
         >
           <div className="home-container">
             {/* Pull to Refresh Visual Indicator */}
