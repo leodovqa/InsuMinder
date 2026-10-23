@@ -278,6 +278,10 @@ export const translations = {
       updateNowBtn: 'Update to v{version}'
     },
     modals: {
+      exitAppTitle: 'Exit InsuMinder?',
+      exitAppMessage: 'Are you sure you want to exit the application?',
+      exitAppConfirmBtn: 'Exit App',
+      exitAppCancelBtn: 'Stay in App',
       deleteConfigTitle: 'Delete Telegram Configuration?',
       deleteConfigConfirmText: 'Are you sure you want to delete {name} ({chatId})?',
       deleteConfigConfirmSimple: 'Are you sure you want to delete configuration for chat {chatId}?',
@@ -868,6 +872,10 @@ export const translations = {
       updateNowBtn: 'עדכן לגרסה v{version}'
     },
     modals: {
+      exitAppTitle: 'יציאה מהאפליקציה?',
+      exitAppMessage: 'האם אתה בטוח שברצונך לצאת מ-InsuMinder?',
+      exitAppConfirmBtn: 'יציאה מהאפליקציה',
+      exitAppCancelBtn: 'הישאר באפליקציה',
       deleteConfigTitle: 'מחיקת הגדרת טלגרם?',
       deleteConfigConfirmText: 'האם אתם בטוחים שברצונכם למחוק את {name} ({chatId})?',
       deleteConfigConfirmSimple: 'האם אתם בטוחים שברצונכם למחוק את ההגדרה עבור שיחה {chatId}?',
@@ -1458,6 +1466,10 @@ export const translations = {
       updateNowBtn: 'Обновить до v{version}'
     },
     modals: {
+      exitAppTitle: 'Выйти из приложения?',
+      exitAppMessage: 'Вы уверены, что хотите выйти из InsuMinder?',
+      exitAppConfirmBtn: 'Выйти',
+      exitAppCancelBtn: 'Остаться',
       deleteConfigTitle: 'Удалить конфигурацию Telegram?',
       deleteConfigConfirmText: 'Вы уверены, что хотите удалить {name} ({chatId})?',
       deleteConfigConfirmSimple: 'Вы уверены, что хотите удалить конфигурацию для чата {chatId}?',

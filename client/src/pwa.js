@@ -435,7 +435,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.7',
+  version: '1.9.8',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -444,22 +444,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Pure native Android hardware back button hierarchy (modals -> home -> terminal exit guard)',
-    'Live background state refresh across all devices on page navigation and app resume',
-    'Pull to refresh gesture strictly on Home dashboard for instant on-demand sync',
-    'Streamlined notification permission flow with isolated test alert dispatch'
+    'Android hardware back button hierarchy: 1 back closes modal, next back navigates to Home',
+    'Exit App confirmation modal on Home back press with clean confirmation prompt',
+    'Android 13+ predictive back gesture integration preventing premature app exit'
   ],
   he: [
-    'היררכיית כפתור חזרה חומרתי מקורי באנדרואיד (מודאלים -> דף בית -> חסימת גלילה היסטורית)',
-    'רענון נתונים חי ושקט ברקע בעת מעבר דפים וחזרה לאפליקציה בכל המכשירים',
-    'מחוות משיכה לרענון (Pull to Refresh) בדף הבית לסנכרון מיידי לפי דרישה',
-    'תהליך הפעלת התראות מדויק ומניעת שליחת התראות בדיקה כפולות בכניסה'
+    'היררכיית כפתור חזרה באנדרואיד: לחיצה 1 סוגרת מודאל, לחיצה נוספת חוזרת לדף הבית',
+    'חלון אישור יציאה מהאפליקציה בלחיצה על כפתור חזרה בדף הבית',
+    'שילוב מחוות חזרה מקוריות באנדרואיד 13+ למניעת סגירה לא מכוונת של האפליקציה'
   ],
   ru: [
-    'Иерархия аппаратной кнопки «Назад» Android (модальные окна -> главная -> защита от лишней истории)',
-    'Живое фоновое обновление данных на всех устройствах при переходе по страницам и возврате в приложение',
-    'Жест «Потяните для обновления» (Pull to Refresh) на главной странице для мгновенной синхронизации',
-    'Оптимизированный процесс включения уведомлений без лишних тестовых алертов при входе'
+    'Иерархия кнопки «Назад»: 1 нажатие закрывает модальное окно, следующее возвращает на главную',
+    'Диалог подтверждения выхода из приложения при нажатии «Назад» на главном экране',
+    'Интеграция системных жестов Android 13+ для предотвращения случайного закрытия приложения'
   ]
 };
 

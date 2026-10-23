@@ -50,6 +50,7 @@ import useLockBodyScroll from './useLockBodyScroll';
 import UpdateSuccessModal from './UpdateSuccessModal';
 import PrivacyModal from './PrivacyModal';
 import DiagnosticModal from './DiagnosticModal';
+import ExitAppConfirmationModal from './ExitAppConfirmationModal';
 
 const isLocalEnv = Boolean(
   typeof window !== 'undefined' &&
@@ -563,6 +564,22 @@ function AppContent() {
     updateUrlForTab(activeTab);
   }, [activeTab]);
 
+  // Exit App Confirmation Modal State
+  const [isExitConfirmModalOpen, setIsExitConfirmModalOpen] = useState(false);
+
+  const handleConfirmExit = useCallback(() => {
+    setIsExitConfirmModalOpen(false);
+    if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.exitApp === 'function') {
+      window.AndroidBridge.exitApp();
+    } else if (typeof window !== 'undefined') {
+      try {
+        window.close();
+      } catch {
+        window.history.back();
+      }
+    }
+  }, []);
+
   // Manual Injection Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [manualType, setManualType] = useState('bolus');
@@ -579,6 +596,10 @@ function AppContent() {
 
   // Native Android Hardware Back Button Handler & Browser PopState
   const handleNativeBackPressed = useCallback(() => {
+    if (isExitConfirmModalOpen) {
+      setIsExitConfirmModalOpen(false);
+      return true;
+    }
     if (showDiagnosticModal) {
       setShowDiagnosticModal(false);
       return true;
@@ -654,8 +675,10 @@ function AppContent() {
       return true;
     }
 
-    return false;
+    setIsExitConfirmModalOpen(true);
+    return true;
   }, [
+    isExitConfirmModalOpen,
     showDiagnosticModal,
     isManualModalOpen,
     isAndroidModalOpen,
@@ -684,11 +707,19 @@ function AppContent() {
   }, [handleNativeBackPressed]);
 
   useEffect(() => {
-    const handlePopState = (e) => {
-      const handled = handleNativeBackPressed();
-      if (handled && e && typeof e.preventDefault === 'function') {
-        e.preventDefault();
+    try {
+      window.history.pushState({ insuminderApp: true }, '');
+    } catch {
+      // ignore
+    }
+
+    const handlePopState = () => {
+      try {
+        window.history.pushState({ insuminderApp: true }, '');
+      } catch {
+        // ignore
       }
+      handleNativeBackPressed();
     };
     window.addEventListener('popstate', handlePopState);
     return () => {
@@ -5118,6 +5149,12 @@ function AppContent() {
       <DiagnosticModal
         isOpen={showDiagnosticModal}
         onClose={() => setShowDiagnosticModal(false)}
+      />
+
+      <ExitAppConfirmationModal
+        isOpen={isExitConfirmModalOpen}
+        onClose={() => setIsExitConfirmModalOpen(false)}
+        onConfirm={handleConfirmExit}
       />
     </div>
   );
