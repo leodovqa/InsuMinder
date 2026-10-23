@@ -136,7 +136,7 @@ When managing diabetes with rapid-acting insulin (e.g., NovoRapid, Humalog, Apid
 - **Multi-Channel Dispatch:** Dispatches clinical reminders concurrently across both Telegram and Web Push according to the user's granular preferences.
 - **Push Management in Notification Settings:** Full device push controls enabling instant subscription, unsubscription, status detection (Active, Not Subscribed, Blocked), and test push dispatch.
 - **In-App Diagnostic Center & QA Tester Account:** Dedicated QA testing account (`qa-tester` or `qa@insuminder.com` / `A123456!`) and in-app diagnostics modal (activated via floating `🛠️ QA` badge or by tapping the footer version 5 times) providing live inspection of AndroidBridge, Web Push status, APK version codes, and device telemetry.
-- **Hardware Back Button Hierarchy & Native App Flow:** Android hardware back button behaves as a native app rather than a browser history rewind: closes open modals/drawers first, navigates to Home from any sub-page second, and protects the Home view from exiting or rewinding third.
+- **Hardware Back Button Hierarchy & Exit Confirmation Flow:** Android hardware back button behaves as a native app rather than a browser history rewind: closes open modals/drawers first, navigates to Home from any sub-page second, and opens an Exit App confirmation modal when pressed on the Home view.
 - **Real-Time Cross-Device Background Refresh & Pull-to-Refresh:** Automatically refreshes logs, Telegram configs, and share data upon page navigation and app resume (isibilitychange/window.onfocus/native onResume). Includes a smooth native pull-to-refresh gesture exclusively on the Home dashboard for instant on-demand syncing.
 
 

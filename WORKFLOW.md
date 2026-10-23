@@ -338,16 +338,17 @@ Explain changes in 1–2 sentences before writing code.
     - User-Agent, screen geometry, network status, and local storage state.
   - Interactive test actions: trigger test push, test vibration, test browser notification, inspect bridge methods, send device telemetry to `/api/dev/device-logs`.
 
-
+
+
 ---
 
 ## Native Android Hardware Back Button & Live Data Refresh Standards
 
-- **Hardware Back Button Hierarchy (window.__onNativeBackPressed)**:
-  - WebContainerActivity.java never calls mWebView.goBack().
+- **Hardware Back Button Hierarchy (window.__onNativeBackPressed & OnBackInvokedDispatcher)**:
+  - WebContainerActivity.java never calls mWebView.goBack(), and registers OnBackInvokedCallback on Android 13+ (API 33+) to intercept predictive system back gestures.
   - Priority 1: Closes any active modal, drawer, or dialog.
-  - Priority 2: If on a subview (ctiveTab !== 'home'), navigates directly to the Home screen (/).
-  - Priority 3: If on the Home screen with no modals open, does nothing (terminal destination), preventing browser history rewinds.
+  - Priority 2: If on a subview (activeTab !== 'home'), navigates directly to the Home screen (/), closing any page modals on the first press and returning home on the second.
+  - Priority 3: If on the Home screen with no modals open, opens the Exit App Confirmation Modal. Confirming ('Yes') invokes window.AndroidBridge.exitApp() to cleanly exit the app; dismissing ('No') retains the user on Home.
 - **Cross-Device Live State Refresh & Pull-to-Refresh**:
-  - efreshAppData({ silent: true }) runs automatically on page navigation, visibility change, window focus, and Android onResume.
+  - refreshAppData({ silent: true }) runs automatically on page navigation, visibility change, window focus, and Android onResume.
   - Pull-to-refresh is enabled strictly on the Home view with smooth rubber-band resistance curve and localized feedback.

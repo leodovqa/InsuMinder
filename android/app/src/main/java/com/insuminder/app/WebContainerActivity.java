@@ -314,6 +314,13 @@ public class WebContainerActivity extends Activity {
 
         targetUri = resolveTargetUri(targetUri);
         mWebView.loadUrl(targetUri.toString());
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                this::handleBackPressed
+            );
+        }
     }
 
     @Override
@@ -632,7 +639,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
-                return "1.9.6";
+                return "1.9.8";
             }
         }
 
@@ -641,8 +648,19 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             } catch (Exception e) {
-                return 18;
+                return 20;
             }
+        }
+
+        @JavascriptInterface
+        public void exitApp() {
+            runOnUiThread(() -> {
+                try {
+                    finishAffinity();
+                } catch (Exception e) {
+                    finish();
+                }
+            });
         }
 
         @JavascriptInterface
@@ -773,6 +791,10 @@ public class WebContainerActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        handleBackPressed();
+    }
+
+    private void handleBackPressed() {
         if (mWebView != null) {
             runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeBackPressed ? window.__onNativeBackPressed() : false;", null));
         }

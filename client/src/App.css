@@ -3574,6 +3574,43 @@ html.modal-open {
   }
 }
 
+.exit-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+.exit-app-modal-card {
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.exit-modal-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-h);
+  text-align: center;
+}
+
+.confirm-exit-btn {
+  background-color: #ef4444;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+
+  &:hover {
+    background-color: #dc2626;
+  }
+}
+
 .confirm-early-btn {
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
