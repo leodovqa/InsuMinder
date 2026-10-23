@@ -710,7 +710,9 @@ function AppContent() {
   ]);
 
   const handleNativeBackPressedRef = useRef(handleNativeBackPressed);
-  handleNativeBackPressedRef.current = handleNativeBackPressed;
+  useEffect(() => {
+    handleNativeBackPressedRef.current = handleNativeBackPressed;
+  }, [handleNativeBackPressed]);
 
   useEffect(() => {
     window.__onNativeBackPressed = () => {
@@ -724,30 +726,48 @@ function AppContent() {
     };
   }, []);
 
+  // Handle browser Back / Forward navigation (popstate)
   useEffect(() => {
-    try {
-      if (!window.history.state || !window.history.state.insuminderApp) {
-        window.history.replaceState({ insuminderApp: true, page: getTabFromUrl() }, '');
-      }
-    } catch {
-      // ignore
-    }
-
     const handlePopState = () => {
-      try {
-        window.history.pushState({ insuminderApp: true, page: getTabFromUrl() }, '');
-      } catch {
-        // ignore
-      }
-      if (typeof handleNativeBackPressedRef.current === 'function') {
-        handleNativeBackPressedRef.current();
-      }
+      if (isAuthModalOpen) setIsAuthModalOpen(false);
+      if (isManualModalOpen) setIsManualModalOpen(false);
+      if (isEarlyBolusModalOpen) setIsEarlyBolusModalOpen(false);
+      if (isAndroidModalOpen) setIsAndroidModalOpen(false);
+      if (removeMemberModalData) setRemoveMemberModalData(null);
+      if (leaveGroupModalData) setLeaveGroupModalData(null);
+      if (viewingExplanationModal) setViewingExplanationModal(null);
+      if (isBasalConfirmModalOpen) setIsBasalConfirmModalOpen(false);
+      if (isPrivacyModalOpen) setIsPrivacyModalOpen(false);
+      if (isDeclinePromptOpen) setIsDeclinePromptOpen(false);
+      if (isDeleteAccountModalOpen) setIsDeleteAccountModalOpen(false);
+      if (showWhatsNew) setShowWhatsNew(false);
+      if (availableUpdate) setAvailableUpdate(null);
+      if (isNavOpen) setIsNavOpen(false);
+      if (isExitConfirmModalOpen) setIsExitConfirmModalOpen(false);
+
+      const tabFromUrl = getTabFromUrl();
+      setActiveTab(tabFromUrl);
     };
+
     window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [
+    isAuthModalOpen,
+    isManualModalOpen,
+    isEarlyBolusModalOpen,
+    isAndroidModalOpen,
+    removeMemberModalData,
+    leaveGroupModalData,
+    viewingExplanationModal,
+    isBasalConfirmModalOpen,
+    isPrivacyModalOpen,
+    isDeclinePromptOpen,
+    isDeleteAccountModalOpen,
+    showWhatsNew,
+    availableUpdate,
+    isNavOpen,
+    isExitConfirmModalOpen
+  ]);
 
 
   const getTodayDateStr = () => {
