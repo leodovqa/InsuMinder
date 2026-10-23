@@ -435,7 +435,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.8',
+  version: '1.9.9',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -444,19 +444,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Android hardware back button hierarchy: 1 back closes modal, next back navigates to Home',
-    'Exit App confirmation modal on Home back press with clean confirmation prompt',
-    'Android 13+ predictive back gesture integration preventing premature app exit'
+    'Android hardware back button key dispatch interception for all device navigation bars',
+    'Streamlined side-by-side single-row buttons for exit app confirmation modal',
+    'Native-style floating circular pull-to-refresh spinner with zero layout jump'
   ],
   he: [
-    'היררכיית כפתור חזרה באנדרואיד: לחיצה 1 סוגרת מודאל, לחיצה נוספת חוזרת לדף הבית',
-    'חלון אישור יציאה מהאפליקציה בלחיצה על כפתור חזרה בדף הבית',
-    'שילוב מחוות חזרה מקוריות באנדרואיד 13+ למניעת סגירה לא מכוונת של האפליקציה'
+    'יירוט מקשי חזרה בחומרה באנדרואיד לכל סרגלי הניווט במכשירים שונים',
+    'עיצוב כפתורים זה לצד זה בשורה אחת בחלון אישור היציאה מהאפליקציה',
+    'מחוון משיכה לרענון צף ומעגלי בסגנון Native ללא קפיצות במבנה העמוד'
   ],
   ru: [
-    'Иерархия кнопки «Назад»: 1 нажатие закрывает модальное окно, следующее возвращает на главную',
-    'Диалог подтверждения выхода из приложения при нажатии «Назад» на главном экране',
-    'Интеграция системных жестов Android 13+ для предотвращения случайного закрытия приложения'
+    'Перехват аппаратной кнопки «Назад» на всех панелях навигации Android',
+    'Аккуратные кнопки в одну строку рядом друг с другом в диалоге выхода',
+    'Нативный плавающий круглый индикатор обновления тягой вниз без сдвига верстки'
   ]
 };
 

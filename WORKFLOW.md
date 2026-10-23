@@ -344,11 +344,13 @@ Explain changes in 1–2 sentences before writing code.
 
 ## Native Android Hardware Back Button & Live Data Refresh Standards
 
-- **Hardware Back Button Hierarchy (window.__onNativeBackPressed & OnBackInvokedDispatcher)**:
-  - WebContainerActivity.java never calls mWebView.goBack(), and registers OnBackInvokedCallback on Android 13+ (API 33+) to intercept predictive system back gestures.
+- **Hardware Back Button Hierarchy & Key Dispatch (WebContainerActivity & window.__onNativeBackPressed)**:
+  - WebContainerActivity.java overrides dispatchKeyEvent(KeyEvent) and onKeyDown(int, KeyEvent) for KeyEvent.KEYCODE_BACK, plus registers OnBackInvokedCallback on Android 13+ (API 33+) to intercept back presses from 3-button navigation bars and gesture navigation before WebView internal history can trigger premature activity closure.
+  - Universal Exit Handlers: Implements window.AndroidBridge.exitApp(), custom scheme insuminder://exit interception in shouldOverrideUrlLoading and resolveTargetUri, and WebChromeClient.onCloseWindow().
   - Priority 1: Closes any active modal, drawer, or dialog.
-  - Priority 2: If on a subview (activeTab !== 'home'), navigates directly to the Home screen (/), closing any page modals on the first press and returning home on the second.
-  - Priority 3: If on the Home screen with no modals open, opens the Exit App Confirmation Modal. Confirming ('Yes') invokes window.AndroidBridge.exitApp() to cleanly exit the app; dismissing ('No') retains the user on Home.
-- **Cross-Device Live State Refresh & Pull-to-Refresh**:
+  - Priority 2: If on a subview (activeTab !== 'home'), navigates directly to the Home screen (/), closing any open modal on the first press and returning home on the second.
+  - Priority 3: If on the Home screen with no modals open, opens the Exit App Confirmation Modal. Confirming exits the app cleanly; dismissing retains the user on Home.
+  - Exit App Modal UI: Features a streamlined, single-row horizontal button layout (flex-direction: row; gap: 12px; flex: 1 1 0) with 100% theme parity across Dark and Light modes.
+- **Cross-Device Live State Refresh & Floating Pull-to-Refresh**:
   - refreshAppData({ silent: true }) runs automatically on page navigation, visibility change, window focus, and Android onResume.
-  - Pull-to-refresh is enabled strictly on the Home view with smooth rubber-band resistance curve and localized feedback.
+  - Floating Circular Pull-to-Refresh: Enabled strictly on the Home view as a Material/iOS-style floating circular badge (position: fixed; left: 50%; transform: translate(-50%, ...)) with zero layout shift on underlying content, smooth elastic damping resistance, vector SVG spinner, and proportional drag rotation.
