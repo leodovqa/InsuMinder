@@ -332,6 +332,9 @@ public class WebContainerActivity extends Activity {
     protected void onResume() {
         super.onResume();
         notifyNotificationPermissionResult(hasNotificationPermission());
+        if (mWebView != null) {
+            runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeResume && window.__onNativeResume();", null));
+        }
     }
 
     private Uri resolveTargetUri(Uri rawUri) {
@@ -403,27 +406,16 @@ public class WebContainerActivity extends Activity {
             return;
         }
 
-        if (isXiaomiDevice()) {
-            // Xiaomi HyperOS / MIUI suppresses runtime permission dialogs for sideloaded APKs.
-            // Dispatch standard requestPermissions, but immediately route to app notification settings
-            // so the user is never left hanging on a suppressed dialog.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                try {
-                    requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, RC_POST_NOTIFICATIONS);
-                } catch (Exception ignored) {}
-            }
-            openAppNotificationSettings();
-            return;
-        }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, RC_POST_NOTIFICATIONS);
-                return;
+                try {
+                    requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, RC_POST_NOTIFICATIONS);
+                    return;
+                } catch (Exception ignored) {}
             }
         }
 
-        openAppNotificationSettings();
+        notifyNotificationPermissionResult(hasNotificationPermission());
     }
 
     public void openAppNotificationSettings() {
@@ -490,9 +482,6 @@ public class WebContainerActivity extends Activity {
                     mPendingNotificationAfterPermission = null;
                     action.run();
                 }
-            } else {
-                // When permission dialog is denied or suppressed by Xiaomi HyperOS, open system settings immediately
-                openAppNotificationSettings();
             }
         }
     }
@@ -682,6 +671,15 @@ public class WebContainerActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean isNotificationPermissionBlocked() {
+            if (hasNotificationPermission()) return false;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return !shouldShowRequestPermissionRationale(android.Manifest.permission.POST_NOTIFICATIONS);
+            }
+            return !NotificationManagerCompat.from(WebContainerActivity.this).areNotificationsEnabled();
+        }
+
+        @JavascriptInterface
         public void requestNotificationPermission() {
             runOnUiThread(() -> WebContainerActivity.this.requestNotificationPermission());
         }
@@ -775,10 +773,8 @@ public class WebContainerActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (mWebView != null && mWebView.canGoBack()) {
-            mWebView.goBack();
-        } else {
-            super.onBackPressed();
+        if (mWebView != null) {
+            runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeBackPressed ? window.__onNativeBackPressed() : false;", null));
         }
     }
 }

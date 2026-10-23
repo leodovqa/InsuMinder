@@ -80,15 +80,13 @@ export default function NotificationSettings({
       if (document.visibilityState === 'visible' && isMounted) {
         const perm = getNotificationPermission();
         setPermission(perm);
-        if (perm === 'granted') {
-          setIsSubscribed(true);
-        }
+        setIsSubscribed(perm === 'granted');
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
     if (typeof window !== 'undefined') {
-      window.__onNativeNotificationPermissionResult = async (granted) => {
+      window.__onNativeNotificationPermissionResult = (granted) => {
         if (!isMounted) return;
         setPushLoading(false);
         setPermission(granted ? 'granted' : 'denied');
@@ -99,8 +97,6 @@ export default function NotificationSettings({
           } catch (e) {
             void e;
           }
-          const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
-          await sendTestPush(authHeader, language);
           setPushFeedback({
             text: t('notificationSettings.devicePushActiveSuccess'),
             isError: false
@@ -138,6 +134,32 @@ export default function NotificationSettings({
           setPushFeedback({ text: res.error || 'Failed to unsubscribe.', isError: true });
         }
       } else {
+        // If in Android app, check whether permission is blocked or can be requested
+        if (isAndroid) {
+          const isBlocked = window.AndroidBridge && typeof window.AndroidBridge.isNotificationPermissionBlocked === 'function'
+            ? window.AndroidBridge.isNotificationPermissionBlocked()
+            : false;
+
+          if (isBlocked) {
+            setPushLoading(false);
+            setShowManualGuide(true);
+            return;
+          }
+
+          if (window.AndroidBridge && typeof window.AndroidBridge.requestNotificationPermission === 'function') {
+            window.AndroidBridge.requestNotificationPermission();
+            setTimeout(() => {
+              setPushLoading(false);
+              const cur = getNotificationPermission();
+              setPermission(cur);
+              if (cur === 'granted') {
+                setIsSubscribed(true);
+              }
+            }, 1000);
+            return;
+          }
+        }
+
         const res = await subscribeToPush(authHeader, language);
         if (res.isOutdatedApk) {
           setPushLoading(false);
@@ -198,8 +220,9 @@ export default function NotificationSettings({
     } catch (e) {
       void e;
     }
-    setPermission('granted');
-    setIsSubscribed(true);
+    const currentPerm = getNotificationPermission();
+    setPermission(currentPerm);
+    setIsSubscribed(currentPerm === 'granted');
     const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
     await sendTestPush(authHeader, language);
     setPushFeedback({
