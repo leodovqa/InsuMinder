@@ -563,6 +563,14 @@ function AppContent() {
     updateUrlForTab(activeTab);
   }, [activeTab]);
 
+  // Manual Injection Modal State
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualType, setManualType] = useState('bolus');
+  const [manualDate, setManualDate] = useState('');
+  const [manualTime, setManualTime] = useState('');
+  const [manualError, setManualError] = useState('');
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
   // Pull to Refresh State & Handlers (ONLY for Home view)
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -688,13 +696,6 @@ function AppContent() {
     };
   }, [handleNativeBackPressed]);
 
-  // Manual Injection Modal State
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [manualType, setManualType] = useState('bolus');
-  const [manualDate, setManualDate] = useState('');
-  const [manualTime, setManualTime] = useState('');
-  const [manualError, setManualError] = useState('');
-  const [isSubmittingManual, setIsSubmittingManual] = useState(false);
 
   const getTodayDateStr = () => {
     const now = new Date();
@@ -1164,7 +1165,10 @@ function AppContent() {
 
   // Live state refresh on tab change
   useEffect(() => {
-    refreshAppData(true);
+    const timer = setTimeout(() => {
+      refreshAppData(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [activeTab, refreshAppData]);
 
   // Live state refresh on visibility, window focus, and native Android onResume

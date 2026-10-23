@@ -42,20 +42,13 @@ describe('Manual Injection Logging Integration Tests', () => {
     testUserId = user.id;
   });
 
-  after(async () => {
-    await new Promise((resolve) => {
-      if (db.close) {
-        db.close(resolve);
-      } else {
-        resolve();
-      }
-    });
-    try {
-      if (fs.existsSync(testDbPath)) {
+  after(() => {
+    if (fs.existsSync(testDbPath)) {
+      try {
         fs.unlinkSync(testDbPath);
+      } catch {
+        // Ignore file lock cleanup errors on Windows
       }
-    } catch {
-      // ignore
     }
   });
 

@@ -26,9 +26,15 @@ db.serialize(() => {
     + "phone TEXT,"
     + "avatar TEXT,"
     + "is_verified BOOLEAN DEFAULT 0,"
+    + "share_code TEXT,"
+    + "language TEXT DEFAULT 'en',"
+    + "basal_time TEXT DEFAULT '20:00',"
+    + "theme TEXT DEFAULT 'dark',"
+    + "notification_preferences TEXT,"
+    + "privacy_accepted_at TIMESTAMP,"
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
     + ")", () => {
-      // Auto-migrate new columns
+      // Auto-migrate new columns for legacy databases
       db.run("ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'email'", () => {});
       db.run("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0", () => {});
       db.run("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP", () => {});
@@ -37,6 +43,10 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'", () => {});
       db.run("ALTER TABLE users ADD COLUMN notification_preferences TEXT", () => {});
       db.run("ALTER TABLE users ADD COLUMN privacy_accepted_at TIMESTAMP", () => {});
+      db.run("ALTER TABLE users ADD COLUMN first_name TEXT", () => {});
+      db.run("ALTER TABLE users ADD COLUMN last_name TEXT", () => {});
+      db.run("ALTER TABLE users ADD COLUMN phone TEXT", () => {});
+      db.run("ALTER TABLE users ADD COLUMN share_code TEXT", () => {});
     });
 
   // Verification codes table
@@ -175,26 +185,26 @@ function createUser({ email, password_hash, google_id, auth_provider = 'email', 
   const provider = auth_provider || (google_id ? 'google' : 'email');
   const privacyAcceptedAt = privacy_accepted_at || null;
 
-  const stmt = db.prepare(
-    "INSERT INTO users (email, password_hash, google_id, auth_provider, name, first_name, last_name, phone, avatar, is_verified, share_code, privacy_accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  db.run(
+    "INSERT INTO users (email, password_hash, google_id, auth_provider, name, first_name, last_name, phone, avatar, is_verified, share_code, privacy_accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [cleanEmail, password_hash || null, google_id || null, provider, fullName, cleanFirst, cleanLast, cleanPhone, avatar || '', is_verified ? 1 : 0, code, privacyAcceptedAt],
+    function(err) {
+      if (err) return callback(err);
+      callback(null, {
+        id: this.lastID,
+        email: cleanEmail,
+        name: fullName,
+        first_name: cleanFirst,
+        last_name: cleanLast,
+        phone: cleanPhone,
+        avatar: avatar || '',
+        is_verified: Boolean(is_verified),
+        share_code: code,
+        auth_provider: provider,
+        privacy_accepted_at: privacyAcceptedAt
+      });
+    }
   );
-  stmt.run(cleanEmail, password_hash || null, google_id || null, provider, fullName, cleanFirst, cleanLast, cleanPhone, avatar || '', is_verified ? 1 : 0, code, privacyAcceptedAt, function(err) {
-    if (err) return callback(err);
-    callback(null, {
-      id: this.lastID,
-      email: cleanEmail,
-      name: fullName,
-      first_name: cleanFirst,
-      last_name: cleanLast,
-      phone: cleanPhone,
-      avatar: avatar || '',
-      is_verified: Boolean(is_verified),
-      share_code: code,
-      auth_provider: provider,
-      privacy_accepted_at: privacyAcceptedAt
-    });
-  });
-  stmt.finalize();
 }
 
 function getUserByEmail(email, callback) {
