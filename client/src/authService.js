@@ -89,7 +89,8 @@ export const authService = {
         const currentUser = this.getCurrentUser();
         const mergedUser = {
           ...data.user,
-          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null
+          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null,
+          therapyMode: data.user.therapyMode !== undefined ? data.user.therapyMode : (currentUser?.therapyMode || null)
         };
         if (!data.user.privacyAcceptedAt && currentUser?.privacyAcceptedAt) {
           this.acceptPrivacy().catch(() => {});
@@ -129,7 +130,8 @@ export const authService = {
         const currentUser = this.getCurrentUser();
         const mergedUser = {
           ...data.user,
-          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null
+          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null,
+          therapyMode: data.user.therapyMode !== undefined ? data.user.therapyMode : (currentUser?.therapyMode || null)
         };
         if (!data.user.privacyAcceptedAt && currentUser?.privacyAcceptedAt) {
           this.acceptPrivacy().catch(() => {});
@@ -209,6 +211,49 @@ export const authService = {
       }
     }
     return data;
+  },
+
+  
+  async setTherapyMode(mode) {
+    const cleanMode = mode === 'pump' ? 'pump' : 'pen';
+    const currentUser = this.getCurrentUser();
+    const token = this.getToken();
+
+    let optimisticUser = null;
+    if (currentUser) {
+      optimisticUser = {
+        ...currentUser,
+        therapyMode: cleanMode
+      };
+      if (token) {
+        this.setSession(token, optimisticUser);
+      }
+    }
+
+    if (!token) {
+      return optimisticUser;
+    }
+
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ therapyMode: cleanMode })
+      });
+      const data = await res.json().catch(() => null);
+      if (data && data.success && data.user) {
+        const mergedUser = {
+          ...data.user,
+          therapyMode: data.user.therapyMode || cleanMode,
+          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null
+        };
+        this.setSession(token, mergedUser);
+        return mergedUser;
+      }
+    } catch (err) {
+      console.warn('Network error while updating therapy mode:', err);
+    }
+    return optimisticUser;
   },
 
   async acceptPrivacy() {
@@ -349,7 +394,8 @@ export const authService = {
         const currentUser = this.getCurrentUser();
         const mergedUser = {
           ...data.user,
-          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null
+          privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null,
+          therapyMode: data.user.therapyMode !== undefined ? data.user.therapyMode : (currentUser?.therapyMode || null)
         };
         if (!data.user.privacyAcceptedAt && currentUser?.privacyAcceptedAt) {
           this.acceptPrivacy().catch(() => {});

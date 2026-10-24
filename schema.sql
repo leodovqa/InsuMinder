@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     basal_time TEXT DEFAULT '20:00',
     theme TEXT DEFAULT 'dark',
     notification_preferences TEXT,
+    privacy_accepted_at TIMESTAMP,
+    therapy_mode TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -40,6 +42,7 @@ CREATE TABLE IF NOT EXISTS injection_logs (
     error_2h TEXT,
     error_3h TEXT,
     type TEXT DEFAULT 'bolus',
+    delivery_method TEXT DEFAULT 'pen',
     FOREIGN KEY(user_id) REFERENCES users(id)
 );
 

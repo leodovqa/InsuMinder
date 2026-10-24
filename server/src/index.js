@@ -48,6 +48,7 @@ function formatUserResponse(user, shareCode) {
     theme: user.theme || 'dark',
     notificationPreferences,
     privacyAcceptedAt: user.privacy_accepted_at || null,
+    therapyMode: user.therapy_mode || null,
     is_qa: Boolean(user.is_qa || (user.email && user.email.toLowerCase() === 'qa@insuminder.com'))
   };
 }
@@ -351,6 +352,14 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
+    // Default pre-existing user without therapy mode to pen
+    if (!user.therapy_mode) {
+      await new Promise((resolve) => {
+        db.updateUser(user.id, { therapy_mode: 'pen' }, () => resolve());
+      });
+      user.therapy_mode = 'pen';
+    }
+
     const token = createSessionToken(user);
 
     res.json({
@@ -448,6 +457,10 @@ app.post('/api/auth/google', async (req, res) => {
         updates.name = userName;
       }
 
+      if (!user.therapy_mode) {
+        updates.therapy_mode = 'pen';
+      }
+
       await new Promise((resolve, reject) => {
         db.updateUser(user.id, updates, (err) => (err ? reject(err) : resolve()));
       });
@@ -506,10 +519,11 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // 6. Update User Profile (Onboarding Step & Profile Updates)
 const handleProfileUpdate = async (req, res) => {
   try {
-    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences, privacyAccepted } = req.body || {};
+    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences, privacyAccepted, therapyMode } = req.body || {};
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
     const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
     const cleanTheme = (theme && ['dark', 'light'].includes(theme)) ? theme : null;
+    const cleanTherapyMode = (therapyMode && ['pen', 'pump'].includes(therapyMode)) ? therapyMode : null;
     const hasNotificationPrefs = notificationPreferences !== undefined;
     const hasPrivacyAccepted = privacyAccepted !== undefined;
 
@@ -673,12 +687,22 @@ app.get('/api/logs', optionalAuth, resolveContext, (req, res) => {
     if (err) {
       res.status(500).json({ success: false, error: err.message });
     } else {
-      const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
-      db.getTodayBasalReminder(targetUserId, todayDate, (bErr, basalReminder) => {
-        res.json({
-          success: true,
-          logs: rows || [],
-          basalReminder: basalReminder || null
+      db.getUserById(targetUserId, (uErr, userRow) => {
+        const isPump = userRow && userRow.therapy_mode === 'pump';
+        if (isPump) {
+          return res.json({
+            success: true,
+            logs: rows || [],
+            basalReminder: null
+          });
+        }
+        const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
+        db.getTodayBasalReminder(targetUserId, todayDate, (bErr, basalReminder) => {
+          res.json({
+            success: true,
+            logs: rows || [],
+            basalReminder: basalReminder || null
+          });
         });
       });
     }
@@ -1202,7 +1226,7 @@ app.get('/api/download/android', async (req, res) => {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '1.9.9',
+      version: '2.0.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',

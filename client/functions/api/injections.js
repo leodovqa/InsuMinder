@@ -47,6 +47,16 @@ export async function onRequestPost(context) {
     const cleanType = type === 'basal' ? 'basal' : 'bolus';
     const isBasal = cleanType === 'basal';
 
+    const userRow = await db.prepare("SELECT basal_time, therapy_mode FROM users WHERE id = ?").bind(userId).first();
+    const therapyMode = (userRow && userRow.therapy_mode === 'pump') ? 'pump' : 'pen';
+
+    if (isBasal && therapyMode === 'pump') {
+      return new Response(
+        JSON.stringify({ success: false, error: "Basal injections are not applicable in pump mode." }),
+        { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
     // Handle Manual Injection Logging
     if (manual || date || customInjectedAt) {
       let finalDateObj;
@@ -102,9 +112,10 @@ export async function onRequestPost(context) {
         }
       } else {
         const bolusLogs = sameDayLogs.filter(l => !l.type || l.type === 'bolus');
-        if (bolusLogs.length >= 10) {
+        const maxBolus = therapyMode === 'pump' ? 20 : 10;
+        if (bolusLogs.length >= maxBolus) {
           return new Response(
-            JSON.stringify({ success: false, error: "Maximum 10 bolus injections allowed per day." }),
+            JSON.stringify({ success: false, error: `Maximum ${maxBolus} bolus injections allowed per day.` }),
             { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
           );
         }
@@ -129,9 +140,9 @@ export async function onRequestPost(context) {
 
       const info = await db
         .prepare(
-          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?)"
+          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?, ?)"
         )
-        .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, cleanType)
+        .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, cleanType, therapyMode)
         .run();
 
       if (isBasal) {
@@ -193,6 +204,39 @@ export async function onRequestPost(context) {
       );
     }
 
+    const { results: allLogs } = await db
+      .prepare("SELECT injected_at, type FROM injection_logs WHERE user_id = ? ORDER BY injected_at DESC")
+      .bind(userId)
+      .all();
+    const { dateStr: todayDate } = getJerusalemDateAndTime(now);
+
+    if (isBasal) {
+      const existingBasal = (allLogs || []).find(l => {
+        if (l.type !== 'basal') return false;
+        const { dateStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+        return dateStr === todayDate;
+      });
+      if (existingBasal) {
+        return new Response(
+          JSON.stringify({ success: false, error: "You cannot have 2 basal injections in one day." }),
+          { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+    } else {
+      const bolusLogs = (allLogs || []).filter(l => {
+        if (l.type === 'basal') return false;
+        const { dateStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+        return dateStr === todayDate;
+      });
+      const maxBolus = therapyMode === 'pump' ? 20 : 10;
+      if (bolusLogs.length >= maxBolus) {
+        return new Response(
+          JSON.stringify({ success: false, error: `Maximum ${maxBolus} bolus injections allowed per day.` }),
+          { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        );
+      }
+    }
+
     const injected_at = now.toISOString();
     const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
     const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
@@ -200,8 +244,8 @@ export async function onRequestPost(context) {
     const status_sent = isBasal ? 1 : 0;
 
     const info = await db
-      .prepare("INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, cleanType)
+      .prepare("INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, cleanType, therapyMode)
       .run();
 
     // Opportunistically check and dispatch notifications in background (bolus only)

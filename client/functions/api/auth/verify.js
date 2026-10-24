@@ -171,7 +171,8 @@ export async function onRequestPost(context) {
         avatar: user.avatar || '',
         shareCode: user.share_code,
         language: user.language || 'en',
-        privacyAcceptedAt: user.privacy_accepted_at || null
+        privacyAcceptedAt: user.privacy_accepted_at || null,
+        therapyMode: user.therapy_mode || null
       },
       joinedGroup
     }), {

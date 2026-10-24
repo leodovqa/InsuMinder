@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
   }
 
   let user = await db
-    .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at, created_at FROM users WHERE id = ?')
+    .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at, therapy_mode, created_at FROM users WHERE id = ?')
     .bind(authUser.userId)
     .first();
 
@@ -61,7 +61,8 @@ export async function onRequestGet(context) {
       basalTime: user.basal_time || '20:00',
       theme: user.theme || 'dark',
       notificationPreferences: parsedPrefs,
-      privacyAcceptedAt: user.privacy_accepted_at || null
+      privacyAcceptedAt: user.privacy_accepted_at || null,
+      therapyMode: user.therapy_mode || null
     }
   }), {
     status: 200,

@@ -46,7 +46,7 @@ export async function onRequestPost(context) {
       .run();
 
     const updatedUser = await db
-      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at FROM users WHERE id = ?')
+      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at, therapy_mode FROM users WHERE id = ?')
       .bind(authUser.userId)
       .first();
 

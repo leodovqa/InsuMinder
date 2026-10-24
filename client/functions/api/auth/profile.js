@@ -52,7 +52,8 @@ export async function onRequest(context) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences, privacyAccepted } = body;
+    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences, privacyAccepted, therapyMode } = body;
+    const cleanTherapyMode = (therapyMode && ['pen', 'pump'].includes(therapyMode)) ? therapyMode : null;
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
     const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
     const cleanTheme = (theme && ['dark', 'light'].includes(theme)) ? theme : null;
@@ -61,7 +62,7 @@ export async function onRequest(context) {
       : null;
     const hasPrivacyAccepted = privacyAccepted !== undefined;
 
-    if ((cleanLang || cleanBasalTime || cleanTheme || cleanNotificationPrefs !== null || hasPrivacyAccepted) && firstName === undefined && lastName === undefined) {
+    if ((cleanLang || cleanBasalTime || cleanTheme || cleanNotificationPrefs !== null || hasPrivacyAccepted || cleanTherapyMode) && firstName === undefined && lastName === undefined) {
       const updates = [];
       const params = [];
       if (cleanLang) {
@@ -83,6 +84,10 @@ export async function onRequest(context) {
       if (hasPrivacyAccepted) {
         updates.push('privacy_accepted_at = CURRENT_TIMESTAMP');
       }
+      if (cleanTherapyMode) {
+        updates.push('therapy_mode = ?');
+        params.push(cleanTherapyMode);
+      }
       params.push(authUser.userId);
 
       await db
@@ -91,7 +96,7 @@ export async function onRequest(context) {
         .run();
 
       const updatedUser = await db
-        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at FROM users WHERE id = ?')
+        .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at, therapy_mode FROM users WHERE id = ?')
         .bind(authUser.userId)
         .first();
 
@@ -119,7 +124,8 @@ export async function onRequest(context) {
           basalTime: updatedUser.basal_time || '20:00',
           theme: updatedUser.theme || cleanTheme || 'dark',
           notificationPreferences: parsedPrefs,
-          privacyAcceptedAt: updatedUser.privacy_accepted_at || null
+          privacyAcceptedAt: updatedUser.privacy_accepted_at || null,
+          therapyMode: updatedUser.therapy_mode || null
         }
       }), {
         status: 200,
@@ -163,6 +169,10 @@ export async function onRequest(context) {
     }
     if (hasPrivacyAccepted) {
       fullUpdates.push('privacy_accepted_at = CURRENT_TIMESTAMP');
+    }
+    if (cleanTherapyMode) {
+      fullUpdates.push('therapy_mode = ?');
+      fullParams.push(cleanTherapyMode);
     }
     fullParams.push(authUser.userId);
 

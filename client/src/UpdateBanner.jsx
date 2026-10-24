@@ -210,9 +210,6 @@ export default function UpdateBanner() {
       >
         <div className="update-modal-header">
           <div className="update-modal-header-left">
-            <span className="update-modal-icon" aria-hidden="true">
-              {isMandatory ? '🛑' : '🚀'}
-            </span>
             <div className="update-modal-titles">
               <h2 id="update-modal-title" className={isMandatory ? 'update-blocking-title' : 'update-modal-title'}>
                 {isMandatory ? t('appUpdate.mandatoryTitle') : t('appUpdate.title')}

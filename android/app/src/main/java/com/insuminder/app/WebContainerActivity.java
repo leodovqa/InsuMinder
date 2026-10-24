@@ -668,7 +668,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
-                return "1.9.9";
+                return "2.0.0";
             }
         }
 
@@ -677,7 +677,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             } catch (Exception e) {
-                return 21;
+                return 23;
             }
         }
 

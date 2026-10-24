@@ -282,6 +282,16 @@ export async function ensureTablesExist(db) {
   } catch (err) {
     void err;
   }
+  try {
+    await db.prepare(`ALTER TABLE users ADD COLUMN therapy_mode TEXT DEFAULT NULL`).run();
+  } catch (err) {
+    void err;
+  }
+  try {
+    await db.prepare(`ALTER TABLE injection_logs ADD COLUMN delivery_method TEXT DEFAULT 'pen'`).run();
+  } catch (err) {
+    void err;
+  }
 }
 
 export function formatDoseTime(isoString) {
@@ -838,6 +848,7 @@ export async function dispatchDueNotifications(db, env = null) {
         `SELECT u.id, u.email, u.language, u.notification_preferences, COALESCE(u.basal_time, '20:00') as basal_time
          FROM users u
          WHERE COALESCE(u.basal_time, '20:00') <= ?
+         AND (u.therapy_mode IS NULL OR u.therapy_mode = 'pen')
          AND NOT EXISTS (
            SELECT 1 FROM basal_reminders r
            WHERE r.user_id = u.id AND r.reminder_date = ?

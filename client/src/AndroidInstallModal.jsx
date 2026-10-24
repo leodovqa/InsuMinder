@@ -41,7 +41,6 @@ export default function AndroidInstallModal({ isOpen, onClose }) {
       >
         <div className="modal-header android-modal-header">
           <div className="android-modal-icon-badge">
-            <span className="android-badge-icon" role="img" aria-hidden="true">🤖</span>
             <div className="android-badge-text-col">
               <div className="android-title-row">
                 <h2 id="android-modal-title" className="android-modal-title">

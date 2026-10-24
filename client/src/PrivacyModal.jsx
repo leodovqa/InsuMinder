@@ -34,23 +34,6 @@ export default function PrivacyModal({
       <div className="modal-content privacy-modal-content" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="privacy-modal-header">
-          <div className="privacy-header-icon-wrapper">
-            <svg
-              className="privacy-header-icon"
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
-          </div>
           <div className="privacy-header-text">
             <h2 id="privacy-modal-title" className="privacy-modal-title">
               {requireConsent ? t('privacy.mandatoryTitle') : t('privacy.modalTitle')}

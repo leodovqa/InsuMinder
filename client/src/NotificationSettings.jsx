@@ -20,7 +20,8 @@ export default function NotificationSettings({
   onUpdatePreferences,
   onDownloadApk,
   initialScope = 'personal',
-  onScopeChange = null
+  onScopeChange = null,
+  therapyMode = null
 }) {
   const { t, language } = useTranslation();
   const [activeScope, setActiveScope] = useState(initialScope || 'personal');
@@ -259,7 +260,7 @@ export default function NotificationSettings({
     setTimeout(() => setInstalling(false), 1200);
   };
 
-  const notificationItems = [
+  const rawNotificationItems = [
     {
       key: 'rem10m',
       icon: '🍽️',
@@ -285,6 +286,11 @@ export default function NotificationSettings({
       descKey: 'basalDesc'
     }
   ];
+
+  const effectiveMode = therapyMode || authService.getCurrentUser()?.therapyMode || 'pen';
+  const notificationItems = effectiveMode === 'pump'
+    ? rawNotificationItems.filter(item => item.key !== 'basal')
+    : rawNotificationItems;
 
   const handleToggle = (key) => {
     const scopePrefs = (preferences && preferences[activeScope]) || {};

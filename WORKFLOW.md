@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS users (
     basal_time TEXT DEFAULT '20:00',
     theme TEXT DEFAULT 'dark',
     notification_preferences TEXT,
+    therapy_mode TEXT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -91,7 +92,8 @@ CREATE TABLE IF NOT EXISTS injection_logs (
     status_3h_sent BOOLEAN DEFAULT 0,
     error_10m TEXT,
     error_2h TEXT,
-    error_3h TEXT
+    error_3h TEXT,
+    delivery_method TEXT DEFAULT 'pen'
 );
 
 CREATE TABLE IF NOT EXISTS telegram_configs (
@@ -354,3 +356,35 @@ Explain changes in 1–2 sentences before writing code.
 - **Cross-Device Live State Refresh & Floating Pull-to-Refresh**:
   - refreshAppData({ silent: true }) runs automatically on page navigation, visibility change, window focus, and Android onResume.
   - Floating Circular Pull-to-Refresh: Enabled strictly on the Home view as a Material/iOS-style floating circular badge (position: fixed; left: 50%; transform: translate(-50%, ...)) with zero layout shift on underlying content, smooth elastic damping resistance, vector SVG spinner, and proportional drag rotation.
+
+
+---
+
+## Insulin Delivery Therapy Modes: Multiple Daily Injections (Pens / MDI) vs Pump / Pod (v2.0.0)
+
+InsuMinder v2.0.0 introduces two distinct operational therapy flows tailored to patient insulin delivery equipment:
+
+### 1. Delivery Methods
+- **Multiple Daily Injections (Pens / MDI)** (`therapy_mode = 'pen'`):
+  - Standard pen therapy with 10m meal reminder, 2h check, 3h check/eligibility.
+  - Basal insulin tracking: scheduled daily basal time in Settings, daily basal reminder notifications, and Home basal log button.
+  - Strict 3-hour rapid injection safety check with orange warning highlights on Home and Logs.
+  - Daily bolus limit: 10 boluses per calendar day.
+- **Insulin Pump / Patch Pump / Pod (Omnipod 5, Medtronic, Tandem, etc.)** (`therapy_mode = 'pump'`):
+  - Automated continuous basal delivery: basal UI completely removed (no Home basal button, no basal settings/schedule card, no basal reminder toggles in Notification Settings, and background schedulers exclude pump users).
+  - Rapid bolus confirmation: relaxed double-check modal ("You logged a bolus dose within the last 3 hours. Are you sure you want to log another dose now?") without alarming medical risk warnings.
+  - Rapid injection warning cards (< 3h) and orange pills removed from Home and Logs.
+  - Daily bolus limit doubled: 20 boluses per calendar day.
+
+### 2. Mandatory Onboarding Selection
+- Following registration and medical privacy acceptance, users without a `therapy_mode` (`therapy_mode IS NULL`) land on the mandatory Therapy Mode Selection modal (`TherapyModeOnboardingModal.jsx`).
+- Presents two side-by-side interactive tiles: **Pens (MDI)** vs **Pump / Pod**.
+- Neither tile is selected by default; the continue button remains disabled until a tile is chosen.
+- Clicking a tile provides real-time descriptive copy explaining the mode.
+- Selection is persisted to `/api/auth/profile`. If the user leaves and returns, they are redirected back to this step until a mode is confirmed.
+
+### 3. Settings Switch Flow & Historical Log Isolation
+- Dedicated **"Insulin Delivery Method"** card in Settings allows switching between Pen and Pump anytime.
+- Toggling triggers a confirmation modal explaining the mode differences and log isolation.
+- **Log Isolation**: In Pen mode, logs and weekly charts show only Pen injections (`delivery_method = 'pen'`). In Pump mode, logs and charts show only Pump boluses (`delivery_method = 'pump'`).
+- **Home "Last Injection" Tile Exception**: The "Last Injection" card on Home reflects the true latest bolus across all delivery methods so active insulin timing is never lost when switching modes.

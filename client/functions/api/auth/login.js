@@ -135,6 +135,12 @@ export async function onRequestPost(context) {
       }
     }
 
+    let userTherapyMode = user.therapy_mode;
+    if (!userTherapyMode) {
+      userTherapyMode = 'pen';
+      await db.prepare('UPDATE users SET therapy_mode = ? WHERE id = ?').bind('pen', user.id).run();
+    }
+
     const token = await createSessionToken(user, env.AUTH_SECRET);
 
     return new Response(JSON.stringify({
@@ -151,6 +157,7 @@ export async function onRequestPost(context) {
         shareCode: user.share_code,
         language: user.language || 'en',
         privacyAcceptedAt: user.privacy_accepted_at || null,
+        therapyMode: userTherapyMode,
         is_qa: isQaAttempt || user.email === QA_EMAIL
       },
       joinedGroup

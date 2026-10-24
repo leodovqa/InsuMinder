@@ -40,15 +40,44 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
      - Variable: `VAPID_SUBJECT` | Type: `Text` | Value: `mailto:insuminder@gmail.com`
 5. **GitGuardian Resolution**:
    - In the GitGuardian email / dashboard, click **"Fix This Secret Leak"** and mark the incident as rotated & revoked.
+6. **VAPID Key Generation & Rotation Standard**:
+   - Anytime new VAPID keys are needed, run `npm run generate:vapid` (or `node scripts/generate-vapid-keys.js`).
+   - In Cloudflare Pages dashboard (**Workers & Pages → InsuMinder → Settings → Variables and secrets**), update:
+     - `VAPID_PUBLIC_KEY`: Type `Text` or `Secret`
+     - `VAPID_PRIVATE_KEY`: Type `Secret`
+     - `VAPID_SUBJECT`: Type `Text` (`mailto:insuminder@gmail.com`)
+   - Also update local `.env` if testing web push notifications locally.
 
 ---
 
-## 1. Active Sprint Task (v1.9.9)
+## 1. Active Sprint Task (v2.0.0)
 
 ### Task Details
-- **Task**: Android Hardware Back Key Dispatch, Exit Modal Single-Row UI & Floating Pull-To-Refresh
-- **Target Version**: 1.9.9 (versionCode 21)
-- **Status**: Implemented on branch fix/android-back-key-dispatch-exit-modal-and-pull-refresh-v1.9.9 (uncommitted, awaiting user return & review).
+- **Task**: Therapy Delivery Modes (Pens / MDI vs Insulin Pump / Patch Pump / Pod), Onboarding Selector & Historical Log Isolation
+- **Target Version**: 2.0.0 (versionCode 23)
+- **Status**: Implemented on branch `feat/therapy-modes-pen-and-pump-flows` (awaiting user commit & push approval).
+
+### Key Architectural Solutions
+1. **Database Schema & Migrations**:
+   - Added `therapy_mode TEXT DEFAULT NULL` to `users` ('pen' | 'pump').
+   - Added `delivery_method TEXT DEFAULT 'pen'` to `injection_logs` ('pen' | 'pump').
+   - Maintained backward compatibility: existing logs default to 'pen'.
+2. **Mandatory Onboarding Mode Selection**:
+   - Following registration and medical privacy acceptance, users without a `therapy_mode` land on the modal (`TherapyModeOnboardingModal.jsx`).
+   - Side-by-side interactive tiles for Pens vs Pump/Pod with real-time description text underneath.
+   - Disabled continue button until a choice is selected. Persisted to server profile so refreshes/re-logins land back on this screen.
+3. **Settings Switch Flow & Modal**:
+   - Dedicated "Insulin Delivery Method" section in Settings allows switching modes anytime.
+   - Confirmation modal explains the mode differences, warns about method-specific log isolation, and reloads home upon confirmation.
+4. **Historical Log Isolation & Home "Last Injection" Rule**:
+   - In Pen mode, logs and weekly trends show only Pen injections.
+   - In Pump mode, logs and weekly trends show only Pump injections.
+   - The Home "Last Injection" card reflects the true latest bolus across both methods to ensure active insulin timing is never lost.
+5. **Pump Logic Differences**:
+   - Basal eliminated: no basal button on Home, no basal settings/card, no basal reminder toggles, and background schedulers exclude pump users.
+   - Relaxed 3h confirmation modal: double-check to prevent accidental clicks without alarming risk warnings.
+   - Daily bolus limit doubled from 10 to 20 for pump mode.
+   - Orange pills and rapid injection warning cards (< 3h) removed from Home and Logs.
 
 ### Key Architectural Solutions
 1. **Android Hardware Back Key Dispatch Interception**:
