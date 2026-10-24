@@ -1132,7 +1132,8 @@ function AppContent() {
       return;
     }
 
-    const now = Date.now();
+    // eslint-disable-next-line react-hooks/purity
+    const currentTimestamp = Date.now();
     const is10mEnabled = notificationPreferences?.personal?.rem10m !== false;
     const is2hEnabled = notificationPreferences?.personal?.rem2h !== false;
     const isBasalEnabled = notificationPreferences?.personal?.basal !== false;
@@ -1144,7 +1145,7 @@ function AppContent() {
       const time2h = injectedTime + 2 * 60 * 60 * 1000;
 
       // 10-Minute Meal Reminder
-      if (is10mEnabled && latestBolusLog.status_10m_sent !== 1 && time10m > now) {
+      if (is10mEnabled && latestBolusLog.status_10m_sent !== 1 && time10m > currentTimestamp) {
         scheduleNativeReminder(
           'bolus-10m',
           t('home.rem10mTitle') || '10-Minute Meal Reminder',
@@ -1157,7 +1158,7 @@ function AppContent() {
       }
 
       // 2-Hour Blood Glucose Check
-      if (is2hEnabled && latestBolusLog.status_2h_sent !== 1 && time2h > now) {
+      if (is2hEnabled && latestBolusLog.status_2h_sent !== 1 && time2h > currentTimestamp) {
         scheduleNativeReminder(
           'bolus-2h',
           t('home.rem2hTitle') || '2-Hour Glucose Check',
@@ -1188,7 +1189,7 @@ function AppContent() {
       const targetBasalToday = new Date();
       targetBasalToday.setHours(bHour, bMin, 0, 0);
 
-      if (isBasalInjectedToday || targetBasalToday.getTime() <= now) {
+      if (isBasalInjectedToday || targetBasalToday.getTime() <= currentTimestamp) {
         const targetBasalTomorrow = new Date(targetBasalToday.getTime() + 24 * 60 * 60 * 1000);
         scheduleNativeReminder(
           'basal-daily',

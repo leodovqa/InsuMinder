@@ -1610,7 +1610,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v1\.9\.9/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v1\.9\.10/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
       expect(screen.getByText('InsuMinder v1.9.10')).toBeInTheDocument();
