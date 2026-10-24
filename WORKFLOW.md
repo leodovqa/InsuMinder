@@ -347,15 +347,22 @@ Explain changes in 1–2 sentences before writing code.
 ## Native Android Hardware Back Button & Live Data Refresh Standards
 
 - **Hardware Back Button Hierarchy & Key Dispatch (WebContainerActivity & window.__onNativeBackPressed)**:
-  - WebContainerActivity.java overrides dispatchKeyEvent(KeyEvent) and onKeyDown(int, KeyEvent) for KeyEvent.KEYCODE_BACK, plus registers OnBackInvokedCallback on Android 13+ (API 33+) to intercept back presses from 3-button navigation bars and gesture navigation before WebView internal history can trigger premature activity closure.
+  - WebContainerActivity.java extends `AppCompatActivity`, overrides `dispatchKeyEvent(KeyEvent)` and `onKeyDown(int, KeyEvent)` for `KeyEvent.KEYCODE_BACK`, and registers AndroidX `OnBackPressedCallback` alongside Android 13+ `OnBackInvokedCallback` to intercept back presses from 3-button navigation bars and gesture navigation before WebView internal history can trigger premature activity closure.
   - Universal Exit Handlers: Implements window.AndroidBridge.exitApp(), custom scheme insuminder://exit interception in shouldOverrideUrlLoading and resolveTargetUri, and WebChromeClient.onCloseWindow().
   - Priority 1: Closes any active modal, drawer, or dialog.
   - Priority 2: If on a subview (activeTab !== 'home'), navigates directly to the Home screen (/), closing any open modal on the first press and returning home on the second.
   - Priority 3: If on the Home screen with no modals open, opens the Exit App Confirmation Modal. Confirming exits the app cleanly; dismissing retains the user on Home.
-  - Exit App Modal UI: Features a streamlined, single-row horizontal button layout (flex-direction: row; gap: 12px; flex: 1 1 0) with 100% theme parity across Dark and Light modes.
-- **Cross-Device Live State Refresh & Floating Pull-to-Refresh**:
-  - refreshAppData({ silent: true }) runs automatically on page navigation, visibility change, window focus, and Android onResume.
+  - Exit App Modal UI: Features a streamlined, single-row horizontal button layout with grouped header icon and title (`.exit-modal-header-left`), corner close button (✕), and 100% bidirectional (LTR/RTL) and theme parity.
+- **In-App Direct APK Download & Authoritative Version Checking (v1.9.10)**:
+  - When `isAndroidApp()` is active, tapping "Update Now" triggers `downloadAndroidApk()` via `AndroidBridge.downloadApk()` to launch the native package installer/download manager directly rather than simply reloading the WebView.
+  - Version checking queries `window.AndroidBridge.getNativeVersionCode()` and `getNativeVersion()` first. If native version code >= remote version code, update modals are suppressed, eliminating false-positive prompts on fresh installs.
+- **Cross-Device Live State Refresh & Fast Floating Pull-to-Refresh**:
+  - `refreshAppData()` executes logs, telegram configs, and shared access checks concurrently via `Promise.allSettled` with a 1200ms timeout race for instant (<350ms) refresh without hangs.
   - Floating Circular Pull-to-Refresh: Enabled strictly on the Home view as a Material/iOS-style floating circular badge (position: fixed; left: 50%; transform: translate(-50%, ...)) with zero layout shift on underlying content, smooth elastic damping resistance, vector SVG spinner, and proportional drag rotation.
+- **Dual-Channel Notification Dispatch (Native Alarms + Telegram)**:
+  - Whenever reminders are active and notifications are granted on Android, `scheduleNativeReminder` automatically registers high-priority alarms with `AlarmManager` (`setExactAndAllowWhileIdle` with adaptive fallback) for 10m meal reminders, 2h glucose checks, and daily basal reminders.
+  - When both Telegram and native device notifications are active, reminders are dispatched to BOTH channels simultaneously.
+
 
 
 ---

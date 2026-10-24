@@ -24,23 +24,28 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const apkRes = await fetch(releaseApkUrl, { redirect: 'follow' });
-    if (apkRes.ok && apkRes.body) {
-      const headers = new Headers();
-      headers.set('Content-Type', 'application/vnd.android.package-archive');
-      headers.set('Content-Disposition', 'attachment; filename="InsuMinder.apk"');
-      headers.set('Cache-Control', 'public, max-age=3600');
-      const length = apkRes.headers.get('content-length');
-      if (length) headers.set('Content-Length', length);
+    const upstreamRes = await fetch(releaseApkUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'InsuMinder-Cloudflare-Worker'
+      }
+    });
 
-      return new Response(apkRes.body, {
-        status: 200,
-        headers
-      });
+    if (!upstreamRes.ok) {
+      return Response.redirect(releaseApkUrl, 302);
     }
-  } catch (err) {
-    console.warn('[Download] Direct streaming failed, falling back to redirect:', err);
-  }
 
-  return Response.redirect(releaseApkUrl, 302);
+    const headers = new Headers(upstreamRes.headers);
+    headers.set('Content-Type', 'application/vnd.android.package-archive');
+    headers.set('Content-Disposition', 'attachment; filename="InsuMinder.apk"');
+    headers.set('Cache-Control', 'public, max-age=3600');
+
+    return new Response(upstreamRes.body, {
+      status: upstreamRes.status,
+      headers
+    });
+  } catch (err) {
+    void err;
+    return Response.redirect(releaseApkUrl, 302);
+  }
 }

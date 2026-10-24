@@ -37,6 +37,14 @@ export default function ExitAppConfirmationModal({ isOpen, onClose, onConfirm })
           <h3 id="exit-modal-title" className="modal-title">
             {t('modals.exitAppTitle')}
           </h3>
+          <button
+            type="button"
+            className="modal-close-x-btn"
+            onClick={onClose}
+            aria-label={t('common.closeModal') || 'Close'}
+          >
+            ✕
+          </button>
         </div>
 
         <div className="modal-body">
@@ -65,4 +73,3 @@ export default function ExitAppConfirmationModal({ isOpen, onClose, onConfirm })
     </div>
   );
 }
-

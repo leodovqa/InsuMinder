@@ -80,21 +80,24 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
    - Orange pills and rapid injection warning cards (< 3h) removed from Home and Logs.
 
 ### Key Architectural Solutions
-1. **Android Hardware Back Key Dispatch Interception**:
-   - In `WebContainerActivity.java`, override `dispatchKeyEvent` and `onKeyDown` for `KeyEvent.KEYCODE_BACK` to prevent WebView internal history exhaustion from finishing the Activity.
-   - Comprehensive exit handlers: `window.AndroidBridge.exitApp()`, `insuminder://exit` custom URL scheme interception in `shouldOverrideUrlLoading` and `resolveTargetUri`, and `WebChromeClient.onCloseWindow()`.
-2. **Back Navigation Hierarchy**:
-   - 1st back: Closes any active modal/drawer.
-   - 2nd back: Navigates immediately to Home (`activeTab = 'home'`).
-   - 3rd back (on Home): Opens Exit Confirmation Modal.
-   - Inside Exit Modal: Back or "Stay" dismisses the modal and remains on Home; "Exit" terminates the native Android activity.
-3. **Exit App Confirmation Modal UI**:
-   - Replaced stacked bulky buttons with side-by-side single-row layout (`flex-direction: row; gap: 12px; flex: 1 1 0; min-width: 0`).
-   - 100% responsive and tested in modern Dark and Light themes.
-4. **Modern Native Floating Pull-To-Refresh**:
-   - Replaced in-flow expanding text pill with Material/iOS-style floating circular badge overlay (`position: fixed; left: 50%; transform: translate(-50%, ...)`).
-   - Zero layout shift: underlying clock, action buttons, and cards stay completely static.
-   - Crisp vector SVG spinner with proportional drag rotation and smooth spinning animation on release.
+1. **In-App Direct APK Download Flow (`isAndroidApp()`)**:
+   - Tapping "Update Now" in the Android app previously only reloaded the WebView, never downloading the actual compiled native APK binary.
+   - Fixed in `applyAppUpdate()` and `UpdateBanner.jsx`: on Android, triggers `downloadAndroidApk()`, which launches the native package installer/download manager directly for the latest release APK.
+2. **Ground-Truth Native Version Matching (Zero False-Positive Popups on Launch)**:
+   - Root cause: WebView `localStorage` persisted stale version strings across APK updates or backup restores.
+   - Fixed in `pwa.js`: Priority 1 check in `getStoredAppVersion()` queries `window.AndroidBridge.getNativeVersion()`.
+   - In `checkForAppUpdate()`, compares `window.AndroidBridge.getNativeVersionCode()` against remote `data.versionCode`. If native is equal or newer, stored version is synced and update modal is completely suppressed on first launch.
+3. **High-Speed Pull-to-Refresh (<350ms Snappy Execution)**:
+   - In `App.jsx`, `refreshAppData()` now fetches logs, telegram configs, and caregiver status concurrently via `Promise.allSettled` with a 1200ms timeout race.
+   - Removed artificial 450ms `setTimeout` delay from `handlePullTouchEnd`. Dismisses immediately upon data settlement with zero layout jumps.
+4. **Exit App Modal Alignment & Bidirectional Parity**:
+   - Wrapped modal header icon and title in `.exit-modal-header-left` (`display: flex; align-items: center; gap: 12px; flex: 1;`).
+   - Added `.modal-close-x-btn` (✕) on the opposite corner matching all standard modals.
+   - Icon and title remain tightly grouped side-by-side across all localizations (HE, EN, RU).
+5. **Dual-Channel Reminders (Native Android AlarmManager + Telegram)**:
+   - Synchronized 10m meal reminder, 2h glucose check reminder, and daily basal reminder with native Android `AlarmManager` via `scheduleNativeReminder` and `cancelNativeReminder`.
+   - Declared `SCHEDULE_EXACT_ALARM` in `AndroidManifest.xml` with adaptive fallback to `setAndAllowWhileIdle` on Android 12+ (API 31+).
+   - If both Telegram and Device Notifications are enabled, reminders fire simultaneously on both channels!
 
 ## 2. Core Development Rules & Non-Negotiable Standards
 

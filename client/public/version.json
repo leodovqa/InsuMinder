@@ -25,22 +25,25 @@
     "1.9.10",
     "2.0.0"
   ],
-  "buildTime": "2026-10-23T16:41:00.623Z",
+  "buildTime": "2026-10-24T08:50:00.000Z",
   "changes": {
     "en": [
-      "Android hardware back button key dispatch interception for all device navigation bars",
-      "Streamlined side-by-side single-row buttons for exit app confirmation modal",
-      "Native-style floating circular pull-to-refresh spinner with zero layout jump"
+      "Therapy delivery modes: Pens (MDI) and Insulin Pump / Pod with tailored workflows",
+      "Dedicated onboarding flow to select therapy method with real-time descriptions",
+      "Automatic basal reminder suppression and 20 bolus daily capacity for pump users",
+      "Clean modern modal typography without header icons and refined compact close buttons"
     ],
     "he": [
-      "יירוט מקשי חזרה בחומרה באנדרואיד לכל סרגלי הניווט במכשירים שונים",
-      "עיצוב כפתורים זה לצד זה בשורה אחת בחלון אישור היציאה מהאפליקציה",
-      "מחוון משיכה לרענון צף ומעגלי בסגנון Native ללא קפיצות במבנה העמוד"
+      "מצבי טיפול באינסולין: עטים (MDI) ומשאבת אינסולין / פוד עם תהליכים מותאמים אישית",
+      "תהליך קליטה ייעודי לבחירת אופן המתן עם הסברים אינטראקטיביים בזמן אמת",
+      "ביטול אוטומטי של תזכורות בזאלי ומגבלת 20 מנות בולוס יומיות למשתמשי משאבה",
+      "טיפוגרפיה נקייה ומודרנית בחלונות ללא סמלילים בכותרת וכפתורי סגירה מעודנים"
     ],
     "ru": [
-      "Перехват аппаратной кнопки «Назад» на всех панелях навигации Android",
-      "Аккуратные кнопки в одну строку рядом друг с другом в диалоге выхода",
-      "Нативный плавающий круглый индикатор обновления тягой вниз без сдвига верстки"
+      "Режимы инсулинотерапии: шприц-ручки (MDI) и помпа / под с адаптированным интерфейсом",
+      "Интерактивный экран онбординга для выбора метода введения с мгновенным описанием",
+      "Автоматическое отключение базальных напоминаний и лимит 20 болюсов в день для помпы",
+      "Чистая типографика модальных окон без иконок в заголовках и компактные кнопки закрытия"
     ]
   }
 }
