@@ -49,11 +49,17 @@ export async function onRequestGet(context) {
       .bind(effectiveUserId)
       .all();
 
-    const { dateStr: todayDate } = getJerusalemDateAndTime(new Date());
-    const basalReminder = await db
-      .prepare("SELECT * FROM basal_reminders WHERE user_id = ? AND reminder_date = ? LIMIT 1")
-      .bind(effectiveUserId, todayDate)
-      .first();
+    const userRow = await db.prepare("SELECT therapy_mode FROM users WHERE id = ?").bind(effectiveUserId).first();
+    const isPump = (userRow && userRow.therapy_mode === 'pump');
+
+    let basalReminder = null;
+    if (!isPump) {
+      const { dateStr: todayDate } = getJerusalemDateAndTime(new Date());
+      basalReminder = await db
+        .prepare("SELECT * FROM basal_reminders WHERE user_id = ? AND reminder_date = ? LIMIT 1")
+        .bind(effectiveUserId, todayDate)
+        .first();
+    }
 
     // Opportunistically check and dispatch notifications in background
     if (context.waitUntil) {

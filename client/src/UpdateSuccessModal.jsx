@@ -44,9 +44,6 @@ export default function UpdateSuccessModal({ version, onClose }) {
     >
       <div className="modal-card update-success-card" onClick={(e) => e.stopPropagation()}>
         <div className="update-success-header">
-          <div className="update-success-icon-badge" aria-hidden="true">
-            <span className="update-success-emoji">🎉</span>
-          </div>
           <div className="update-success-titles">
             <h2 id="update-success-title" className="update-success-title">
               {t('appUpdate.successTitle')}

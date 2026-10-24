@@ -21,6 +21,7 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
     rules: {
+      'react-hooks/preserve-manual-memoization': 'off',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

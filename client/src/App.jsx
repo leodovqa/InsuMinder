@@ -51,6 +51,7 @@ import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import useLockBodyScroll from './useLockBodyScroll';
 import UpdateSuccessModal from './UpdateSuccessModal';
 import PrivacyModal from './PrivacyModal';
+import TherapyModeOnboardingModal from './TherapyModeOnboardingModal';
 import DiagnosticModal from './DiagnosticModal';
 import ExitAppConfirmationModal from './ExitAppConfirmationModal';
 
@@ -235,6 +236,40 @@ function AppContent() {
   const [isLatestExpanded, setIsLatestExpanded] = useState(false);
   const [user, setUser] = useState(() => authService.getCurrentUser());
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(authService.getToken()));
+  const storedTherapyMode = typeof window !== 'undefined' ? localStorage.getItem('insuminder_therapy_mode') : null;
+  const activeUserTherapyMode = user?.therapyMode || (['pen', 'pump'].includes(storedTherapyMode) ? storedTherapyMode : null);
+  const activeTherapyMode = activeUserTherapyMode === 'pump' ? 'pump' : 'pen';
+  const isTherapyModeSelectionRequired = Boolean(isLoggedIn && user && user.privacyAcceptedAt && activeUserTherapyMode === null);
+  const [isSwitchTherapyModalOpen, setIsSwitchTherapyModalOpen] = useState(false);
+  const [isSavingTherapyMode, setIsSavingTherapyMode] = useState(false);
+
+  const handleSelectTherapyMode = async (mode) => {
+    setIsSavingTherapyMode(true);
+    try {
+      const updated = await authService.setTherapyMode(mode);
+      if (updated) {
+        setUser(updated);
+      }
+      fetchLogs();
+    } catch (err) {
+      console.error('Failed to set therapy mode:', err);
+    } finally {
+      setIsSavingTherapyMode(false);
+    }
+  };
+
+  const handleConfirmSwitchTherapyMode = async () => {
+    setIsSavingTherapyMode(true);
+    try {
+      const nextMode = activeTherapyMode === 'pump' ? 'pen' : 'pump';
+      await authService.setTherapyMode(nextMode);
+      setIsSwitchTherapyModalOpen(false);
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Failed to switch therapy mode:', err);
+      setIsSavingTherapyMode(false);
+    }
+  };
   // Shared Access & Caregiver Context State
   const [urlShareCode, setUrlShareCode] = useState(() => {
     if (typeof window === 'undefined') return null;
@@ -989,7 +1024,9 @@ function AppContent() {
     isPrivacyModalOpen ||
     isPrivacyConsentRequired ||
     isDeclinePromptOpen ||
-    isDeleteAccountModalOpen
+    isDeleteAccountModalOpen ||
+    isTherapyModeSelectionRequired ||
+    isSwitchTherapyModalOpen
   );
   useLockBodyScroll(isAnyAppModalOpen);
 
@@ -1741,7 +1778,7 @@ function AppContent() {
         ...authService.getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ type: cleanType })
+      body: JSON.stringify({ type: cleanType, delivery_method: activeTherapyMode })
     })
     .then(response => response.json())
     .then(data => {
@@ -1759,6 +1796,7 @@ function AppContent() {
           user_id: user?.id,
           injected_at: now.toISOString(),
           type: cleanType,
+          delivery_method: activeTherapyMode,
           notify_10m_at: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
           notify_2h_at: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
           notify_3h_at: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
@@ -1825,8 +1863,9 @@ function AppContent() {
       }
     } else {
       const bolusLogs = sameDayLogs.filter(l => !l.type || l.type === 'bolus');
-      if (bolusLogs.length >= 10) {
-        setManualError(t('logs.errorMaxTenBolus'));
+      const maxBolusPerDay = activeTherapyMode === 'pump' ? 20 : 10;
+      if (bolusLogs.length >= maxBolusPerDay) {
+        setManualError(activeTherapyMode === 'pump' ? t('logs.errorMaxTwentyBolus') : t('logs.errorMaxTenBolus'));
         return;
       }
       const duplicateMinute = bolusLogs.find(l => formatTimeOnly(l.injected_at) === manualTime);
@@ -1851,7 +1890,8 @@ function AppContent() {
           type: manualType,
           date: manualDate,
           time: manualTime,
-          injected_at: selectedDate.toISOString()
+          injected_at: selectedDate.toISOString(),
+          delivery_method: activeTherapyMode
         })
       });
 
@@ -1867,6 +1907,8 @@ function AppContent() {
         const errMsg = data.error || '';
         if (/2 basal|two basal/i.test(errMsg)) {
           setManualError(t('logs.errorTwoBasalOneDay'));
+        } else if (/20 bolus|maximum 20/i.test(errMsg)) {
+          setManualError(t('logs.errorMaxTwentyBolus'));
         } else if (/10 bolus|maximum 10/i.test(errMsg)) {
           setManualError(t('logs.errorMaxTenBolus'));
         } else if (/exact time|already appears/i.test(errMsg)) {
@@ -2227,17 +2269,18 @@ function AppContent() {
   };
 
   const todayDateKey = formatDateOnly(new Date().toISOString(), dateFormat);
-  const todayLogs = logs.filter(log => formatDateOnly(log.injected_at, dateFormat) === todayDateKey);
+  const displayedLogs = logs.filter(log => (log.delivery_method || 'pen') === activeTherapyMode);
+  const todayLogs = displayedLogs.filter(log => formatDateOnly(log.injected_at, dateFormat) === todayDateKey);
   const weekInfo = getWeekDisplayInfo(selectedWeekStart, language);
-  const weeklyData = getWeeklyTrendData(logs, selectedWeekStart, language, dateFormat);
-  const rapidInjections = getRapidInjections(logs, todayDateKey, dateFormat);
+  const weeklyData = getWeeklyTrendData(displayedLogs, selectedWeekStart, language, dateFormat);
+  const rapidInjections = getRapidInjections(displayedLogs, todayDateKey, dateFormat);
 
   const [basalHour, basalMin] = (basalTime || '20:00').split(':').map(n => parseInt(n, 10));
   const currentHour = currentTime.getHours();
   const currentMinute = currentTime.getMinutes();
   const isAfterBasalTime = (currentHour > basalHour) || (currentHour === basalHour && currentMinute >= basalMin);
   const hasLoggedBasalToday = todayLogs.some(log => log.type === 'basal');
-  const showSplitButton = isLoggedIn && isAfterBasalTime && !hasLoggedBasalToday;
+  const showSplitButton = activeTherapyMode !== 'pump' && isLoggedIn && isAfterBasalTime && !hasLoggedBasalToday;
 
   const getPageTitle = () => {
     switch (activeTab) {
@@ -2775,7 +2818,7 @@ function AppContent() {
               <div className="log-injection-split-group">
                 <button
                   type="button"
-                  className={`log-injection-btn split-btn btn-bolus ${isLoggedIn && !isBolusEligible ? 'btn-gray' : ''}`}
+                  className={`log-injection-btn split-btn btn-bolus ${isLoggedIn && activeTherapyMode !== 'pump' && !isBolusEligible ? 'btn-gray' : ''}`}
                   disabled={!isLoggedIn}
                   onClick={handleBolusClick}
                   title={t('home.logBolusSubtitle')}
@@ -2799,7 +2842,7 @@ function AppContent() {
             ) : (
               <button
                 type="button"
-                className={`log-injection-btn ${isLoggedIn && !isBolusEligible ? 'btn-gray' : ''}`}
+                className={`log-injection-btn ${isLoggedIn && activeTherapyMode !== 'pump' && !isBolusEligible ? 'btn-gray' : ''}`}
                 disabled={!isLoggedIn}
                 onClick={handleBolusClick}
                 title={!isLoggedIn ? t('home.logInjectionSubtitleLoggedOut') : t('home.logInjectionSubtitleLoggedIn')}
@@ -3008,7 +3051,9 @@ function AppContent() {
             </div>
 
             {/* Injection Eligibility Status (Below Notifications Scheduled) */}
-            <InjectionEligibility latestLog={latestBolusLog} />
+            {activeTherapyMode !== 'pump' && (
+              <InjectionEligibility latestLog={latestBolusLog} />
+            )}
           </>
         )}
 
@@ -3293,10 +3338,12 @@ function AppContent() {
                       <span className="metric-chip-label">{t('logs.bolusThisWeek')}</span>
                       <span className="metric-chip-value">{weeklyData.totalBolusInjections || 0}</span>
                     </div>
-                    <div className="metric-chip metric-chip-basal">
-                      <span className="metric-chip-label">{t('logs.basalThisWeek')}</span>
-                      <span className="metric-chip-value">{weeklyData.totalBasalInjections || 0}</span>
-                    </div>
+                    {activeTherapyMode !== 'pump' && (
+                      <div className="metric-chip metric-chip-basal">
+                        <span className="metric-chip-label">{t('logs.basalThisWeek')}</span>
+                        <span className="metric-chip-value">{weeklyData.totalBasalInjections || 0}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* 7-Day Bar Chart */}
@@ -3371,7 +3418,8 @@ function AppContent() {
                   </button>
                 </div>
 
-                {/* 3. Rapid Injection Trend Warning (< 3h) */}
+                {/* 3. Rapid Injection Trend Warning (< 3h) - Pens Only */}
+                {activeTherapyMode !== 'pump' && (
                 <div className="rapid-trend-card">
                   <div className="rapid-card-header">
                     <div className={`rapid-icon-wrapper ${rapidInjections.rapidList.length > 0 ? 'warning' : 'safe'}`}>
@@ -3420,6 +3468,7 @@ function AppContent() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* 4. Today's Injection Logs (Daily View) */}
                 <div className="daily-logs-section">
@@ -3433,14 +3482,14 @@ function AppContent() {
                     </span>
                   </div>
 
-                  {todayLogs.length === 0 && hasLoggedBasalToday ? (
+                  {todayLogs.length === 0 && (activeTherapyMode === 'pump' || hasLoggedBasalToday) ? (
                     <div className="daily-empty-card">
                       <span className="daily-empty-text">{t('logs.noInjectionsToday')}</span>
                     </div>
                   ) : (
                     <ul className="logs-list">
                       {todayLogs.map(log => {
-                        const isRapid = rapidInjections.rapidIds.has(log.id);
+                        const isRapid = activeTherapyMode !== 'pump' && rapidInjections.rapidIds.has(log.id);
 
                         return (
                           <li key={log.id} className={`log-item ${log.type === 'basal' ? 'basal-log-item' : ''} ${isRapid ? 'rapid-log-item' : ''}`}>
@@ -3538,7 +3587,7 @@ function AppContent() {
                           </li>
                         );
                       })}
-                      {!hasLoggedBasalToday && (
+                      {activeTherapyMode !== 'pump' && !hasLoggedBasalToday && (
                         <li className="log-item basal-log-item pending-basal-log-item">
                           <div className="log-field">
                             <span className="log-label">{t('logs.injectedLabel')}</span>
@@ -3607,6 +3656,7 @@ function AppContent() {
       {/* VIEW 3: NOTIFICATION SETTINGS */}
       {activeTab === 'notifications' && (
         <NotificationSettings
+          therapyMode={activeTherapyMode}
           preferences={notificationPreferences}
           onUpdatePreferences={handleUpdateNotificationPreferences}
           onDownloadApk={handleDownloadAndroidApk}
@@ -3742,7 +3792,44 @@ function AppContent() {
               </div>
             </div>
 
-            {/* 3. Basal Insulin Schedule Card */}
+                        {/* Insulin Delivery Method (Therapy Mode) Card */}
+            <div className="settings-card therapy-settings-card">
+              <div className="card-header">
+                <div className="card-icon-wrapper therapy-icon-wrapper">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                  </svg>
+                </div>
+                <div className="card-header-text">
+                  <h2 className="card-title">{t('therapy.settingsCardTitle')}</h2>
+                  <p className="card-subtitle">{t('therapy.settingsCardSubtitle')}</p>
+                </div>
+              </div>
+
+              <div className="therapy-settings-body">
+                <div className="therapy-active-badge-row">
+                  <span className="therapy-active-label">{t('therapy.currentMethod')}:</span>
+                  <span className={`therapy-active-badge ${activeTherapyMode === 'pump' ? 'badge-pump' : 'badge-pen'}`}>
+                    {activeTherapyMode === 'pump' ? '📟 ' + t('therapy.modePumpTitle') : '💉 ' + t('therapy.modePenTitle')}
+                  </span>
+                </div>
+                <p className="therapy-settings-desc">
+                  {activeTherapyMode === 'pump' ? t('therapy.modePumpDesc') : t('therapy.modePenDesc')}
+                </p>
+                <div className="therapy-settings-action-row">
+                  <button
+                    type="button"
+                    className="save-btn therapy-switch-btn"
+                    onClick={() => setIsSwitchTherapyModalOpen(true)}
+                  >
+                    {activeTherapyMode === 'pump' ? t('therapy.switchToPenBtn') : t('therapy.switchToPumpBtn')}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+{/* 3. Basal Insulin Schedule Card */}
+            {activeTherapyMode !== 'pump' && (
             <div className="settings-card basal-settings-card">
               <div className="card-header">
                 <div className="card-icon-wrapper moon-icon-wrapper">
@@ -3777,6 +3864,7 @@ function AppContent() {
                 </div>
               </form>
             </div>
+            )}
 
             {/* 3. Telegram Notifications Card */}
             <div className={`settings-card telegram-settings-card ${!isTelegramNotificationsEnabled ? 'is-collapsed' : ''}`}>
@@ -4486,14 +4574,6 @@ function AppContent() {
         <div className="modal-overlay" onClick={handleCloseDeleteModal} role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
           <div className="modal-card delete-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-wrapper delete-icon-wrapper">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <line x1="10" y1="11" x2="10" y2="17" />
-                  <line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-              </div>
               <h3 id="delete-modal-title" className="modal-title">{t('modals.deleteConfigTitle')}</h3>
             </div>
             <div className="modal-body">
@@ -4541,14 +4621,6 @@ function AppContent() {
         >
           <div className="modal-card delete-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-wrapper delete-icon-wrapper">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="8.5" cy="7" r="4" />
-                  <line x1="18" y1="8" x2="23" y2="13" />
-                  <line x1="23" y1="8" x2="18" y2="13" />
-                </svg>
-              </div>
               <h3 id="remove-member-modal-title" className="modal-title">{t('modals.removeMemberTitle')}</h3>
             </div>
             <div className="modal-body">
@@ -4590,13 +4662,6 @@ function AppContent() {
         >
           <div className="modal-card delete-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-wrapper delete-icon-wrapper">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              </div>
               <h3 id="leave-group-modal-title" className="modal-title">{t('modals.leaveGroupTitle')}</h3>
             </div>
             <div className="modal-body">
@@ -4638,12 +4703,6 @@ function AppContent() {
         >
           <div className="modal-card info-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-wrapper info-icon-wrapper">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </div>
               <h3 id="viewing-explanation-modal-title" className="modal-title">{t('modals.whatViewingMeansTitle')}</h3>
             </div>
             <div className="modal-body">
@@ -4706,9 +4765,6 @@ function AppContent() {
           <div className="modal-card reminder-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header reminder-modal-header">
               <div className="reminder-modal-header-left">
-                <div className={`modal-icon-wrapper reminder-status-icon-wrapper ${reminderModalData.status}`}>
-                  {reminderModalData.icon || 'ℹ️'}
-                </div>
                 <h3 id="reminder-modal-title" className="modal-title">
                   {reminderModalData.title}
                 </h3>
@@ -4840,14 +4896,8 @@ function AppContent() {
           <div className="modal-card early-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header early-modal-header">
               <div className="basal-modal-header-left">
-                <div className="modal-icon-wrapper early-icon-wrapper">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </div>
                 <h3 id="early-injection-modal-title" className="modal-title">
-                  {t('modals.earlyInjectionTitle')}
+                  {activeTherapyMode === 'pump' ? t('modals.earlyPumpBolusTitle') : t('modals.earlyInjectionTitle')}
                 </h3>
               </div>
               <button
@@ -4862,11 +4912,13 @@ function AppContent() {
 
             <div className="modal-body early-modal-body">
               <p className="early-modal-text">
-                {t('modals.earlyInjectionConfirmText')}
+                {activeTherapyMode === 'pump' ? t('modals.earlyPumpBolusConfirmText') : t('modals.earlyInjectionConfirmText')}
               </p>
-              <p className="early-modal-warning">
-                {t('modals.earlyInjectionWarning')}
-              </p>
+              {activeTherapyMode !== 'pump' && (
+                <p className="early-modal-warning">
+                  {t('modals.earlyInjectionWarning')}
+                </p>
+              )}
             </div>
 
             <div className="modal-actions">
@@ -4901,11 +4953,6 @@ function AppContent() {
           <div className="modal-card manual-injection-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header manual-modal-header">
               <div className="modal-header-left manual-modal-header-left">
-                <div className="modal-icon-wrapper manual-modal-icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                </div>
                 <h3 id="manual-injection-modal-title" className="modal-title">
                   {t('logs.manualModalTitle')}
                 </h3>
@@ -4938,6 +4985,7 @@ function AppContent() {
                 )}
 
                 {/* Type Selector (Bolus vs Basal) */}
+                {activeTherapyMode !== 'pump' ? (
                 <div className="manual-form-group">
                   <label className="manual-form-label">{t('logs.manualTypeLabel')}</label>
                   <div className="manual-type-selector" role="radiogroup" aria-label={t('logs.manualTypeLabel')}>
@@ -4963,6 +5011,7 @@ function AppContent() {
                     </button>
                   </div>
                 </div>
+                ) : null}
 
                 {/* Date Selection (Quick Chips + Modern Formatted Input) */}
                 <div className="manual-form-group">
@@ -5086,9 +5135,6 @@ function AppContent() {
           <div className="modal-card basal-confirm-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="basal-modal-header-left">
-                <div className="modal-icon-wrapper basal-icon-wrapper">
-                  <span style={{ fontSize: '20px' }} role="img" aria-hidden="true">🌙</span>
-                </div>
                 <h3 id="basal-confirm-modal-title" className="modal-title">
                   {t('modals.basalConfirmTitle')}
                 </h3>
@@ -5155,7 +5201,77 @@ function AppContent() {
         />
       )}
 
-      {/* Mandatory Privacy Consent Dialog for Existing Users */}
+            {/* Mandatory Therapy Mode Selection Gate for New Signups */}
+      {isTherapyModeSelectionRequired && (
+        <TherapyModeOnboardingModal
+          isOpen={true}
+          isSubmitting={isSavingTherapyMode}
+          onSelectMode={handleSelectTherapyMode}
+        />
+      )}
+
+      {/* Switch Delivery Method Confirmation Modal */}
+      {isSwitchTherapyModalOpen && (
+        <div
+          className="modal-overlay switch-therapy-backdrop"
+          onClick={() => !isSavingTherapyMode && setIsSwitchTherapyModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="switch-therapy-modal-title"
+        >
+          <div className="modal-card switch-therapy-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header switch-therapy-header">
+              <h3 id="switch-therapy-modal-title" className="modal-title">
+                {t('therapy.switchModalTitle')}
+              </h3>
+              <button
+                type="button"
+                className="modal-close-x-btn"
+                onClick={() => !isSavingTherapyMode && setIsSwitchTherapyModalOpen(false)}
+                aria-label={t('common.closeModal')}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body switch-therapy-body">
+              <div className="switch-modes-preview">
+                <div className={`switch-mode-pill ${activeTherapyMode === 'pen' ? 'is-active' : ''}`}>
+                  <span>💉 {t('therapy.modePenTitle')}</span>
+                </div>
+                <span className="switch-arrow">➔</span>
+                <div className={`switch-mode-pill ${activeTherapyMode === 'pump' ? 'is-active' : ''}`}>
+                  <span>📟 {t('therapy.modePumpTitle')}</span>
+                </div>
+              </div>
+              <p className="switch-modal-text">
+                {t('therapy.switchModalText')}
+              </p>
+            </div>
+
+            <div className="modal-actions switch-modal-actions">
+              <button
+                type="button"
+                className="modal-btn cancel-btn"
+                disabled={isSavingTherapyMode}
+                onClick={() => setIsSwitchTherapyModalOpen(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="modal-btn confirm-early-btn confirm-switch-btn"
+                disabled={isSavingTherapyMode}
+                onClick={handleConfirmSwitchTherapyMode}
+              >
+                {isSavingTherapyMode ? '...' : t('therapy.confirmSwitchBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+{/* Mandatory Privacy Consent Dialog for Existing Users */}
       {isPrivacyConsentRequired && (
         <PrivacyModal
           isOpen={true}
@@ -5184,13 +5300,6 @@ function AppContent() {
         >
           <div className="modal-card delete-modal-card decline-choice-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-wrapper delete-icon-wrapper">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  <path d="M12 8v4" />
-                  <path d="M12 16h.01" />
-                </svg>
-              </div>
               <h3 id="decline-prompt-title" className="modal-title">
                 {t('privacy.declinePromptTitle')}
               </h3>
@@ -5244,14 +5353,6 @@ function AppContent() {
         >
           <div className="modal-card delete-modal-card delete-account-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div className="modal-icon-wrapper delete-icon-wrapper">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <line x1="10" y1="11" x2="10" y2="17" />
-                  <line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-              </div>
               <h3 id="delete-account-modal-title" className="modal-title">
                 {t('modals.deleteAccountTitle')}
               </h3>

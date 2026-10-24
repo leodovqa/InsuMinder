@@ -1,5 +1,6 @@
 package com.insuminder.app;
 
+import com.insuminder.app.BuildConfig;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
@@ -681,7 +682,7 @@ public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivi
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
-                return "1.9.10";
+                return "2.0.0";
             }
         }
 
@@ -690,7 +691,7 @@ public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivi
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             } catch (Exception e) {
-                return 22;
+                return 23;
             }
         }
 

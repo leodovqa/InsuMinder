@@ -48,9 +48,6 @@ export default function ManualNotificationGuideModal({ isOpen, onClose, onActiva
         onClick={(e) => e.stopPropagation()}
       >
         <div className="manual-guide-header">
-          <div className="manual-guide-icon-badge" aria-hidden="true">
-            <span className="manual-guide-icon">🔔</span>
-          </div>
           <div className="manual-guide-titles">
             <h2 id="manual-guide-title" className="manual-guide-title">
               {t('notificationSettings.manualGuideTitle')}

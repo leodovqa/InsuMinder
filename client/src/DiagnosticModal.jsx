@@ -179,7 +179,6 @@ export default function DiagnosticModal({ isOpen, onClose }) {
       >
         <div className="diagnostic-modal-header">
           <div className="diagnostic-title-block">
-            <span className="diagnostic-icon" role="img" aria-hidden="true">🛠️</span>
             <div>
               <h2 id="diagnostic-modal-title" className="diagnostic-modal-title">
                 {t('diagnostic.title')}

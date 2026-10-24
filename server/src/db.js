@@ -47,6 +47,8 @@ db.serialize(() => {
       db.run("ALTER TABLE users ADD COLUMN last_name TEXT", () => {});
       db.run("ALTER TABLE users ADD COLUMN phone TEXT", () => {});
       db.run("ALTER TABLE users ADD COLUMN share_code TEXT", () => {});
+      db.run("ALTER TABLE users ADD COLUMN therapy_mode TEXT DEFAULT NULL", () => {});
+      db.run("UPDATE users SET therapy_mode = 'pen' WHERE therapy_mode IS NULL AND (created_at < datetime('now', '-5 seconds') OR id IN (SELECT DISTINCT user_id FROM injection_logs))", () => {});
     });
 
   // Verification codes table
@@ -83,6 +85,7 @@ db.serialize(() => {
       db.run("ALTER TABLE injection_logs ADD COLUMN error_10m TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_2h TEXT", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN error_3h TEXT", () => {});
+      db.run("ALTER TABLE injection_logs ADD COLUMN delivery_method TEXT DEFAULT 'pen'", () => {});
       db.run("ALTER TABLE injection_logs ADD COLUMN type TEXT DEFAULT 'bolus'", () => {});
     });
 
@@ -214,7 +217,7 @@ function getUserByEmail(email, callback) {
 }
 
 function getUserById(id, callback) {
-  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, theme, notification_preferences, privacy_accepted_at, created_at FROM users WHERE id = ?", [id], callback);
+  db.get("SELECT id, email, name, first_name, last_name, phone, avatar, is_verified, share_code, auth_provider, failed_login_attempts, locked_until, language, basal_time, theme, notification_preferences, privacy_accepted_at, therapy_mode, created_at FROM users WHERE id = ?", [id], callback);
 }
 
 function getUserByGoogleId(googleId, callback) {
@@ -294,6 +297,10 @@ function updateUser(id, updates, callback) {
     fields.push("privacy_accepted_at = ?");
     values.push(updates.privacy_accepted_at);
   }
+  if (updates.therapy_mode !== undefined) {
+    fields.push("therapy_mode = ?");
+    values.push(updates.therapy_mode);
+  }
 
   if (fields.length === 0) return callback(null);
 
@@ -330,45 +337,106 @@ function consumeVerificationCode(id, callback) {
    INJECTION LOGS METHODS
    ========================================================================= */
 
-function insertInjectionLog(userIdOrCallback, typeOrCallback, maybeCallback) {
+function getUserTherapyMode(userId, callback) {
+  if (!userId) return callback(null, 'pen');
+  db.get("SELECT therapy_mode FROM users WHERE id = ?", [userId], (err, row) => {
+    if (err) return callback(err);
+    callback(null, (row && row.therapy_mode === 'pump') ? 'pump' : 'pen');
+  });
+}
+
+function insertInjectionLog(userIdOrCallback, typeOrCallback, deliveryMethodOrCallback, maybeCallback) {
   const userId = typeof userIdOrCallback === 'number'
     ? userIdOrCallback
     : (typeof userIdOrCallback === 'string' && !isNaN(parseInt(userIdOrCallback, 10)) ? parseInt(userIdOrCallback, 10) : null);
   const type = typeof typeOrCallback === 'string' ? (typeOrCallback === 'basal' ? 'basal' : 'bolus') : 'bolus';
-  const callback = typeof typeOrCallback === 'function'
-    ? typeOrCallback
-    : (typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback);
+  const deliveryMethod = typeof deliveryMethodOrCallback === 'string' && ['pen', 'pump'].includes(deliveryMethodOrCallback)
+    ? deliveryMethodOrCallback
+    : null;
+  const callback = typeof deliveryMethodOrCallback === 'function'
+    ? deliveryMethodOrCallback
+    : (typeof typeOrCallback === 'function' ? typeOrCallback : (typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback));
 
   const now = new Date();
   const currentMinute = now.toISOString().slice(0, 16);
 
-  // Rate-limit per user (or globally if no user)
-  const rateLimitSql = userId
-    ? "SELECT injected_at FROM injection_logs WHERE user_id = ? ORDER BY injected_at DESC LIMIT 1"
-    : "SELECT injected_at FROM injection_logs ORDER BY injected_at DESC LIMIT 1";
-  const rateLimitParams = userId ? [userId] : [];
+  getUserTherapyMode(userId, (modeErr, dbTherapyMode) => {
+    if (modeErr) return callback(modeErr);
 
-  db.get(rateLimitSql, rateLimitParams, (err, row) => {
-    if (err) return callback(err);
-
-    if (row && row.injected_at && row.injected_at.slice(0, 16) === currentMinute) {
-      const duplicateErr = new Error("An injection has already been recorded this minute. You can only log once per minute.");
-      duplicateErr.status = 409;
-      return callback(duplicateErr);
+    const therapyMode = deliveryMethod || dbTherapyMode || 'pen';
+    if (deliveryMethod && userId && dbTherapyMode !== deliveryMethod) {
+      updateUser(userId, { therapy_mode: deliveryMethod }, () => {});
     }
 
-    const injected_at = now.toISOString();
     const isBasal = type === 'basal';
-    const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
-    const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
-    const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
-    const status_sent = isBasal ? 1 : 0;
+    if (therapyMode === 'pump' && isBasal) {
+      const err = new Error("Basal injections are not applicable in pump mode.");
+      err.status = 400;
+      return callback(err);
+    }
 
-    const stmt = db.prepare(
-      "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-    stmt.run(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, type, callback);
-    stmt.finalize();
+    // Rate-limit per user (or globally if no user)
+    const rateLimitSql = userId
+      ? "SELECT injected_at FROM injection_logs WHERE user_id = ? ORDER BY injected_at DESC LIMIT 1"
+      : "SELECT injected_at FROM injection_logs ORDER BY injected_at DESC LIMIT 1";
+    const rateLimitParams = userId ? [userId] : [];
+
+    db.get(rateLimitSql, rateLimitParams, (err, row) => {
+      if (err) return callback(err);
+
+      if (row && row.injected_at && row.injected_at.slice(0, 16) === currentMinute) {
+        const duplicateErr = new Error("An injection has already been recorded this minute. You can only log once per minute.");
+        duplicateErr.status = 409;
+        return callback(duplicateErr);
+      }
+
+      const { dateStr: todayDate } = getJerusalemDateAndTime(now);
+      const bolusSql = userId
+        ? "SELECT injected_at, type FROM injection_logs WHERE user_id = ?"
+        : "SELECT injected_at, type FROM injection_logs";
+      const bolusParams = userId ? [userId] : [];
+
+      db.all(bolusSql, bolusParams, (bErr, rows) => {
+        if (bErr) return callback(bErr);
+
+        if (!isBasal) {
+          const sameDayBolus = (rows || []).filter(l => {
+            if (l.type === 'basal') return false;
+            const { dateStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+            return dateStr === todayDate;
+          });
+          const maxBolus = therapyMode === 'pump' ? 20 : 10;
+          if (sameDayBolus.length >= maxBolus) {
+            const limitErr = new Error(`Maximum ${maxBolus} bolus injections allowed per day.`);
+            limitErr.status = 400;
+            return callback(limitErr);
+          }
+        } else {
+          const sameDayBasal = (rows || []).find(l => {
+            if (l.type !== 'basal') return false;
+            const { dateStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+            return dateStr === todayDate;
+          });
+          if (sameDayBasal) {
+            const basalErr = new Error("You cannot have 2 basal injections in one day.");
+            basalErr.status = 400;
+            return callback(basalErr);
+          }
+        }
+
+        const injected_at = now.toISOString();
+        const notify_10m_at = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+        const notify_2h_at = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
+        const notify_3h_at = new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
+        const status_sent = isBasal ? 1 : 0;
+
+        const stmt = db.prepare(
+          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        stmt.run(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, type, therapyMode, callback);
+        stmt.finalize();
+      });
+    });
   });
 }
 
@@ -389,12 +457,16 @@ function getJerusalemDateAndTime(date = new Date()) {
   };
 }
 
-function insertManualInjectionLog(userId, type, injectedAt, callback) {
+function insertManualInjectionLog(userId, type, injectedAt, deliveryMethodOrCallback, maybeCallback) {
   const cleanUserId = typeof userId === 'number'
     ? userId
     : (typeof userId === 'string' && !isNaN(parseInt(userId, 10)) ? parseInt(userId, 10) : null);
   const cleanType = typeof type === 'string' && type === 'basal' ? 'basal' : 'bolus';
   const isBasal = cleanType === 'basal';
+  const deliveryMethod = typeof deliveryMethodOrCallback === 'string' && ['pen', 'pump'].includes(deliveryMethodOrCallback)
+    ? deliveryMethodOrCallback
+    : null;
+  const callback = typeof deliveryMethodOrCallback === 'function' ? deliveryMethodOrCallback : maybeCallback;
 
   if (!injectedAt) {
     const err = new Error("Injection date and time are required.");
@@ -425,82 +497,99 @@ function insertManualInjectionLog(userId, type, injectedAt, callback) {
     return callback(err);
   }
 
-  const { dateStr: targetDate, timeStr: targetTime } = getJerusalemDateAndTime(injectionDate);
+  getUserTherapyMode(cleanUserId, (modeErr, dbTherapyMode) => {
+    if (modeErr) return callback(modeErr);
 
-  const userSql = cleanUserId
-    ? "SELECT * FROM injection_logs WHERE user_id = ?"
-    : "SELECT * FROM injection_logs";
-  const userParams = cleanUserId ? [cleanUserId] : [];
-
-  db.all(userSql, userParams, (err, rows) => {
-    if (err) return callback(err);
-
-    const sameDayLogs = (rows || []).filter(log => {
-      const { dateStr } = getJerusalemDateAndTime(new Date(log.injected_at));
-      return dateStr === targetDate;
-    });
-
-    if (isBasal) {
-      const existingBasal = sameDayLogs.find(l => l.type === 'basal');
-      if (existingBasal) {
-        const dupErr = new Error("You cannot have 2 basal injections in one day.");
-        dupErr.status = 400;
-        return callback(dupErr);
-      }
-    } else {
-      const bolusLogs = sameDayLogs.filter(l => !l.type || l.type === 'bolus');
-      if (bolusLogs.length >= 10) {
-        const limitErr = new Error("Maximum 10 bolus injections allowed per day.");
-        limitErr.status = 400;
-        return callback(limitErr);
-      }
-
-      const duplicateMinute = bolusLogs.find(l => {
-        const { timeStr } = getJerusalemDateAndTime(new Date(l.injected_at));
-        return timeStr === targetTime;
-      });
-      if (duplicateMinute) {
-        const dupTimeErr = new Error("Can't add, this exact time already appears.");
-        dupTimeErr.status = 409;
-        return callback(dupTimeErr);
-      }
+    const therapyMode = deliveryMethod || dbTherapyMode || 'pen';
+    if (deliveryMethod && cleanUserId && dbTherapyMode !== deliveryMethod) {
+      updateUser(cleanUserId, { therapy_mode: deliveryMethod }, () => {});
     }
 
-    const isoInjectedAt = injectionDate.toISOString();
-    const notify_10m_at = new Date(injectionDate.getTime() + 10 * 60 * 1000).toISOString();
-    const notify_2h_at = new Date(injectionDate.getTime() + 2 * 60 * 60 * 1000).toISOString();
-    const notify_3h_at = new Date(injectionDate.getTime() + 3 * 60 * 60 * 1000).toISOString();
-    const status_sent = 1;
+    if (therapyMode === 'pump' && isBasal) {
+      const err = new Error("Basal injections are not applicable in pump mode.");
+      err.status = 400;
+      return callback(err);
+    }
 
-    const stmt = db.prepare(
-      "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?)"
-    );
-    stmt.run(
-      cleanUserId,
-      isoInjectedAt,
-      notify_10m_at,
-      notify_2h_at,
-      notify_3h_at,
-      status_sent,
-      status_sent,
-      status_sent,
-      cleanType,
-      function(insErr) {
-        if (insErr) return callback(insErr);
-        const lastID = this.lastID;
-        if (isBasal) {
-          const { dateStr: todayDate } = getJerusalemDateAndTime();
-          if (targetDate === todayDate) {
-            recordBasalReminder(cleanUserId, todayDate, '20:00', 0, 'Already injected', () => {
-              callback.call({ lastID }, null);
-            });
-            return;
-          }
+    const { dateStr: targetDate, timeStr: targetTime } = getJerusalemDateAndTime(injectionDate);
+
+    const userSql = cleanUserId
+      ? "SELECT * FROM injection_logs WHERE user_id = ?"
+      : "SELECT * FROM injection_logs";
+    const userParams = cleanUserId ? [cleanUserId] : [];
+
+    db.all(userSql, userParams, (err, rows) => {
+      if (err) return callback(err);
+
+      const sameDayLogs = (rows || []).filter(log => {
+        const { dateStr } = getJerusalemDateAndTime(new Date(log.injected_at));
+        return dateStr === targetDate;
+      });
+
+      if (isBasal) {
+        const existingBasal = sameDayLogs.find(l => l.type === 'basal');
+        if (existingBasal) {
+          const dupErr = new Error("You cannot have 2 basal injections in one day.");
+          dupErr.status = 400;
+          return callback(dupErr);
         }
-        callback.call({ lastID }, null);
+      } else {
+        const bolusLogs = sameDayLogs.filter(l => !l.type || l.type === 'bolus');
+        const maxBolus = therapyMode === 'pump' ? 20 : 10;
+        if (bolusLogs.length >= maxBolus) {
+          const limitErr = new Error(`Maximum ${maxBolus} bolus injections allowed per day.`);
+          limitErr.status = 400;
+          return callback(limitErr);
+        }
+
+        const duplicateMinute = bolusLogs.find(l => {
+          const { timeStr } = getJerusalemDateAndTime(new Date(l.injected_at));
+          return timeStr === targetTime;
+        });
+        if (duplicateMinute) {
+          const dupTimeErr = new Error("Can't add, this exact time already appears.");
+          dupTimeErr.status = 409;
+          return callback(dupTimeErr);
+        }
       }
-    );
-    stmt.finalize();
+
+      const isoInjectedAt = injectionDate.toISOString();
+      const notify_10m_at = new Date(injectionDate.getTime() + 10 * 60 * 1000).toISOString();
+      const notify_2h_at = new Date(injectionDate.getTime() + 2 * 60 * 60 * 1000).toISOString();
+      const notify_3h_at = new Date(injectionDate.getTime() + 3 * 60 * 60 * 1000).toISOString();
+      const status_sent = 1;
+
+      const stmt = db.prepare(
+        "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?, ?)"
+      );
+      stmt.run(
+        cleanUserId,
+        isoInjectedAt,
+        notify_10m_at,
+        notify_2h_at,
+        notify_3h_at,
+        status_sent,
+        status_sent,
+        status_sent,
+        cleanType,
+        therapyMode,
+        function(insErr) {
+          if (insErr) return callback(insErr);
+          const lastID = this.lastID;
+          if (isBasal) {
+            const { dateStr: todayDate } = getJerusalemDateAndTime();
+            if (targetDate === todayDate) {
+              recordBasalReminder(cleanUserId, todayDate, '20:00', 0, 'Already injected', () => {
+                callback.call({ lastID }, null);
+              });
+              return;
+            }
+          }
+          callback.call({ lastID }, null);
+        }
+      );
+      stmt.finalize();
+    });
   });
 }
 
@@ -1004,6 +1093,7 @@ function getUsersPendingBasalReminder(currentTimeStr, dateStr, callback) {
     "SELECT u.id, u.email, u.language, u.notification_preferences, COALESCE(u.basal_time, '20:00') as basal_time "
     + "FROM users u "
     + "WHERE COALESCE(u.basal_time, '20:00') <= ? "
+    + "AND (u.therapy_mode IS NULL OR u.therapy_mode = 'pen') "
     + "AND NOT EXISTS ("
     + "  SELECT 1 FROM basal_reminders r "
     + "  WHERE r.user_id = u.id "

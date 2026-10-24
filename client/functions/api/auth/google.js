@@ -70,6 +70,7 @@ export async function onRequestPost(context) {
     }
 
     let user = await db.prepare('SELECT * FROM users WHERE email = ?').bind(userEmail).first();
+    const isExistingUser = Boolean(user);
 
     if (user) {
       // PRESERVE CUSTOM USER PROFILE:
@@ -115,6 +116,13 @@ export async function onRequestPost(context) {
       user.share_code = newCode;
     }
 
+    let userTherapyMode = user.therapy_mode;
+    if (isExistingUser && !userTherapyMode) {
+      // Existing user logging in with Google defaults to pen if unselected
+      userTherapyMode = 'pen';
+      await db.prepare('UPDATE users SET therapy_mode = ? WHERE id = ?').bind('pen', user.id).run();
+    }
+
     let joinedGroup = null;
     if (shareCode && String(shareCode).trim()) {
       const cleanShare = String(shareCode).trim().toUpperCase();
@@ -147,7 +155,8 @@ export async function onRequestPost(context) {
         avatar: user.avatar || '',
         shareCode: user.share_code,
         language: user.language || 'en',
-        privacyAcceptedAt: user.privacy_accepted_at || null
+        privacyAcceptedAt: user.privacy_accepted_at || null,
+        therapyMode: userTherapyMode || user.therapy_mode || null
       },
       joinedGroup
     }), {

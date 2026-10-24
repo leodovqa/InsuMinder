@@ -48,6 +48,7 @@ function formatUserResponse(user, shareCode) {
     theme: user.theme || 'dark',
     notificationPreferences,
     privacyAcceptedAt: user.privacy_accepted_at || null,
+    therapyMode: user.therapy_mode || null,
     is_qa: Boolean(user.is_qa || (user.email && user.email.toLowerCase() === 'qa@insuminder.com'))
   };
 }
@@ -351,6 +352,14 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
+    // Default pre-existing user without therapy mode to pen
+    if (!user.therapy_mode) {
+      await new Promise((resolve) => {
+        db.updateUser(user.id, { therapy_mode: 'pen' }, () => resolve());
+      });
+      user.therapy_mode = 'pen';
+    }
+
     const token = createSessionToken(user);
 
     res.json({
@@ -448,6 +457,10 @@ app.post('/api/auth/google', async (req, res) => {
         updates.name = userName;
       }
 
+      if (!user.therapy_mode) {
+        updates.therapy_mode = 'pen';
+      }
+
       await new Promise((resolve, reject) => {
         db.updateUser(user.id, updates, (err) => (err ? reject(err) : resolve()));
       });
@@ -494,6 +507,11 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
     if (err || !user) {
       return res.status(404).json({ success: false, error: 'User not found.' });
     }
+    // Pre-existing user protection: if user exists and has no therapy mode, default to 'pen'
+    if (!user.therapy_mode) {
+      db.updateUser(user.id, { therapy_mode: 'pen' }, () => {});
+      user.therapy_mode = 'pen';
+    }
     db.ensureShareCode(user.id, (codeErr, shareCode) => {
       res.json({
         success: true,
@@ -506,20 +524,22 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // 6. Update User Profile (Onboarding Step & Profile Updates)
 const handleProfileUpdate = async (req, res) => {
   try {
-    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences, privacyAccepted } = req.body || {};
+    const { firstName, lastName, phone, language, basalTime, theme, notificationPreferences, privacyAccepted, therapyMode } = req.body || {};
     const cleanLang = (language && ['en', 'he', 'ru'].includes(language)) ? language : null;
     const cleanBasalTime = (basalTime && typeof basalTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(basalTime)) ? basalTime : null;
     const cleanTheme = (theme && ['dark', 'light'].includes(theme)) ? theme : null;
+    const cleanTherapyMode = (therapyMode && ['pen', 'pump'].includes(therapyMode)) ? therapyMode : null;
     const hasNotificationPrefs = notificationPreferences !== undefined;
     const hasPrivacyAccepted = privacyAccepted !== undefined;
 
-    if ((cleanLang || cleanBasalTime || cleanTheme || hasNotificationPrefs || hasPrivacyAccepted) && firstName === undefined && lastName === undefined) {
+    if ((cleanLang || cleanBasalTime || cleanTheme || hasNotificationPrefs || hasPrivacyAccepted || cleanTherapyMode) && firstName === undefined && lastName === undefined) {
       const updates = {};
       if (cleanLang) updates.language = cleanLang;
       if (cleanBasalTime) updates.basal_time = cleanBasalTime;
       if (cleanTheme) updates.theme = cleanTheme;
       if (hasNotificationPrefs) updates.notification_preferences = notificationPreferences;
       if (privacyAccepted) updates.privacy_accepted_at = new Date().toISOString();
+      if (cleanTherapyMode) updates.therapy_mode = cleanTherapyMode;
 
       await new Promise((resolve, reject) => {
         db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -557,6 +577,7 @@ const handleProfileUpdate = async (req, res) => {
     if (cleanTheme) updates.theme = cleanTheme;
     if (hasNotificationPrefs) updates.notification_preferences = notificationPreferences;
     if (privacyAccepted) updates.privacy_accepted_at = new Date().toISOString();
+    if (cleanTherapyMode) updates.therapy_mode = cleanTherapyMode;
 
     await new Promise((resolve, reject) => {
       db.updateUser(req.user.id, updates, (err) => (err ? reject(err) : resolve()));
@@ -626,25 +647,26 @@ app.delete('/api/auth/me', requireAuth, handleAccountDeletion);
 // Injections API: Log injection (Requires authentication, supports shared context)
 app.post('/api/injections', requireAuth, resolveContext, (req, res) => {
   const targetUserId = req.effectiveUserId || req.user.id;
-  const { type = 'bolus', manual = false, date, time, injected_at } = req.body || {};
+  const { type = 'bolus', manual = false, date, time, injected_at, delivery_method } = req.body || {};
   const cleanType = type === 'basal' ? 'basal' : 'bolus';
+  const cleanDeliveryMethod = (delivery_method && ['pen', 'pump'].includes(delivery_method)) ? delivery_method : null;
 
   if (manual || date || injected_at) {
     let finalInjectedAt = injected_at;
     if (!finalInjectedAt && date && time) {
       finalInjectedAt = new Date(`${date}T${time}:00`).toISOString();
     }
-    db.insertManualInjectionLog(targetUserId, cleanType, finalInjectedAt, function(err) {
+    db.insertManualInjectionLog(targetUserId, cleanType, finalInjectedAt, cleanDeliveryMethod, function(err) {
       if (err) {
         const status = err.status || 400;
         return res.status(status).json({ success: false, error: err.message });
       }
-      res.json({ success: true, id: this.lastID, type: cleanType, injected_at: finalInjectedAt, manual: true });
+      res.json({ success: true, id: this.lastID, type: cleanType, injected_at: finalInjectedAt, manual: true, delivery_method: cleanDeliveryMethod });
     });
     return;
   }
 
-  db.insertInjectionLog(targetUserId, cleanType, function(err) {
+  db.insertInjectionLog(targetUserId, cleanType, cleanDeliveryMethod, function(err) {
     if (err) {
       const status = err.status || 500;
       res.status(status).json({ success: false, error: err.message });
@@ -673,12 +695,22 @@ app.get('/api/logs', optionalAuth, resolveContext, (req, res) => {
     if (err) {
       res.status(500).json({ success: false, error: err.message });
     } else {
-      const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
-      db.getTodayBasalReminder(targetUserId, todayDate, (bErr, basalReminder) => {
-        res.json({
-          success: true,
-          logs: rows || [],
-          basalReminder: basalReminder || null
+      db.getUserById(targetUserId, (uErr, userRow) => {
+        const isPump = userRow && userRow.therapy_mode === 'pump';
+        if (isPump) {
+          return res.json({
+            success: true,
+            logs: rows || [],
+            basalReminder: null
+          });
+        }
+        const { dateStr: todayDate } = scheduler.getJerusalemDateAndTime();
+        db.getTodayBasalReminder(targetUserId, todayDate, (bErr, basalReminder) => {
+          res.json({
+            success: true,
+            logs: rows || [],
+            basalReminder: basalReminder || null
+          });
         });
       });
     }
@@ -1202,7 +1234,7 @@ app.get('/api/download/android', async (req, res) => {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '1.9.10',
+      version: '2.0.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',

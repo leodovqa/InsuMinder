@@ -192,6 +192,7 @@ export const translations = {
       errorOlderThanMonth: 'Cannot log injection older than 1 month.',
       errorTwoBasalOneDay: 'You cannot have 2 basal injections in one day.',
       errorMaxTenBolus: 'Maximum 10 bolus injections allowed per day.',
+      errorMaxTwentyBolus: 'Maximum 20 bolus injections allowed per day for pump mode.',
       errorDuplicateTime: "Can't add, this exact time already appears."
     },
     settings: {
@@ -322,6 +323,8 @@ export const translations = {
       basalReminderTitle: 'Basal Injection Reminder',
       earlyInjectionTitle: 'Early Injection Confirmation',
       earlyInjectionConfirmText: 'Less than 3 hours have passed since your previous injection. Are you sure you want to log another dose now?',
+      earlyPumpBolusTitle: 'Bolus Confirmation',
+      earlyPumpBolusConfirmText: 'You logged a bolus dose within the last 3 hours. Are you sure you want to log another dose now?',
       earlyInjectionWarning: 'Injecting too soon may cause insulin stacking and hypoglycemia.',
       basalConfirmTitle: 'Log Basal Insulin',
       basalConfirmBody: 'Would you like to log your daily basal insulin injection now?',
@@ -437,6 +440,25 @@ export const translations = {
       disabled: 'Disabled',
       disabledInSettings: 'Disabled in settings',
       disabledInSettingsDesc: 'This reminder is disabled in Notification Settings and will not be sent.'
+    },
+    therapy: {
+      onboardingTitle: 'Choose Your Delivery Method',
+      onboardingSubtitle: 'Select your daily injection flow so InsuMinder customizes your reminders and tracking. You can switch anytime in Settings.',
+      modePenTitle: 'Insulin Pens (MDI)',
+      modePenSubtitle: 'Multiple Daily Injections',
+      modePenDesc: 'Ideal for manual pen injections. Features meal and safety checks (10m, 2h, 3h), daily basal insulin scheduling and reminders, 3-hour rapid injection safety checks, and up to 10 bolus logs per day.',
+      modePumpTitle: 'Insulin Pump / Pod',
+      modePumpSubtitle: 'Patch Pump or Traditional Pump',
+      modePumpDesc: 'Tailored for Omnipod, patch pumps, or tubed pumps. Basal is delivered continuously by your pump so basal buttons, schedules, and reminders are turned off. Includes bolus check reminders, a relaxed double-check confirmation, and up to 20 bolus logs per day.',
+      continueBtn: 'Get Started',
+      settingsCardTitle: 'Insulin Delivery Method',
+      settingsCardSubtitle: 'Switch between Pens (MDI) and Insulin Pump / Pod flows',
+      currentMethod: 'Active Method',
+      switchToPumpBtn: 'Switch to Pump / Pod',
+      switchToPenBtn: 'Switch to Pens (MDI)',
+      switchModalTitle: 'Switch Delivery Method',
+      switchModalText: 'Are you sure you want to switch your delivery method? Past logs will remain isolated under the method used when injected, with your most recent injection preserved on Home. The page will reload to apply the updated therapy flow.',
+      confirmSwitchBtn: 'Switch and Reload'
     },
     notificationSettings: {
       title: 'Notification Settings',
@@ -796,6 +818,7 @@ export const translations = {
       errorOlderThanMonth: 'לא ניתן לתעד הזרקה שבוצעה לפני יותר מחודש.',
       errorTwoBasalOneDay: 'לא ניתן לתעד יותר מהזרקת בזאל אחת ביום.',
       errorMaxTenBolus: 'ניתן לתעד עד 10 הזרקות בולוס ביום לכל היותר.',
+      errorMaxTwentyBolus: 'מקסימום 20 הזרקות בולוס מותרות ביום במצב משאבה.',
       errorDuplicateTime: 'לא ניתן להוסיף, זמן מדויק זה כבר מופיע.'
     },
     settings: {
@@ -926,6 +949,8 @@ export const translations = {
       basalReminderTitle: 'תזכורת אינסולין בזאלי',
       earlyInjectionTitle: 'אישור הזרקה מוקדמת',
       earlyInjectionConfirmText: 'טרם חלפו 3 שעות ממועד ההזרקה הקודם. האם אתה בטוח שברצונך לתעד הזרקה נוספת כעת?',
+      earlyPumpBolusTitle: 'אימות בולוס',
+      earlyPumpBolusConfirmText: 'תיעדת מנת בולוס ב-3 השעות האחרונות. האם אתה בטוח שברצונך לתעד מנה נוספת כעת?',
       earlyInjectionWarning: 'הזרקה מוקדמת מדי עלולה לגרום להצטברות אינסולין ולירידת סוכר (היפוגליקמיה).',
       basalConfirmTitle: 'תיעוד אינסולין בזאלי',
       basalConfirmBody: 'האם ברצונך לתעד כעת את הזרקת מנת האינסולין הבזאלי היומית שלך?',
@@ -1041,6 +1066,25 @@ export const translations = {
       disabled: 'מושבת',
       disabledInSettings: 'מושבת בהגדרות',
       disabledInSettingsDesc: 'תזכורת זו הושבתה בהגדרות התזכורות ולא תישלח.'
+    },
+    therapy: {
+      onboardingTitle: 'בחר את שיטת ההזרקה שלך',
+      onboardingSubtitle: 'בחר את אופן ההזרקה היומיומי שלך כדי ש-InsuMinder יתאים את התזכורות והמעקב. ניתן לשנות זאת בכל עת בהגדרות.',
+      modePenTitle: 'עטי אינסולין (MDI)',
+      modePenSubtitle: 'הזרקות יומיות מרובות',
+      modePenDesc: 'מתאים להזרקות ידניות באמצעות עט. כולל תזכורות לארוחה ולבדיקה (10 דק׳, שעתיים, 3 שעות), מעקב ותזכורות אינסולין בזאלי, בדיקות בטיחות להזרקות סמוכות תוך 3 שעות, ועד 10 הזרקות בולוס ביום.',
+      modePumpTitle: 'משאבת אינסולין / פוד',
+      modePumpSubtitle: 'משאבת מדבקה או משאבה עם צינורית',
+      modePumpDesc: 'מותאם עבור Omnipod, משאבות מדבקה או משאבות עם צינורית. האינסולין הבזאלי ניתן אוטומטית ולכן כפתורי, לוחות זמנים ותזכורות בזאל מבוטלים. כולל תזכורות בולוס, אימות מניעת לחיצה כפולה ועד 20 בולוסים ביום.',
+      continueBtn: 'התחל',
+      settingsCardTitle: 'אופן מתן אינסולין',
+      settingsCardSubtitle: 'מעבר בין עטי אינסולין (MDI) לבין משאבת אינסולין / פוד',
+      currentMethod: 'שיטה פעילה',
+      switchToPumpBtn: 'עבור למשאבה / פוד',
+      switchToPenBtn: 'עבור לעטי אינסולין',
+      switchModalTitle: 'החלפת אופן מתן אינסולין',
+      switchModalText: 'האם אתה בטוח שברצונך להחליף את שיטת ההזרקה? תיעודים קודמים יישמרו תחת השיטה שבה הוזרקו, כאשר ההזרקה האחרונה בהחלט תישמר במסך הבית. העמוד ייטען מחדש עם הזרימה המעודכנת.',
+      confirmSwitchBtn: 'החלף וטען מחדש'
     },
     notificationSettings: {
       title: 'הגדרות תזכורות',
@@ -1400,6 +1444,7 @@ export const translations = {
       errorOlderThanMonth: 'Нельзя добавить инъекцию старше 1 месяца.',
       errorTwoBasalOneDay: 'Нельзя делать более одной инъекции базального инсулина в день.',
       errorMaxTenBolus: 'Максимум 10 инъекций болюсного инсулина в день.',
+      errorMaxTwentyBolus: 'Максимум 20 болюсов в день для режима помпы.',
       errorDuplicateTime: 'Невозможно добавить, это точное время уже существует.'
     },
     settings: {
@@ -1530,6 +1575,8 @@ export const translations = {
       basalReminderTitle: 'Напоминание о базальном инсулине',
       earlyInjectionTitle: 'Подтверждение ранней инъекции',
       earlyInjectionConfirmText: 'С момента предыдущей инъекции прошло менее 3 часов. Вы уверены, что хотите зафиксировать ещё одну дозу сейчас?',
+      earlyPumpBolusTitle: 'Подтверждение болюса',
+      earlyPumpBolusConfirmText: 'Вы зафиксировали болюс менее 3 часов назад. Вы уверены, что хотите добавить ещё одну дозу сейчас?',
       earlyInjectionWarning: 'Слишком ранняя инъекция может привести к накоплению инсулина и гипогликемии.',
       basalConfirmTitle: 'Фиксация базального инсулина',
       basalConfirmBody: 'Хотите зафиксировать ежедневную инъекцию базального инсулина сейчас?',
@@ -1645,6 +1692,25 @@ export const translations = {
       disabled: 'Отключено',
       disabledInSettings: 'Отключено в настройках',
       disabledInSettingsDesc: 'Это напоминание отключено в настройках уведомлений и не будет отправлено.'
+    },
+    therapy: {
+      onboardingTitle: 'Выберите способ введения',
+      onboardingSubtitle: 'Выберите ваш ежедневный способ введения, чтобы InsuMinder настроил напоминания и учёт. Вы сможете изменить это в любой момент в настройках.',
+      modePenTitle: 'Шприц-ручки (MDI)',
+      modePenSubtitle: 'Множественные ежедневные инъекции',
+      modePenDesc: 'Идеально для ручных инъекций ручками. Включает напоминания о приёме пищи и проверках (10 мин, 2 ч, 3 ч), график и напоминания базального инсулина, проверку безопасности повторных инъекций в пределах 3 часов и до 10 болюсов в сутки.',
+      modePumpTitle: 'Инсулиновая помпа / Под',
+      modePumpSubtitle: 'Патч-помпа или традиционная помпа',
+      modePumpDesc: 'Специально для Omnipod, патч-помп и помп с трубкой. Базальный инсулин подается непрерывно, поэтому кнопка, расписание и напоминания базала отключены. Доступны напоминания для болюса, мягкое подтверждение от случайных нажатий и до 20 болюсов в сутки.',
+      continueBtn: 'Начать',
+      settingsCardTitle: 'Способ введения инсулина',
+      settingsCardSubtitle: 'Переключение между шприц-ручками (MDI) и инсулиновой помпой / подом',
+      currentMethod: 'Текущий способ',
+      switchToPumpBtn: 'Перейти на помпу / под',
+      switchToPenBtn: 'Перейти на шприц-ручки',
+      switchModalTitle: 'Смена способа введения',
+      switchModalText: 'Вы уверены, что хотите переключить способ введения? Прошлые записи останутся привязаны к тому методу, при котором они были сделаны, а самая последняя инъекция сохранится на Главной. Страница перезагрузится для применения новых настроек.',
+      confirmSwitchBtn: 'Переключить и перезагрузить'
     },
     notificationSettings: {
       title: 'Настройки напоминаний',
