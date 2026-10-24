@@ -242,6 +242,8 @@ function AppContent() {
   const isTherapyModeSelectionRequired = Boolean(isLoggedIn && user && user.privacyAcceptedAt && activeUserTherapyMode === null);
   const [isSwitchTherapyModalOpen, setIsSwitchTherapyModalOpen] = useState(false);
   const [isSavingTherapyMode, setIsSavingTherapyMode] = useState(false);
+  const [isLoggingInjection, setIsLoggingInjection] = useState(false);
+  const [loggingType, setLoggingType] = useState(null); // 'bolus' | 'basal' | null
 
   const handleSelectTherapyMode = async (mode) => {
     setIsSavingTherapyMode(true);
@@ -1044,6 +1046,7 @@ function AppContent() {
   const [telegramChatId, setTelegramChatId] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [isSavingBasalTime, setIsSavingBasalTime] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(() => new Date());
   useEffect(() => {
@@ -1055,35 +1058,40 @@ function AppContent() {
 
   const handleSaveBasalTime = async (newTime) => {
     if (!newTime || !/^([01]\d|2[0-3]):[0-5]\d$/.test(newTime)) return;
-    setBasalTime(newTime);
+    setIsSavingBasalTime(true);
     try {
-      localStorage.setItem('insuminder_basal_time', newTime);
-    } catch {
-      // ignore
-    }
-    if (isLoggedIn) {
+      setBasalTime(newTime);
       try {
-        const res = await fetch('/api/auth/profile', {
-          method: 'PUT',
-          headers: {
-            ...authService.getAuthHeaders(),
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ basalTime: newTime })
-        });
-        const data = await res.json();
-        if (data.success && data.user) {
-          setUser(data.user);
-          authService.setSession(authService.getToken(), data.user);
-        }
-      } catch (err) {
-        console.error('Failed to sync basal time to server:', err);
+        localStorage.setItem('insuminder_basal_time', newTime);
+      } catch {
+        // ignore
       }
+      if (isLoggedIn) {
+        try {
+          const res = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: {
+              ...authService.getAuthHeaders(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ basalTime: newTime })
+          });
+          const data = await res.json();
+          if (data.success && data.user) {
+            setUser(data.user);
+            authService.setSession(authService.getToken(), data.user);
+          }
+        } catch (err) {
+          console.error('Failed to sync basal time to server:', err);
+        }
+      }
+      setNotification({
+        type: 'success',
+        message: t('settings.basalTimeSaved')
+      });
+    } finally {
+      setIsSavingBasalTime(false);
     }
-    setNotification({
-      type: 'success',
-      message: t('settings.basalTimeSaved')
-    });
   };
 
   const latestLog = logs.length > 0 ? logs[0] : null;
@@ -1103,9 +1111,12 @@ function AppContent() {
     handleLogInjection('bolus');
   };
 
-  const handleConfirmEarlyInjection = () => {
-    setIsEarlyBolusModalOpen(false);
-    handleLogInjection('bolus');
+  const handleConfirmEarlyInjection = async () => {
+    try {
+      await handleLogInjection('bolus');
+    } finally {
+      setIsEarlyBolusModalOpen(false);
+    }
   };
 
   const handleCloseEarlyModal = () => {
@@ -1755,7 +1766,7 @@ function AppContent() {
     if (!isLoggedIn) {
       setAuthModalMode('login');
       setIsAuthModalOpen(true);
-      return;
+      return Promise.resolve();
     }
 
     const now = new Date();
@@ -1767,12 +1778,14 @@ function AppContent() {
         type: 'warning',
         message: t('notifications.rateLimitOnePerMinute')
       });
-      return;
+      return Promise.resolve();
     }
 
     const cleanType = type === 'basal' ? 'basal' : 'bolus';
+    setIsLoggingInjection(true);
+    setLoggingType(cleanType);
 
-    fetch('/api/injections', {
+    return fetch('/api/injections', {
       method: 'POST',
       headers: {
         ...authService.getAuthHeaders(),
@@ -1819,6 +1832,10 @@ function AppContent() {
         type: 'warning',
         message: t('notifications.failedToLogInjection')
       });
+    })
+    .finally(() => {
+      setIsLoggingInjection(false);
+      setLoggingType(null);
     });
   };
 
@@ -2818,23 +2835,27 @@ function AppContent() {
               <div className="log-injection-split-group">
                 <button
                   type="button"
-                  className={`log-injection-btn split-btn btn-bolus ${isLoggedIn && activeTherapyMode !== 'pump' && !isBolusEligible ? 'btn-gray' : ''}`}
-                  disabled={!isLoggedIn}
+                  className={`log-injection-btn split-btn btn-bolus ${isLoggedIn && activeTherapyMode !== 'pump' && !isBolusEligible ? 'btn-gray' : ''} ${isLoggingInjection && loggingType === 'bolus' ? 'is-loading' : ''}`}
+                  disabled={!isLoggedIn || isLoggingInjection}
                   onClick={handleBolusClick}
                   title={t('home.logBolusSubtitle')}
                 >
-                  <span className="log-injection-plus">+</span>
+                  <span className="log-injection-plus">
+                    {isLoggingInjection && loggingType === 'bolus' ? <span className="btn-spinner" aria-hidden="true" /> : '+'}
+                  </span>
                   <span className="log-injection-title">{t('home.logBolus')}</span>
                   <span className="log-injection-subtitle">{t('home.logBolusSubtitle')}</span>
                 </button>
                 <button
                   type="button"
-                  className="log-injection-btn split-btn btn-basal"
-                  disabled={!isLoggedIn}
+                  className={`log-injection-btn split-btn btn-basal ${isLoggingInjection && loggingType === 'basal' ? 'is-loading' : ''}`}
+                  disabled={!isLoggedIn || isLoggingInjection}
                   onClick={() => handleLogInjection('basal')}
                   title={t('home.logBasalSubtitle')}
                 >
-                  <span className="log-injection-plus">+</span>
+                  <span className="log-injection-plus">
+                    {isLoggingInjection && loggingType === 'basal' ? <span className="btn-spinner" aria-hidden="true" /> : '+'}
+                  </span>
                   <span className="log-injection-title">{t('home.logBasal')}</span>
                   <span className="log-injection-subtitle">{t('home.logBasalSubtitle')}</span>
                 </button>
@@ -2842,12 +2863,14 @@ function AppContent() {
             ) : (
               <button
                 type="button"
-                className={`log-injection-btn ${isLoggedIn && activeTherapyMode !== 'pump' && !isBolusEligible ? 'btn-gray' : ''}`}
-                disabled={!isLoggedIn}
+                className={`log-injection-btn ${isLoggedIn && activeTherapyMode !== 'pump' && !isBolusEligible ? 'btn-gray' : ''} ${isLoggingInjection ? 'is-loading' : ''}`}
+                disabled={!isLoggedIn || isLoggingInjection}
                 onClick={handleBolusClick}
                 title={!isLoggedIn ? t('home.logInjectionSubtitleLoggedOut') : t('home.logInjectionSubtitleLoggedIn')}
               >
-                <span className="log-injection-plus">+</span>
+                <span className="log-injection-plus">
+                  {isLoggingInjection ? <span className="btn-spinner" aria-hidden="true" /> : '+'}
+                </span>
                 <span className="log-injection-title">{t('home.logInjection')}</span>
                 <span className="log-injection-subtitle">
                   {!isLoggedIn
@@ -3858,8 +3881,16 @@ function AppContent() {
                   <button
                     type="submit"
                     className="save-btn basal-save-btn"
+                    disabled={isSavingBasalTime}
                   >
-                    {t('settings.save')}
+                    {isSavingBasalTime ? (
+                      <span className="btn-loading-content">
+                        <span className="btn-spinner" aria-hidden="true" />
+                        <span>{t('common.saving')}</span>
+                      </span>
+                    ) : (
+                      t('settings.save')
+                    )}
                   </button>
                 </div>
               </form>
@@ -3973,14 +4004,23 @@ function AppContent() {
 
                 <div className="form-actions">
                   <button type="submit" className="save-btn" disabled={isSavingSettings || !telegramBotToken.trim() || !telegramChatId.trim()}>
-                    <span className="btn-icon">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <polyline points="17 21 17 13 7 13 7 21" />
-                        <polyline points="7 3 7 8 15 8" />
-                      </svg>
-                    </span>
-                    {isSavingSettings ? t('common.saving') : t('settings.saveAndSetDefault')}
+                    {isSavingSettings ? (
+                      <span className="btn-loading-content">
+                        <span className="btn-spinner" aria-hidden="true" />
+                        <span>{t('common.saving')}</span>
+                      </span>
+                    ) : (
+                      <>
+                        <span className="btn-icon">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
+                          </svg>
+                        </span>
+                        <span>{t('settings.saveAndSetDefault')}</span>
+                      </>
+                    )}
                   </button>
 
                   <button
@@ -3989,13 +4029,22 @@ function AppContent() {
                     onClick={() => handleTestTelegramNotification()}
                     disabled={isTestingTelegram || !telegramBotToken.trim() || !telegramChatId.trim()}
                   >
-                    <span className="btn-icon">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="22" y1="2" x2="11" y2="13" />
-                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                      </svg>
-                    </span>
-                    {isTestingTelegram ? t('settings.sendingTest') : t('settings.sendTestNotification')}
+                    {isTestingTelegram ? (
+                      <span className="btn-loading-content">
+                        <span className="btn-spinner" aria-hidden="true" />
+                        <span>{t('settings.sendingTest')}</span>
+                      </span>
+                    ) : (
+                      <>
+                        <span className="btn-icon">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13" />
+                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                          </svg>
+                        </span>
+                        <span>{t('settings.sendTestNotification')}</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
@@ -4195,7 +4244,14 @@ function AppContent() {
                     className="save-btn share-invite-btn"
                     disabled={isSendingInvite || !shareInviteEmail.trim()}
                   >
-                    {isSendingInvite ? t('settings.sendingInvite') : t('settings.sendInvitation')}
+                    {isSendingInvite ? (
+                      <span className="btn-loading-content">
+                        <span className="btn-spinner" aria-hidden="true" />
+                        <span>{t('settings.sendingInvite')}</span>
+                      </span>
+                    ) : (
+                      t('settings.sendInvitation')
+                    )}
                   </button>
                 </div>
               </form>
@@ -4263,7 +4319,14 @@ function AppContent() {
                     className="save-btn share-join-btn"
                     disabled={isJoiningShare || !shareJoinCode.trim()}
                   >
-                    {isJoiningShare ? t('settings.connecting') : t('settings.connectAccount')}
+                    {isJoiningShare ? (
+                      <span className="btn-loading-content">
+                        <span className="btn-spinner" aria-hidden="true" />
+                        <span>{t('settings.connecting')}</span>
+                      </span>
+                    ) : (
+                      t('settings.connectAccount')
+                    )}
                   </button>
                 </div>
               </form>
@@ -4926,6 +4989,7 @@ function AppContent() {
                 type="button"
                 className="modal-btn cancel-btn"
                 onClick={handleCloseEarlyModal}
+                disabled={isLoggingInjection}
               >
                 {t('common.no')}
               </button>
@@ -4933,8 +4997,16 @@ function AppContent() {
                 type="button"
                 className="modal-btn confirm-early-btn"
                 onClick={handleConfirmEarlyInjection}
+                disabled={isLoggingInjection}
               >
-                {t('common.yes')}
+                {isLoggingInjection ? (
+                  <span className="btn-loading-content">
+                    <span className="btn-spinner" aria-hidden="true" />
+                    <span>{t('common.yes')}</span>
+                  </span>
+                ) : (
+                  t('common.yes')
+                )}
               </button>
             </div>
           </div>
@@ -5115,7 +5187,14 @@ function AppContent() {
                   className="modal-btn confirm-btn manual-submit-btn"
                   disabled={isSubmittingManual}
                 >
-                  {isSubmittingManual ? t('common.saving') : t('logs.manualAddSubmit')}
+                  {isSubmittingManual ? (
+                    <span className="btn-loading-content">
+                      <span className="btn-spinner" aria-hidden="true" />
+                      <span>{t('common.saving')}</span>
+                    </span>
+                  ) : (
+                    t('logs.manualAddSubmit')
+                  )}
                 </button>
               </div>
             </form>
@@ -5166,12 +5245,20 @@ function AppContent() {
               <button
                 type="button"
                 className="modal-btn confirm-btn"
-                onClick={() => {
+                disabled={isLoggingInjection}
+                onClick={async () => {
+                  await handleLogInjection('basal');
                   setIsBasalConfirmModalOpen(false);
-                  handleLogInjection('basal');
                 }}
               >
-                {t('modals.basalConfirmButton')}
+                {isLoggingInjection ? (
+                  <span className="btn-loading-content">
+                    <span className="btn-spinner" aria-hidden="true" />
+                    <span>{t('modals.basalConfirmButton')}</span>
+                  </span>
+                ) : (
+                  t('modals.basalConfirmButton')
+                )}
               </button>
             </div>
           </div>
@@ -5264,7 +5351,14 @@ function AppContent() {
                 disabled={isSavingTherapyMode}
                 onClick={handleConfirmSwitchTherapyMode}
               >
-                {isSavingTherapyMode ? '...' : t('therapy.confirmSwitchBtn')}
+                {isSavingTherapyMode ? (
+                  <span className="btn-loading-content">
+                    <span className="btn-spinner" aria-hidden="true" />
+                    <span>{t('common.saving')}</span>
+                  </span>
+                ) : (
+                  t('therapy.confirmSwitchBtn')
+                )}
               </button>
             </div>
           </div>

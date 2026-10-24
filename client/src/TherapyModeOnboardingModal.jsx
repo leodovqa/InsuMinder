@@ -124,8 +124,8 @@ export default function TherapyModeOnboardingModal({
           >
             {isSubmitting ? (
               <span className="btn-loading-content">
-                <span className="spinner-sm" aria-hidden="true" />
-                <span>...</span>
+                <span className="btn-spinner" aria-hidden="true" />
+                <span>{t('common.saving')}</span>
               </span>
             ) : (
               t('therapy.continueBtn')

@@ -357,7 +357,14 @@ export default function Profile({ user, onUpdateUser, isLoggedIn, onOpenLogin })
                     onClick={handleSave}
                     disabled={isSaving}
                   >
-                    {isSaving ? t('common.saving') : t('common.save')}
+                    {isSaving ? (
+                      <span className="btn-loading-content">
+                        <span className="btn-spinner" aria-hidden="true" />
+                        <span>{t('common.saving')}</span>
+                      </span>
+                    ) : (
+                      t('common.save')
+                    )}
                   </button>
                   <button
                     type="button"

@@ -11781,3 +11781,77 @@ body.nav-drawer-open {
   justify-content: flex-start;
   direction: ltr;
 }
+
+
+/* =========================================================================
+   BUTTON LOADERS & ASYNC ACTION BUSY STATES
+   ========================================================================= */
+
+.btn-spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btnSpin 0.75s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+@keyframes btnSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn-loading-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  vertical-align: middle;
+}
+
+/* Home Log Injection Big Action Buttons Loading State */
+.log-injection-btn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.log-injection-btn.is-loading {
+  cursor: wait;
+}
+
+.log-injection-btn .log-injection-plus .btn-spinner {
+  width: 24px;
+  height: 24px;
+  border-width: 3px;
+  border-color: rgba(255, 255, 255, 0.4);
+  border-right-color: #ffffff;
+  display: inline-block;
+  margin: 0 auto;
+}
+
+.split-btn .log-injection-plus .btn-spinner {
+  width: 20px;
+  height: 20px;
+  border-width: 2.5px;
+  border-color: rgba(255, 255, 255, 0.4);
+  border-right-color: #ffffff;
+  display: inline-block;
+  margin: 0 auto;
+}
+
+/* Save, Modal, and Primary Buttons Disabled While Saving */
+.primary-btn:disabled,
+.modal-btn:disabled,
+.save-btn:disabled,
+.test-btn:disabled,
+.profile-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none !important;
+}
