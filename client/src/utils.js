@@ -465,6 +465,126 @@ export const getEffectiveNotificationPreferences = (userPrefs) => {
   };
 };
 
+
+export const extractChannelError = (rawError, channel) => {
+  if (!rawError || typeof rawError !== 'string') return null;
+  const clean = rawError.replace(/^PARTIAL:\s*/i, '');
+  const parts = clean.split(';');
+  for (const p of parts) {
+    const trimmed = p.trim();
+    if (trimmed.toLowerCase().startsWith(channel.toLowerCase() + ':')) {
+      return trimmed.slice(channel.length + 1).trim();
+    }
+  }
+  return clean;
+};
+
+export const buildDeliveryChannelsList = ({
+  isSent,
+  isDueOrPast,
+  isEnabled,
+  isTelegramEnabled,
+  isDeviceEnabled,
+  rawError,
+  lang = 'en'
+}) => {
+  const channels = [];
+
+  if (isTelegramEnabled || rawError?.includes('Telegram:')) {
+    const hasTgError = rawError && rawError.includes('Telegram:');
+    let status = 'upcoming';
+    let label = translate('modals.channelStatusScheduled', {}, lang);
+    let badgeClass = 'badge-upcoming';
+    let statusIcon = '⏳';
+    let error = null;
+
+    if (isSent) {
+      if (hasTgError) {
+        status = 'failed';
+        label = translate('modals.channelStatusFailed', {}, lang);
+        badgeClass = 'badge-failed';
+        statusIcon = '❌';
+        error = extractChannelError(rawError, 'Telegram');
+      } else {
+        status = 'sent';
+        label = translate('modals.channelStatusSent', {}, lang);
+        badgeClass = 'badge-sent';
+        statusIcon = '✅';
+      }
+    } else if (isDueOrPast) {
+      status = 'failed';
+      label = translate('modals.channelStatusFailed', {}, lang);
+      badgeClass = 'badge-failed';
+      statusIcon = '❌';
+      error = hasTgError ? extractChannelError(rawError, 'Telegram') : (rawError || 'Failed to deliver');
+    } else if (!isEnabled) {
+      status = 'disabled';
+      label = translate('modals.channelStatusDisabled', {}, lang);
+      badgeClass = 'badge-disabled';
+      statusIcon = '🔕';
+    }
+
+    channels.push({
+      id: 'telegram',
+      name: translate('modals.channelTelegram', {}, lang),
+      icon: '📱',
+      status,
+      label,
+      badgeClass,
+      statusIcon,
+      error
+    });
+  }
+
+  if (isDeviceEnabled || rawError?.includes('Device:')) {
+    const hasDevError = rawError && rawError.includes('Device:');
+    let status = 'upcoming';
+    let label = translate('modals.channelStatusScheduled', {}, lang);
+    let badgeClass = 'badge-upcoming';
+    let statusIcon = '⏳';
+    let error = null;
+
+    if (isSent) {
+      if (hasDevError) {
+        status = 'failed';
+        label = translate('modals.channelStatusFailed', {}, lang);
+        badgeClass = 'badge-failed';
+        statusIcon = '❌';
+        error = extractChannelError(rawError, 'Device');
+      } else {
+        status = 'sent';
+        label = translate('modals.channelStatusSent', {}, lang);
+        badgeClass = 'badge-sent';
+        statusIcon = '✅';
+      }
+    } else if (isDueOrPast) {
+      status = 'failed';
+      label = translate('modals.channelStatusFailed', {}, lang);
+      badgeClass = 'badge-failed';
+      statusIcon = '❌';
+      error = hasDevError ? extractChannelError(rawError, 'Device') : (rawError || 'Failed to deliver');
+    } else if (!isEnabled) {
+      status = 'disabled';
+      label = translate('modals.channelStatusDisabled', {}, lang);
+      badgeClass = 'badge-disabled';
+      statusIcon = '🔕';
+    }
+
+    channels.push({
+      id: 'device',
+      name: translate('modals.channelNotificationCenter', {}, lang),
+      icon: '🔔',
+      status,
+      label,
+      badgeClass,
+      statusIcon,
+      error
+    });
+  }
+
+  return channels;
+};
+
 export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true, lang = 'en', notificationPreferences = null, activeContext = 'personal') => {
   if (!log) {
     return {
@@ -479,7 +599,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
       targetTime: null,
       friendlyError: null,
       rawError: null,
-      isDisabled: false
+      isDisabled: false,
+      channels: []
     };
   }
 
@@ -510,7 +631,54 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
     rawError = log.error_2h;
   }
 
+  const effectivePrefs = getEffectiveNotificationPreferences(notificationPreferences);
+  const scope = activeContext === 'shared' ? 'shared' : 'personal';
+  const prefKey = type === '10m' ? 'rem10m' : (type === '3h' ? 'rem3h' : 'rem2h');
+  const isEnabled = effectivePrefs[scope]?.[prefKey] !== false;
+  const isExplicitlyDisabled = rawError === 'Disabled in notification settings.' || !isEnabled;
+
+  const isTelegramEnabled = Boolean(isTelegramConfigured && effectivePrefs[scope]?.telegram !== false);
+  const isDeviceEnabled = Boolean(
+    effectivePrefs[scope]?.webPush !== false ||
+    (typeof window !== 'undefined' && localStorage.getItem('insuminder_device_notifications_active') === 'true')
+  );
+
+  const isPartial = Boolean(isSent && rawError && (rawError.startsWith('PARTIAL:') || rawError.includes('Device:') || rawError.includes('Telegram:')));
+  const targetDate = new Date(targetTime);
+  const isDueOrPast = !isNaN(targetDate.getTime()) && targetDate.getTime() <= Date.now();
+
+  const channels = buildDeliveryChannelsList({
+    isSent,
+    isPartial,
+    isDueOrPast,
+    isEnabled: !isExplicitlyDisabled,
+    isTelegramEnabled,
+    isDeviceEnabled,
+    rawError,
+    lang
+  });
+
   if (isSent) {
+    if (isPartial) {
+      return {
+        type,
+        status: 'partial',
+        label: translate('status.sentPartial', {}, lang),
+        pillLabel: translate('status.sentPartial', {}, lang),
+        icon: '❓',
+        badgeClass: 'badge-partial',
+        pillClass: 'partial',
+        title: rawError.replace(/^PARTIAL:\s*/, ''),
+        targetTime,
+        friendlyError: {
+          category: translate('modals.channelStatusFailed', {}, lang),
+          message: rawError.replace(/^PARTIAL:\s*/, '')
+        },
+        rawError: rawError ? String(rawError).trim() : null,
+        isDisabled: false,
+        channels
+      };
+    }
     return {
       type,
       status: 'sent',
@@ -519,19 +687,14 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
       icon: '✅',
       badgeClass: 'badge-sent',
       pillClass: 'sent',
-      title: 'Reminder delivered to Telegram.',
+      title: translate('modals.sentSuccessMulti', {}, lang),
       targetTime,
       friendlyError: null,
       rawError: null,
-      isDisabled: false
+      isDisabled: false,
+      channels
     };
   }
-
-  const effectivePrefs = getEffectiveNotificationPreferences(notificationPreferences);
-  const scope = activeContext === 'shared' ? 'shared' : 'personal';
-  const prefKey = type === '10m' ? 'rem10m' : (type === '3h' ? 'rem3h' : 'rem2h');
-  const isEnabled = effectivePrefs[scope]?.[prefKey] !== false;
-  const isExplicitlyDisabled = rawError === 'Disabled in notification settings.' || !isEnabled;
 
   if (isExplicitlyDisabled) {
     return {
@@ -549,12 +712,10 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
         message: translate('status.disabledInSettingsDesc', {}, lang)
       },
       rawError: rawError ? String(rawError).trim() : null,
-      isDisabled: true
+      isDisabled: true,
+      channels
     };
   }
-
-  const targetDate = new Date(targetTime);
-  const isDueOrPast = !isNaN(targetDate.getTime()) && targetDate.getTime() <= Date.now();
 
   if (isDueOrPast) {
     const friendly = getFriendlyReminderError(rawError, isTelegramConfigured, lang);
@@ -570,7 +731,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
       targetTime,
       friendlyError: friendly,
       rawError: rawError ? String(rawError).trim() : null,
-      isDisabled: false
+      isDisabled: false,
+      channels
     };
   }
 
@@ -586,7 +748,8 @@ export const getReminderStatus = (log, type = '2h', isTelegramConfigured = true,
     targetTime,
     friendlyError: null,
     rawError: null,
-    isDisabled: false
+    isDisabled: false,
+    channels
   };
 };
 
@@ -611,7 +774,55 @@ export const getBasalReminderStatus = (
   const isSent = Boolean(basalReminder?.status_sent === 1 || basalReminder?.status_sent === true || basalReminder?.status_sent === '1');
   const rawError = basalReminder?.error || null;
 
+  const effectivePreferencesObj = getEffectiveNotificationPreferences(effectivePrefs);
+  const scope = effectiveContext === 'shared' ? 'shared' : 'personal';
+  const isEnabled = effectivePreferencesObj[scope]?.basal !== false;
+  const isExplicitlyDisabled = rawError === 'Disabled in notification settings.' || !isEnabled;
+
+  const isTelegramEnabled = Boolean(isTelegramConfigured && effectivePreferencesObj[scope]?.telegram !== false);
+  const isDeviceEnabled = Boolean(
+    effectivePreferencesObj[scope]?.webPush !== false ||
+    (typeof window !== 'undefined' && localStorage.getItem('insuminder_device_notifications_active') === 'true')
+  );
+
+  const isPartial = Boolean(isSent && rawError && (rawError.startsWith('PARTIAL:') || rawError.includes('Device:') || rawError.includes('Telegram:')));
+  const nowForBasal = new Date();
+  const [bHourForCheck, bMinForCheck] = scheduledTime.split(':').map(n => parseInt(n, 10));
+  const isDueOrPast = nowForBasal.getHours() > bHourForCheck || (nowForBasal.getHours() === bHourForCheck && nowForBasal.getMinutes() >= bMinForCheck);
+
+  const channels = buildDeliveryChannelsList({
+    isSent,
+    isPartial,
+    isDueOrPast,
+    isEnabled: !isExplicitlyDisabled,
+    isTelegramEnabled,
+    isDeviceEnabled,
+    rawError,
+    lang
+  });
+
   if (isSent) {
+    if (isPartial) {
+      return {
+        type: 'basal',
+        status: 'partial',
+        label: translate('status.sentPartial', {}, lang),
+        pillLabel: translate('status.sentPartial', {}, lang),
+        icon: '❓',
+        badgeClass: 'badge-partial',
+        pillClass: 'partial',
+        title: rawError.replace(/^PARTIAL:\s*/, ''),
+        targetTime: basalReminder?.sent_at || null,
+        scheduledTime,
+        friendlyError: {
+          category: translate('modals.channelStatusFailed', {}, lang),
+          message: rawError.replace(/^PARTIAL:\s*/, '')
+        },
+        rawError: rawError ? String(rawError).trim() : null,
+        isDisabled: false,
+        channels
+      };
+    }
     return {
       type: 'basal',
       status: 'sent',
@@ -620,19 +831,15 @@ export const getBasalReminderStatus = (
       icon: '✅',
       badgeClass: 'badge-sent',
       pillClass: 'sent',
-      title: 'Reminder delivered to Telegram.',
+      title: translate('modals.sentSuccessMulti', {}, lang),
       targetTime: basalReminder?.sent_at || null,
       scheduledTime,
       friendlyError: null,
       rawError: null,
-      isDisabled: false
+      isDisabled: false,
+      channels
     };
   }
-
-  const effectivePreferencesObj = getEffectiveNotificationPreferences(effectivePrefs);
-  const scope = effectiveContext === 'shared' ? 'shared' : 'personal';
-  const isEnabled = effectivePreferencesObj[scope]?.basal !== false;
-  const isExplicitlyDisabled = rawError === 'Disabled in notification settings.' || !isEnabled;
 
   if (isExplicitlyDisabled) {
     return {
@@ -651,16 +858,10 @@ export const getBasalReminderStatus = (
         message: translate('status.disabledInSettingsDesc', {}, lang)
       },
       rawError: rawError ? String(rawError).trim() : null,
-      isDisabled: true
+      isDisabled: true,
+      channels
     };
   }
-
-  // Check whether current time is past scheduled basal time
-  const now = new Date();
-  const [bHour, bMin] = scheduledTime.split(':').map(n => parseInt(n, 10));
-  const curHour = now.getHours();
-  const curMin = now.getMinutes();
-  const isDueOrPast = (curHour > bHour) || (curHour === bHour && curMin >= bMin);
 
   // If there's an explicit delivery error recorded (other than 'Already injected')
   if (rawError && rawError !== 'Already injected') {
@@ -678,7 +879,8 @@ export const getBasalReminderStatus = (
       scheduledTime,
       friendlyError: friendly,
       rawError: String(rawError).trim(),
-      isDisabled: false
+      isDisabled: false,
+      channels
     };
   }
 
@@ -698,7 +900,8 @@ export const getBasalReminderStatus = (
         scheduledTime,
         friendlyError: friendly,
         rawError: rawError ? String(rawError).trim() : null,
-        isDisabled: false
+        isDisabled: false,
+        channels
       };
     }
   }
@@ -716,7 +919,8 @@ export const getBasalReminderStatus = (
     scheduledTime,
     friendlyError: null,
     rawError: null,
-    isDisabled: false
+    isDisabled: false,
+    channels
   };
 };
 

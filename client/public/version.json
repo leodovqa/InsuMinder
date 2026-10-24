@@ -1,6 +1,6 @@
 {
-  "version": "1.9.9",
-  "versionCode": 21,
+  "version": "1.9.10",
+  "versionCode": 22,
   "versionHistory": [
     "1.0.0",
     "1.1.0",
@@ -21,24 +21,31 @@
     "1.9.6",
     "1.9.7",
     "1.9.8",
-    "1.9.9"
+    "1.9.9",
+    "1.9.10"
   ],
-  "buildTime": "2026-10-23T16:41:00.623Z",
+  "buildTime": "2026-10-24T06:50:00.000Z",
   "changes": {
     "en": [
-      "Android hardware back button key dispatch interception for all device navigation bars",
-      "Streamlined side-by-side single-row buttons for exit app confirmation modal",
-      "Native-style floating circular pull-to-refresh spinner with zero layout jump"
+      "Direct APK download update flow for Android with instant package installer launch",
+      "Precise native versionCode matching to eliminate false-positive update alerts on first launch",
+      "Instant high-speed pull-to-refresh with parallel data fetching",
+      "Centered header alignment and bidirectional symmetry for exit app confirmation modal",
+      "Full dual-channel notification delivery for native Android alarms and Telegram"
     ],
     "he": [
-      "יירוט מקשי חזרה בחומרה באנדרואיד לכל סרגלי הניווט במכשירים שונים",
-      "עיצוב כפתורים זה לצד זה בשורה אחת בחלון אישור היציאה מהאפליקציה",
-      "מחוון משיכה לרענון צף ומעגלי בסגנון Native ללא קפיצות במבנה העמוד"
+      "הורדת עדכון APK ישירה לאנדרואיד עם הפעלת מנהל ההתקנות המובנה",
+      "התאמת versionCode מקורי מדויקת למניעת התראות עדכון שווא בפתיחה ראשונה",
+      "רענון משיכה מהיר במיוחד עם טעינת נתונים מקבילית",
+      "יישור כותרת וסמליל מותאמים דו-כיוונית בחלון אישור היציאה מהאפליקציה",
+      "שליחת תזכורות מלאה בשני הערוצים: שעון מעורר מקומי באנדרואיד ובטלגרם במקביל"
     ],
     "ru": [
-      "Перехват аппаратной кнопки «Назад» на всех панелях навигации Android",
-      "Аккуратные кнопки в одну строку рядом друг с другом в диалоге выхода",
-      "Нативный плавающий круглый индикатор обновления тягой вниз без сдвига верстки"
+      "Прямая загрузка APK-обновления для Android с автоматическим запуском установщика",
+      "Точная сверка versionCode для предотвращения ложных уведомлений об обновлении при первом запуске",
+      "Мгновенное обновление потягиванием вниз с параллельной загрузкой данных",
+      "Симметричное двунаправленное выравнивание заголовка и значка в окне подтверждения выхода",
+      "Полная доставка напоминаний по двум каналам: нативные будильники Android и Telegram"
     ]
   }
 }
