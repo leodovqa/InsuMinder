@@ -1632,7 +1632,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/hardware back button/i)).toBeInTheDocument();
+      expect(screen.getByText(/Direct APK download/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
