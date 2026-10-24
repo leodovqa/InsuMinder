@@ -2,6 +2,7 @@ const TOKEN_STORAGE_KEY = 'insuminder_auth_token';
 const USER_STORAGE_KEY = 'insuminder_auth_user';
 const CONTEXT_STORAGE_KEY = 'insuminder_active_context';
 const OWNER_STORAGE_KEY = 'insuminder_active_owner_id';
+const THERAPY_MODE_STORAGE_KEY = 'insuminder_therapy_mode';
 
 export const authService = {
   getToken() {
@@ -13,7 +14,15 @@ export const authService = {
     if (typeof window === 'undefined') return null;
     try {
       const raw = localStorage.getItem(USER_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      const user = JSON.parse(raw);
+      if (user && !user.therapyMode) {
+        const storedMode = localStorage.getItem(THERAPY_MODE_STORAGE_KEY);
+        if (storedMode && ['pen', 'pump'].includes(storedMode)) {
+          user.therapyMode = storedMode;
+        }
+      }
+      return user;
     } catch {
       return null;
     }
@@ -53,6 +62,9 @@ export const authService = {
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
     }
     if (user) {
+      if (user.therapyMode && ['pen', 'pump'].includes(user.therapyMode)) {
+        localStorage.setItem(THERAPY_MODE_STORAGE_KEY, user.therapyMode);
+      }
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
       if (user.language && ['en', 'he', 'ru'].includes(user.language)) {
         localStorage.setItem('insuminder_language', user.language);
@@ -87,13 +99,18 @@ export const authService = {
       const data = await res.json();
       if (data.success && data.user) {
         const currentUser = this.getCurrentUser();
+        const storedMode = typeof window !== 'undefined' ? localStorage.getItem(THERAPY_MODE_STORAGE_KEY) : null;
+        const effectiveTherapyMode = data.user.therapyMode || currentUser?.therapyMode || (['pen', 'pump'].includes(storedMode) ? storedMode : null);
         const mergedUser = {
           ...data.user,
           privacyAcceptedAt: data.user.privacyAcceptedAt || currentUser?.privacyAcceptedAt || null,
-          therapyMode: data.user.therapyMode !== undefined ? data.user.therapyMode : (currentUser?.therapyMode || null)
+          therapyMode: effectiveTherapyMode
         };
         if (!data.user.privacyAcceptedAt && currentUser?.privacyAcceptedAt) {
           this.acceptPrivacy().catch(() => {});
+        }
+        if (!data.user.therapyMode && effectiveTherapyMode) {
+          this.setTherapyMode(effectiveTherapyMode).catch(() => {});
         }
         this.setSession(token, mergedUser);
         return mergedUser;
@@ -155,6 +172,7 @@ export const authService = {
     }
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(THERAPY_MODE_STORAGE_KEY);
     localStorage.removeItem(CONTEXT_STORAGE_KEY);
     localStorage.removeItem(OWNER_STORAGE_KEY);
   },
@@ -220,6 +238,9 @@ export const authService = {
     const token = this.getToken();
 
     let optimisticUser = null;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(THERAPY_MODE_STORAGE_KEY, cleanMode);
+    }
     if (currentUser) {
       optimisticUser = {
         ...currentUser,

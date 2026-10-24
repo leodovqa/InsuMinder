@@ -182,7 +182,7 @@ export async function onRequest(context) {
       .run();
 
     const updatedUser = await db
-      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at FROM users WHERE id = ?')
+      .prepare('SELECT id, email, name, first_name, last_name, phone, avatar, share_code, is_verified, language, basal_time, theme, notification_preferences, privacy_accepted_at, therapy_mode FROM users WHERE id = ?')
       .bind(authUser.userId)
       .first();
 
@@ -210,7 +210,8 @@ export async function onRequest(context) {
         basalTime: updatedUser.basal_time || '20:00',
         theme: updatedUser.theme || 'dark',
         notificationPreferences: parsedPrefs,
-        privacyAcceptedAt: updatedUser.privacy_accepted_at || null
+        privacyAcceptedAt: updatedUser.privacy_accepted_at || null,
+        therapyMode: updatedUser.therapy_mode || null
       }
     }), {
       status: 200,

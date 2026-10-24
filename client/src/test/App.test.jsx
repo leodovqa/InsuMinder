@@ -1410,7 +1410,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       fireEvent.click(basalBtn);
 
       await waitFor(() => {
-        expect(injectionPayload).toEqual({ type: 'basal' });
+        expect(injectionPayload).toEqual({ type: 'basal', delivery_method: 'pen' });
         expect(screen.queryByText('Early Injection Confirmation')).not.toBeInTheDocument();
       });
     });

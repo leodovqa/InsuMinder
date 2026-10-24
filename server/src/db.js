@@ -345,20 +345,28 @@ function getUserTherapyMode(userId, callback) {
   });
 }
 
-function insertInjectionLog(userIdOrCallback, typeOrCallback, maybeCallback) {
+function insertInjectionLog(userIdOrCallback, typeOrCallback, deliveryMethodOrCallback, maybeCallback) {
   const userId = typeof userIdOrCallback === 'number'
     ? userIdOrCallback
     : (typeof userIdOrCallback === 'string' && !isNaN(parseInt(userIdOrCallback, 10)) ? parseInt(userIdOrCallback, 10) : null);
   const type = typeof typeOrCallback === 'string' ? (typeOrCallback === 'basal' ? 'basal' : 'bolus') : 'bolus';
-  const callback = typeof typeOrCallback === 'function'
-    ? typeOrCallback
-    : (typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback);
+  const deliveryMethod = typeof deliveryMethodOrCallback === 'string' && ['pen', 'pump'].includes(deliveryMethodOrCallback)
+    ? deliveryMethodOrCallback
+    : null;
+  const callback = typeof deliveryMethodOrCallback === 'function'
+    ? deliveryMethodOrCallback
+    : (typeof typeOrCallback === 'function' ? typeOrCallback : (typeof userIdOrCallback === 'function' ? userIdOrCallback : maybeCallback));
 
   const now = new Date();
   const currentMinute = now.toISOString().slice(0, 16);
 
-  getUserTherapyMode(userId, (modeErr, therapyMode) => {
+  getUserTherapyMode(userId, (modeErr, dbTherapyMode) => {
     if (modeErr) return callback(modeErr);
+
+    const therapyMode = deliveryMethod || dbTherapyMode || 'pen';
+    if (deliveryMethod && userId && dbTherapyMode !== deliveryMethod) {
+      updateUser(userId, { therapy_mode: deliveryMethod }, () => {});
+    }
 
     const isBasal = type === 'basal';
     if (therapyMode === 'pump' && isBasal) {
@@ -449,12 +457,16 @@ function getJerusalemDateAndTime(date = new Date()) {
   };
 }
 
-function insertManualInjectionLog(userId, type, injectedAt, callback) {
+function insertManualInjectionLog(userId, type, injectedAt, deliveryMethodOrCallback, maybeCallback) {
   const cleanUserId = typeof userId === 'number'
     ? userId
     : (typeof userId === 'string' && !isNaN(parseInt(userId, 10)) ? parseInt(userId, 10) : null);
   const cleanType = typeof type === 'string' && type === 'basal' ? 'basal' : 'bolus';
   const isBasal = cleanType === 'basal';
+  const deliveryMethod = typeof deliveryMethodOrCallback === 'string' && ['pen', 'pump'].includes(deliveryMethodOrCallback)
+    ? deliveryMethodOrCallback
+    : null;
+  const callback = typeof deliveryMethodOrCallback === 'function' ? deliveryMethodOrCallback : maybeCallback;
 
   if (!injectedAt) {
     const err = new Error("Injection date and time are required.");
@@ -485,8 +497,13 @@ function insertManualInjectionLog(userId, type, injectedAt, callback) {
     return callback(err);
   }
 
-  getUserTherapyMode(cleanUserId, (modeErr, therapyMode) => {
+  getUserTherapyMode(cleanUserId, (modeErr, dbTherapyMode) => {
     if (modeErr) return callback(modeErr);
+
+    const therapyMode = deliveryMethod || dbTherapyMode || 'pen';
+    if (deliveryMethod && cleanUserId && dbTherapyMode !== deliveryMethod) {
+      updateUser(cleanUserId, { therapy_mode: deliveryMethod }, () => {});
+    }
 
     if (therapyMode === 'pump' && isBasal) {
       const err = new Error("Basal injections are not applicable in pump mode.");

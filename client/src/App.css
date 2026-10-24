@@ -11501,23 +11501,28 @@ body.nav-drawer-open {
   background: var(--code-bg, rgba(255, 255, 255, 0.04));
   animation: fadeIn 0.2s ease;
   box-sizing: border-box;
+  text-align: left;
 }
 
 .desc-card-header {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   margin-bottom: 6px;
+  text-align: left;
 }
 
 .desc-icon {
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .desc-title {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-h, #ffffff);
+  text-align: left;
 }
 
 .desc-text {
@@ -11525,6 +11530,7 @@ body.nav-drawer-open {
   line-height: 1.5;
   color: var(--text, #cbd5e1);
   margin: 0;
+  text-align: left;
 }
 
 .therapy-description-placeholder {
@@ -11631,11 +11637,12 @@ body.nav-drawer-open {
 
 /* Switch Delivery Method Confirmation Modal */
 .switch-therapy-backdrop {
-  z-index: 10004;
+  z-index: 10005;
 }
 
 .switch-therapy-content {
   max-width: 480px;
+  width: 100%;
 }
 
 .switch-modes-preview {
@@ -11760,5 +11767,17 @@ body.nav-drawer-open {
 
 [dir="ltr"] .reminder-channel-header,
 [dir="ltr"] .reminder-channel-info {
+  direction: ltr;
+}
+
+[dir="rtl"] .therapy-description-card,
+[dir="rtl"] .desc-card-header,
+[dir="rtl"] .desc-title,
+[dir="rtl"] .desc-text {
+  text-align: left !important;
+}
+
+[dir="rtl"] .desc-card-header {
+  justify-content: flex-start;
   direction: ltr;
 }

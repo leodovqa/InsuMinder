@@ -37,6 +37,12 @@ export async function onRequestGet(context) {
     user.share_code = newCode;
   }
 
+  // Pre-existing user protection: if user exists and has no therapy mode, default to 'pen'
+  if (!user.therapy_mode) {
+    await db.prepare('UPDATE users SET therapy_mode = ? WHERE id = ?').bind('pen', user.id).run();
+    user.therapy_mode = 'pen';
+  }
+
   let parsedPrefs = null;
   if (user.notification_preferences) {
     try {

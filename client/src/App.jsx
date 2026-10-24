@@ -236,8 +236,10 @@ function AppContent() {
   const [isLatestExpanded, setIsLatestExpanded] = useState(false);
   const [user, setUser] = useState(() => authService.getCurrentUser());
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(authService.getToken()));
-  const activeTherapyMode = user?.therapyMode || 'pen';
-  const isTherapyModeSelectionRequired = Boolean(isLoggedIn && user && user.privacyAcceptedAt && user.therapyMode === null);
+  const storedTherapyMode = typeof window !== 'undefined' ? localStorage.getItem('insuminder_therapy_mode') : null;
+  const activeUserTherapyMode = user?.therapyMode || (['pen', 'pump'].includes(storedTherapyMode) ? storedTherapyMode : null);
+  const activeTherapyMode = activeUserTherapyMode === 'pump' ? 'pump' : 'pen';
+  const isTherapyModeSelectionRequired = Boolean(isLoggedIn && user && user.privacyAcceptedAt && activeUserTherapyMode === null);
   const [isSwitchTherapyModalOpen, setIsSwitchTherapyModalOpen] = useState(false);
   const [isSavingTherapyMode, setIsSavingTherapyMode] = useState(false);
 
@@ -1776,7 +1778,7 @@ function AppContent() {
         ...authService.getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ type: cleanType })
+      body: JSON.stringify({ type: cleanType, delivery_method: activeTherapyMode })
     })
     .then(response => response.json())
     .then(data => {
@@ -1794,6 +1796,7 @@ function AppContent() {
           user_id: user?.id,
           injected_at: now.toISOString(),
           type: cleanType,
+          delivery_method: activeTherapyMode,
           notify_10m_at: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
           notify_2h_at: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
           notify_3h_at: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
@@ -1887,7 +1890,8 @@ function AppContent() {
           type: manualType,
           date: manualDate,
           time: manualTime,
-          injected_at: selectedDate.toISOString()
+          injected_at: selectedDate.toISOString(),
+          delivery_method: activeTherapyMode
         })
       });
 
@@ -3414,7 +3418,8 @@ function AppContent() {
                   </button>
                 </div>
 
-                {/* 3. Rapid Injection Trend Warning (< 3h) */}
+                {/* 3. Rapid Injection Trend Warning (< 3h) - Pens Only */}
+                {activeTherapyMode !== 'pump' && (
                 <div className="rapid-trend-card">
                   <div className="rapid-card-header">
                     <div className={`rapid-icon-wrapper ${rapidInjections.rapidList.length > 0 ? 'warning' : 'safe'}`}>
@@ -3463,6 +3468,7 @@ function AppContent() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* 4. Today's Injection Logs (Daily View) */}
                 <div className="daily-logs-section">
@@ -3476,7 +3482,7 @@ function AppContent() {
                     </span>
                   </div>
 
-                  {todayLogs.length === 0 && hasLoggedBasalToday ? (
+                  {todayLogs.length === 0 && (activeTherapyMode === 'pump' || hasLoggedBasalToday) ? (
                     <div className="daily-empty-card">
                       <span className="daily-empty-text">{t('logs.noInjectionsToday')}</span>
                     </div>
@@ -3581,7 +3587,7 @@ function AppContent() {
                           </li>
                         );
                       })}
-                      {!hasLoggedBasalToday && (
+                      {activeTherapyMode !== 'pump' && !hasLoggedBasalToday && (
                         <li className="log-item basal-log-item pending-basal-log-item">
                           <div className="log-field">
                             <span className="log-label">{t('logs.injectedLabel')}</span>
@@ -5207,26 +5213,24 @@ function AppContent() {
       {/* Switch Delivery Method Confirmation Modal */}
       {isSwitchTherapyModalOpen && (
         <div
-          className="modal-backdrop switch-therapy-backdrop"
+          className="modal-overlay switch-therapy-backdrop"
           onClick={() => !isSavingTherapyMode && setIsSwitchTherapyModalOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-labelledby="switch-therapy-modal-title"
         >
-          <div className="modal-content switch-therapy-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card switch-therapy-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header switch-therapy-header">
-              <div className="basal-modal-header-left">
-                <h3 id="switch-therapy-modal-title" className="modal-title">
-                  {t('therapy.switchModalTitle')}
-                </h3>
-              </div>
+              <h3 id="switch-therapy-modal-title" className="modal-title">
+                {t('therapy.switchModalTitle')}
+              </h3>
               <button
                 type="button"
                 className="modal-close-x-btn"
                 onClick={() => !isSavingTherapyMode && setIsSwitchTherapyModalOpen(false)}
                 aria-label={t('common.closeModal')}
               >
-                &times;
+                ✕
               </button>
             </div>
 

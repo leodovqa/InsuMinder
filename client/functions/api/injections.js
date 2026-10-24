@@ -43,12 +43,17 @@ export async function onRequestPost(context) {
     const userId = await getEffectiveUserId(request, env, authUser, db);
     const now = new Date();
     const body = await request.json().catch(() => ({}));
-    const { type = 'bolus', manual = false, date, time, injected_at: customInjectedAt } = body || {};
+    const { type = 'bolus', manual = false, date, time, injected_at: customInjectedAt, delivery_method } = body || {};
+    const cleanDeliveryMethod = (delivery_method && ['pen', 'pump'].includes(delivery_method)) ? delivery_method : null;
     const cleanType = type === 'basal' ? 'basal' : 'bolus';
     const isBasal = cleanType === 'basal';
 
     const userRow = await db.prepare("SELECT basal_time, therapy_mode FROM users WHERE id = ?").bind(userId).first();
-    const therapyMode = (userRow && userRow.therapy_mode === 'pump') ? 'pump' : 'pen';
+    const dbTherapyMode = (userRow && userRow.therapy_mode === 'pump') ? 'pump' : 'pen';
+    const therapyMode = cleanDeliveryMethod || dbTherapyMode;
+    if (cleanDeliveryMethod && userRow && userRow.therapy_mode !== cleanDeliveryMethod) {
+      await db.prepare("UPDATE users SET therapy_mode = ? WHERE id = ?").bind(cleanDeliveryMethod, userId).run();
+    }
 
     if (isBasal && therapyMode === 'pump') {
       return new Response(
@@ -169,7 +174,8 @@ export async function onRequestPost(context) {
           id: info.meta.last_row_id,
           type: cleanType,
           injected_at,
-          manual: true
+          manual: true,
+          delivery_method: therapyMode
         }),
         {
           status: 200,
@@ -271,7 +277,8 @@ export async function onRequestPost(context) {
       JSON.stringify({
         success: true,
         id: info.meta.last_row_id,
-        type: cleanType
+        type: cleanType,
+        delivery_method: therapyMode
       }),
       {
         status: 200,
