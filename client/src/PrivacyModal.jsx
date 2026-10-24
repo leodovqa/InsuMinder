@@ -112,7 +112,14 @@ export default function PrivacyModal({
                 onClick={handleAccept}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? t('privacy.accepting') : t('privacy.acceptAndContinue')}
+                {isSubmitting ? (
+                  <span className="btn-loading-content">
+                    <span className="btn-spinner" aria-hidden="true" />
+                    <span>{t('privacy.accepting')}</span>
+                  </span>
+                ) : (
+                  t('privacy.acceptAndContinue')
+                )}
               </button>
               {onDecline && (
                 <button

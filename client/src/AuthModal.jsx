@@ -622,7 +622,14 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                 className="primary-btn auth-submit-btn"
                 disabled={isSubmitting || !firstName.trim() || !lastName.trim() || isPhoneError}
               >
-                {isSubmitting ? t('auth.completingRegistration') : t('auth.completeRegistrationBtn')}
+                {isSubmitting ? (
+                  <span className="btn-loading-content">
+                    <span className="btn-spinner" aria-hidden="true" />
+                    <span>{t('auth.completingRegistration')}</span>
+                  </span>
+                ) : (
+                  t('auth.completeRegistrationBtn')
+                )}
               </button>
             </div>
           </form>
@@ -708,7 +715,14 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                   className="primary-btn auth-submit-btn"
                   disabled={isSubmitting || code.length !== 6}
                 >
-                  {isSubmitting ? t('auth.verifying') : t('auth.verifyCodeBtn')}
+                  {isSubmitting ? (
+                    <span className="btn-loading-content">
+                      <span className="btn-spinner" aria-hidden="true" />
+                      <span>{t('auth.verifying')}</span>
+                    </span>
+                  ) : (
+                    t('auth.verifyCodeBtn')
+                  )}
                 </button>
               )}
             </div>
@@ -842,9 +856,12 @@ export default function AuthModal({ isOpen, initialMode = 'login', shareCode = n
                   className="primary-btn auth-submit-btn"
                   disabled={isSubmitting || (mode === 'register' && !privacyAccepted)}
                 >
-                  {isSubmitting
-                    ? t('auth.pleaseWait')
-                    : mode === 'register'
+                  {isSubmitting ? (
+                    <span className="btn-loading-content">
+                      <span className="btn-spinner" aria-hidden="true" />
+                      <span>{t('auth.pleaseWait')}</span>
+                    </span>
+                  ) : mode === 'register'
                     ? t('auth.continueAndSendCode')
                     : t('home.signIn')}
                 </button>
