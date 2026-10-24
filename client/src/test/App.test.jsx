@@ -487,7 +487,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       await waitFor(() => {
         const sentBadges = screen.getAllByText('Sent');
         expect(sentBadges).toHaveLength(2);
-        expect(sentBadges[0]).toHaveAttribute('title', 'Reminder delivered to Telegram.');
+        expect(sentBadges[0]).toHaveAttribute('title', 'Delivered successfully across all active notification channels.');
 
         const notSentBadge = screen.getByText('Not Sent');
         expect(notSentBadge).toBeInTheDocument();
