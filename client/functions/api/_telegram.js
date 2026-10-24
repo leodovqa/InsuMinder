@@ -575,6 +575,8 @@ async function dispatchMultiChannelReminderEdge({
   }
 
   let successCount = 0;
+  let telegramSuccess = false;
+  let pushSuccess = false;
   const errors = [];
 
   if (shouldSendTelegram) {
@@ -587,29 +589,51 @@ async function dispatchMultiChannelReminderEdge({
     const tgRes = await sendTelegramMessage(telegramConfig.bot_token.trim(), telegramConfig.chat_id.trim(), msg);
     if (tgRes.ok) {
       successCount++;
+      telegramSuccess = true;
     } else {
-      errors.push(`Telegram: ${tgRes.error}`);
+      errors.push(`Telegram: ${tgRes.error || 'Failed to send'}`);
     }
   }
 
   if (shouldSendPush) {
     const payload = buildPushPayload(type, { injectedAt, lang });
+    let anyPushOk = false;
+    let lastPushErr = null;
     for (const sub of pushSubs) {
       const pRes = await sendWebPush(sub, payload, { env });
       if (pRes.ok) {
-        successCount++;
+        anyPushOk = true;
       } else if (pRes.expired) {
         await db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`).bind(sub.endpoint).run();
       } else {
-        errors.push(`Push: ${pRes.error}`);
+        lastPushErr = pRes.error;
       }
+    }
+    if (anyPushOk) {
+      successCount++;
+      pushSuccess = true;
+    } else {
+      errors.push(`Device: ${lastPushErr || 'Device notification delivery failed'}`);
     }
   }
 
-  if (successCount > 0) {
-    return { ok: true };
+  const activeChannelsCount = (shouldSendTelegram ? 1 : 0) + (shouldSendPush ? 1 : 0);
+
+  if (successCount === activeChannelsCount && successCount > 0) {
+    return { ok: true, partial: false, telegramSuccess, pushSuccess };
   }
-  return { ok: false, error: errors.join('; ') || 'Failed to dispatch notification.' };
+
+  if (successCount > 0 && successCount < activeChannelsCount) {
+    return {
+      ok: true,
+      partial: true,
+      telegramSuccess,
+      pushSuccess,
+      error: errors.join('; ')
+    };
+  }
+
+  return { ok: false, partial: false, error: errors.join('; ') || 'Failed to dispatch notification.' };
 }
 
 export async function dispatchDueNotifications(db, env = null) {

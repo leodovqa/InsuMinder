@@ -435,7 +435,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '1.9.9',
+  version: '1.9.10',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -444,19 +444,25 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Android hardware back button key dispatch interception for all device navigation bars',
-    'Streamlined side-by-side single-row buttons for exit app confirmation modal',
-    'Native-style floating circular pull-to-refresh spinner with zero layout jump'
+    'Direct APK download update flow for Android with instant package installer launch',
+    'Precise native versionCode matching to eliminate false-positive update alerts on first launch',
+    'Instant high-speed pull-to-refresh with parallel data fetching',
+    'Centered header alignment and bidirectional symmetry for exit app confirmation modal',
+    'Full dual-channel notification delivery for native Android alarms and Telegram'
   ],
   he: [
-    'יירוט מקשי חזרה בחומרה באנדרואיד לכל סרגלי הניווט במכשירים שונים',
-    'עיצוב כפתורים זה לצד זה בשורה אחת בחלון אישור היציאה מהאפליקציה',
-    'מחוון משיכה לרענון צף ומעגלי בסגנון Native ללא קפיצות במבנה העמוד'
+    'הורדת עדכון APK ישירה לאנדרואיד עם הפעלת מנהל ההתקנות המובנה',
+    'התאמת versionCode מקורי מדויקת למניעת התראות עדכון שווא בפתיחה ראשונה',
+    'רענון משיכה מהיר במיוחד עם טעינת נתונים מקבילית',
+    'יישור כותרת וסמליל מותאמים דו-כיוונית בחלון אישור היציאה מהאפליקציה',
+    'שליחת תזכורות מלאה בשני הערוצים: שעון מעורר מקומי באנדרואיד ובטלגרם במקביל'
   ],
   ru: [
-    'Перехват аппаратной кнопки «Назад» на всех панелях навигации Android',
-    'Аккуратные кнопки в одну строку рядом друг с другом в диалоге выхода',
-    'Нативный плавающий круглый индикатор обновления тягой вниз без сдвига верстки'
+    'Прямая загрузка APK-обновления для Android с автоматическим запуском установщика',
+    'Точная сверка versionCode для предотвращения ложных уведомлений об обновлении при первом запуске',
+    'Мгновенное обновление потягиванием вниз с параллельной загрузкой данных',
+    'Симметричное двунаправленное выравнивание заголовка и значка в окне подтверждения выхода',
+    'Полная доставка напоминаний по двум каналам: нативные будильники Android и Telegram'
   ]
 };
 
@@ -561,6 +567,16 @@ export function isSemverGreater(vA, vB) {
 
 export function getStoredAppVersion() {
   if (typeof window === 'undefined') return DEFAULT_APP_VERSION;
+  if (window.AndroidBridge && typeof window.AndroidBridge.getNativeVersion === 'function') {
+    try {
+      const nativeVer = window.AndroidBridge.getNativeVersion();
+      if (nativeVer && typeof nativeVer === 'string' && nativeVer.trim().length > 0) {
+        return nativeVer.trim();
+      }
+    } catch {
+      // fallback to localStorage
+    }
+  }
   try {
     return localStorage.getItem('insuminder_app_version') || DEFAULT_APP_VERSION;
   } catch {
@@ -688,8 +704,29 @@ export async function checkForAppUpdate() {
     const data = await res.json();
     const remoteVer = data.version || currentVer;
 
+    // Check authoritative native Android versionCode first if running natively
+    if (window.AndroidBridge && typeof window.AndroidBridge.getNativeVersionCode === 'function') {
+      try {
+        const nativeVersionCode = window.AndroidBridge.getNativeVersionCode();
+        if (typeof nativeVersionCode === 'number' && typeof data.versionCode === 'number') {
+          if (nativeVersionCode >= data.versionCode) {
+            setStoredAppVersion(remoteVer);
+            return null;
+          }
+        }
+      } catch (e) {
+        console.warn('[PWA] Error reading nativeVersionCode:', e);
+      }
+    }
+
     // First run initialization: if no stored version, store remoteVer
     if (!localStorage.getItem('insuminder_app_version')) {
+      setStoredAppVersion(remoteVer);
+      return null;
+    }
+
+    // Android app running equal or newer native semver never prompts
+    if (isAndroidApp() && !isSemverGreater(remoteVer, currentVer)) {
       setStoredAppVersion(remoteVer);
       return null;
     }
@@ -760,6 +797,18 @@ export function initServiceWorkerUpdateWatcher(registration) {
 export async function applyAppUpdate(newVersion = null, onProgress = null) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     throw new Error('Network offline. Please check your internet connection and try again.');
+  }
+
+  // If running inside Android APK, initiate native APK binary download & package installer launch!
+  if (isAndroidApp()) {
+    onProgress?.({ percent: 50, stage: 'downloading' });
+    downloadAndroidApk();
+    if (newVersion) {
+      setStoredAppVersion(newVersion);
+    }
+    clearPostponedUpdates();
+    onProgress?.({ percent: 100, stage: 'complete' });
+    return;
   }
 
   onProgress?.({ percent: 15, stage: 'checking' });
@@ -835,4 +884,36 @@ export async function applyAppUpdate(newVersion = null, onProgress = null) {
   if (typeof window !== 'undefined' && window.location && typeof window.location.reload === 'function') {
     window.location.reload();
   }
+}
+
+
+// Native Android AlarmManager Reminders Bridge
+export function scheduleNativeReminder(reminderId, title, body, triggerAtMillis, targetUrl = '/') {
+  if (typeof window === 'undefined') return false;
+  if (window.AndroidBridge && typeof window.AndroidBridge.scheduleNativeReminder === 'function') {
+    try {
+      window.AndroidBridge.scheduleNativeReminder(reminderId, title, body, triggerAtMillis, targetUrl);
+      addDiagnosticLog('info', 'scheduleNativeReminder invoked', { reminderId, triggerAtMillis });
+      return true;
+    } catch (e) {
+      addDiagnosticLog('error', 'scheduleNativeReminder failed', { error: e.message });
+      console.warn('[PWA] Error calling scheduleNativeReminder:', e);
+    }
+  }
+  return false;
+}
+
+export function cancelNativeReminder(reminderId) {
+  if (typeof window === 'undefined') return false;
+  if (window.AndroidBridge && typeof window.AndroidBridge.cancelNativeReminder === 'function') {
+    try {
+      window.AndroidBridge.cancelNativeReminder(reminderId);
+      addDiagnosticLog('info', 'cancelNativeReminder invoked', { reminderId });
+      return true;
+    } catch (e) {
+      addDiagnosticLog('error', 'cancelNativeReminder failed', { error: e.message });
+      console.warn('[PWA] Error calling cancelNativeReminder:', e);
+    }
+  }
+  return false;
 }

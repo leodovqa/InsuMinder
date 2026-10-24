@@ -55,7 +55,7 @@ import com.google.android.gms.tasks.Task;
  * Enforces HTTPS-only, isolates external links, supports Service Worker caching and live updates.
  * Seamlessly supports Google Identity Services and OAuth popups within the native container.
  */
-public class WebContainerActivity extends Activity {
+public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivity {
 
     public static final int RC_GOOGLE_SIGN_IN = 9001;
     public static final int RC_POST_NOTIFICATIONS = 9002;
@@ -339,6 +339,13 @@ public class WebContainerActivity extends Activity {
         targetUri = resolveTargetUri(targetUri);
         mWebView.loadUrl(targetUri.toString());
 
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                handleBackPressed();
+            }
+        });
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
@@ -614,7 +621,13 @@ public class WebContainerActivity extends Activity {
             }
             PendingIntent pendingIntent = PendingIntent.getBroadcast(this, requestCode, intent, flags);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+                } else {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
             } else {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
@@ -668,7 +681,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             } catch (Exception e) {
-                return "1.9.9";
+                return "1.9.10";
             }
         }
 
@@ -677,7 +690,7 @@ public class WebContainerActivity extends Activity {
             try {
                 return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
             } catch (Exception e) {
-                return 21;
+                return 22;
             }
         }
 
@@ -820,8 +833,10 @@ public class WebContainerActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_DOWN) {
-            handleBackPressed();
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                handleBackPressed();
+            }
             return true;
         }
         return super.dispatchKeyEvent(event);

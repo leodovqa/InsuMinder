@@ -42,7 +42,9 @@ import {
   subscribeToAppUpdates,
   ANDROID_PACKAGE_INFO,
   APP_CURRENT_CHANGELOG,
-  promptNotificationPermissionIfNeeded
+  promptNotificationPermissionIfNeeded,
+  scheduleNativeReminder,
+  cancelNativeReminder
 } from './pwa';
 import { LanguageProvider, useTranslation } from './i18n';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
@@ -572,6 +574,7 @@ function AppContent() {
     if (typeof window !== 'undefined' && window.AndroidBridge && typeof window.AndroidBridge.exitApp === 'function') {
       try {
         window.AndroidBridge.exitApp();
+        return;
       } catch (err) {
         console.warn('AndroidBridge.exitApp error:', err);
       }
@@ -1113,8 +1116,110 @@ function AppContent() {
     setReminderModalData(null);
   };
 
+  // Synchronize Native Android Reminders (10m, 2h, and Basal) with AlarmManager
+  useEffect(() => {
+    if (!isAndroidApp()) return;
+
+    const isDeviceNotificationActive = typeof window !== 'undefined' &&
+      window.AndroidBridge &&
+      typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' &&
+      window.AndroidBridge.isNotificationPermissionGranted();
+
+    if (!isDeviceNotificationActive) {
+      cancelNativeReminder('bolus-10m');
+      cancelNativeReminder('bolus-2h');
+      cancelNativeReminder('basal-daily');
+      return;
+    }
+
+    const now = Date.now();
+    const is10mEnabled = notificationPreferences?.personal?.rem10m !== false;
+    const is2hEnabled = notificationPreferences?.personal?.rem2h !== false;
+    const isBasalEnabled = notificationPreferences?.personal?.basal !== false;
+
+    // 1. Bolus 10m & 2h Reminders
+    if (latestBolusLog && latestBolusLog.injected_at) {
+      const injectedTime = new Date(latestBolusLog.injected_at).getTime();
+      const time10m = injectedTime + 10 * 60 * 1000;
+      const time2h = injectedTime + 2 * 60 * 60 * 1000;
+
+      // 10-Minute Meal Reminder
+      if (is10mEnabled && latestBolusLog.status_10m_sent !== 1 && time10m > now) {
+        scheduleNativeReminder(
+          'bolus-10m',
+          t('home.rem10mTitle') || '10-Minute Meal Reminder',
+          t('home.rem10mDesc') || 'You can safely begin eating now.',
+          time10m,
+          '/?page=home'
+        );
+      } else {
+        cancelNativeReminder('bolus-10m');
+      }
+
+      // 2-Hour Blood Glucose Check
+      if (is2hEnabled && latestBolusLog.status_2h_sent !== 1 && time2h > now) {
+        scheduleNativeReminder(
+          'bolus-2h',
+          t('home.rem2hTitle') || '2-Hour Glucose Check',
+          t('home.rem2hDesc') || 'Please check your blood glucose level.',
+          time2h,
+          '/?page=home'
+        );
+      } else {
+        cancelNativeReminder('bolus-2h');
+      }
+    } else {
+      cancelNativeReminder('bolus-10m');
+      cancelNativeReminder('bolus-2h');
+    }
+
+    // 2. Basal Daily Reminder
+    if (isBasalEnabled && basalTime) {
+      const [bHourStr, bMinStr] = String(basalTime).split(':');
+      const bHour = parseInt(bHourStr, 10) || 20;
+      const bMin = parseInt(bMinStr, 10) || 0;
+
+      const todayDateStr = new Date().toISOString().slice(0, 10);
+      const isBasalInjectedToday = logs.some((l) => {
+        if (l.type !== 'basal' || !l.injected_at) return false;
+        return l.injected_at.slice(0, 10) === todayDateStr;
+      });
+
+      const targetBasalToday = new Date();
+      targetBasalToday.setHours(bHour, bMin, 0, 0);
+
+      if (isBasalInjectedToday || targetBasalToday.getTime() <= now) {
+        const targetBasalTomorrow = new Date(targetBasalToday.getTime() + 24 * 60 * 60 * 1000);
+        scheduleNativeReminder(
+          'basal-daily',
+          t('modals.basalReminderTitle') || 'Basal Injection Reminder',
+          t('settings.basalReminderDesc') || 'Daily reminder to log your basal insulin dose.',
+          targetBasalTomorrow.getTime(),
+          '/?action=basal'
+        );
+      } else {
+        scheduleNativeReminder(
+          'basal-daily',
+          t('modals.basalReminderTitle') || 'Basal Injection Reminder',
+          t('settings.basalReminderDesc') || 'Daily reminder to log your basal insulin dose.',
+          targetBasalToday.getTime(),
+          '/?action=basal'
+        );
+      }
+    } else {
+      cancelNativeReminder('basal-daily');
+    }
+  }, [
+    latestBolusLog,
+    logs,
+    basalTime,
+    notificationPreferences,
+    t
+  ]);
+
+
   const fetchTelegramConfigs = () => {
-    fetch('/api/telegram-configs', {
+    return fetch('/api/telegram-configs', {
       headers: authService.getAuthHeaders()
     })
       .then(response => response.json())
@@ -1145,7 +1250,7 @@ function AppContent() {
   };
 
   const fetchLogs = () => {
-    fetch('/api/logs', {
+    return fetch('/api/logs', {
       headers: authService.getAuthHeaders()
     })
       .then(response => response.json())
@@ -1156,8 +1261,12 @@ function AppContent() {
           }
           setBasalReminder(data.basalReminder || null);
         }
+        return data;
       })
-      .catch(error => console.error('Error fetching logs:', error));
+      .catch(error => {
+        console.error('Error fetching logs:', error);
+        return null;
+      });
   };
 
   // Fetch Caregiver / Family Share Status
@@ -1194,11 +1303,14 @@ function AppContent() {
 
   const refreshAppData = useCallback(async (isSilent = true) => {
     try {
-      fetchLogs();
-      fetchTelegramConfigs();
+      const promises = [fetchLogs(), fetchTelegramConfigs()];
       if (authService.getToken()) {
-        await fetchShareStatus();
+        promises.push(fetchShareStatus());
       }
+      await Promise.race([
+        Promise.allSettled(promises),
+        new Promise((resolve) => setTimeout(resolve, 1200))
+      ]);
     } catch (e) {
       if (!isSilent) console.warn('[Refresh] Error refreshing app data:', e);
     }
@@ -1264,7 +1376,6 @@ function AppContent() {
       setPullDistance(46);
       try {
         await refreshAppData(false);
-        await new Promise((resolve) => setTimeout(resolve, 450));
       } finally {
         setIsRefreshing(false);
         setPullDistance(0);
@@ -4633,6 +4744,10 @@ function AppContent() {
                   <p className="reminder-modal-success-text">
                     {t('modals.sentSuccessText')}
                   </p>
+                ) : reminderModalData.status === 'partial' ? (
+                  <p className="reminder-modal-partial-text">
+                    {t('modals.sentPartialSuccessText')}
+                  </p>
                 ) : reminderModalData.status === 'disabled' ? (
                   <p className="reminder-modal-disabled-text">
                     {reminderModalData.friendlyError?.message || t('status.disabledInSettingsDesc')}
@@ -4659,6 +4774,32 @@ function AppContent() {
                   </p>
                 )}
               </div>
+
+              {reminderModalData.channels && reminderModalData.channels.length > 0 && (
+                <div className="reminder-channels-section">
+                  <h4 className="reminder-channels-title">{t('modals.deliveryChannelsTitle')}</h4>
+                  <div className="reminder-channels-list">
+                    {reminderModalData.channels.map((ch) => (
+                      <div key={ch.id} className={`reminder-channel-card ${ch.status}`}>
+                        <div className="reminder-channel-header">
+                          <div className="reminder-channel-info">
+                            <span className="reminder-channel-icon" aria-hidden="true">{ch.icon}</span>
+                            <span className="reminder-channel-name">{ch.name}</span>
+                          </div>
+                          <span className={`reminder-channel-badge ${ch.badgeClass}`}>
+                            {ch.statusIcon} {ch.label}
+                          </span>
+                        </div>
+                        {ch.error && (
+                          <p className="reminder-channel-error-msg" dir="ltr">
+                            {ch.error}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-actions">
