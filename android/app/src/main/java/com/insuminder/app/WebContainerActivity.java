@@ -1,5 +1,6 @@
 package com.insuminder.app;
 
+import com.insuminder.app.BuildConfig;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
