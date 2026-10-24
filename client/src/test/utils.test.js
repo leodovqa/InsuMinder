@@ -473,7 +473,7 @@ describe('Utility Functions & Helpers', () => {
       expect(res.icon).toBe('✅');
       expect(res.badgeClass).toBe('badge-sent');
       expect(res.pillClass).toBe('sent');
-      expect(res.title).toBe('Reminder delivered to Telegram.');
+      expect(res.title).toBe('Delivered successfully across all active notification channels.');
     });
 
     it('returns "Not Sent" with custom error tooltip when delivery failed', () => {

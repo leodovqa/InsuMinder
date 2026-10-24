@@ -481,7 +481,6 @@ export const extractChannelError = (rawError, channel) => {
 
 export const buildDeliveryChannelsList = ({
   isSent,
-  isPartial,
   isDueOrPast,
   isEnabled,
   isTelegramEnabled,
