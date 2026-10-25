@@ -1,6 +1,7 @@
 const db = require('./db');
 const { sendTelegramMessage } = require('./telegram');
 const webpush = require('./webpush');
+const fcm = require('./fcm');
 
 let schedulerInterval = null;
 let isChecking = false;
@@ -314,7 +315,20 @@ async function dispatchMultiChannelReminder({
   if (shouldSendPush) {
     const payload = buildPushPayload(type, { injectedAt, lang });
     for (const sub of pushSubs) {
-      const pRes = await webpush.sendWebPush(sub, payload);
+      let pRes;
+      if (sub.endpoint && sub.endpoint.startsWith('fcm:')) {
+        const token = sub.endpoint.slice(4);
+        const fRes = await fcm.sendFcmNotification(token, {
+          reminderId: `bolus-${type}`,
+          title: payload.title,
+          body: payload.body,
+          targetUrl: payload.data?.url || '/'
+        });
+        pRes = { ok: fRes.success, expired: fRes.expired, error: fRes.error };
+      } else {
+        pRes = await webpush.sendWebPush(sub, payload);
+      }
+
       if (pRes.ok) {
         successCount++;
       } else if (pRes.expired) {

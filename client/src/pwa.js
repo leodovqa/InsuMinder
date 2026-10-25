@@ -195,6 +195,7 @@ export async function subscribeToPush(authHeader = null, lang = 'en') {
   void lang;
   if (isAndroidApp()) {
     if (window.AndroidBridge) {
+      syncNativeFcmToken(authHeader).catch(() => {});
       const isGranted = typeof window.AndroidBridge.isNotificationPermissionGranted === 'function' && window.AndroidBridge.isNotificationPermissionGranted();
       if (isGranted) {
         try {
@@ -437,7 +438,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '2.1.0',
+  version: '2.2.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -446,20 +447,20 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    "Offline Injection Sync Queue: queue injections locally when offline or disconnected and automatically synchronize upon network restoration",
-    "Animated button loading spinners and dynamic action states across notification push buttons and Home big injection buttons",
-    "Optimistic local state updates for offline injections with instant countdown timers and native Android alarm scheduling"
-],
+    "Firebase Cloud Messaging (FCM): remote push notifications deliver reminders even if the app is killed or closed",
+    "High-Precision AlarmClock Engine and Device Reboot persistence for reliable alarms across Doze mode",
+    "1-tap Background and Battery Optimization Exemption dialog for zero-delay notifications"
+  ],
   he: [
-    "תור סנכרון להזרקות לא מקוונות: שמירה מקומית של הזרקות בהיעדר חיבור וסנכרון אוטומטי בעת חזרת הרשת",
-    "מחווני טעינה מונפשים ומצבי פעולה דינמיים בכפתורי התראות הפוש ובכפתורי ההזרקה הראשיים במסך הבית",
-    "עדכון אופטימי מיידי של נתונים מקומיים בהזרקה לא מקוונת, כולל טיימרים פעילים והתראות שעון מעורר באנדרואיד"
-],
+    "שירות הודעות ענן Firebase (FCM): מסירת התראות בזמן אמת גם כשהאפליקציה סגורה לחלוטין או הופסקה",
+    "מנגנון שעון מעורר בדיוק מירבי ותמיכה בהפעלה מחדש של המכשיר לפעולה רציפה במצב חיסכון בסוללה",
+    "דיאלוג בלחיצה אחת לקבלת פטור מהגבלות סוללה ופעילות חופשית ברקע לקבלת תזכורות ללא עיכוב"
+  ],
   ru: [
-    "Очередь офлайн-синхронизации инъекций: локальное сохранение инъекций без интернета и автосинхронизация при восстановлении сети",
-    "Анимированные индикаторы загрузки и динамические статусы кнопок push-уведомлений и главных кнопок инъекций на главном экране",
-    "Оптимистичное обновление локального состояния при офлайн-инъекциях с немедленным запуском таймеров и нативных будильников Android"
-]
+    "Firebase Cloud Messaging (FCM): удаленная доставка push-уведомлений даже при закрытом или завершенном приложении",
+    "Высокоточный движок AlarmClock и автовосстановление при перезагрузке устройства для надежных сигналов в режиме Doze",
+    "Диалог в 1 касание для снятия ограничений батареи и фоновой работы без задержек"
+  ]
 };
 
 export function downloadAndroidApk() {
@@ -912,4 +913,97 @@ export function cancelNativeReminder(reminderId) {
     }
   }
   return false;
+}
+
+// Battery Optimization Bridge
+export function isBatteryOptimizationIgnored() {
+  if (typeof window === 'undefined') return true;
+  if (!isAndroidApp()) return true;
+  if (window.AndroidBridge && typeof window.AndroidBridge.isBatteryOptimizationIgnored === 'function') {
+    try {
+      return Boolean(window.AndroidBridge.isBatteryOptimizationIgnored());
+    } catch (e) {
+      console.warn('[PWA] Error calling isBatteryOptimizationIgnored:', e);
+    }
+  }
+  return true;
+}
+
+export function requestIgnoreBatteryOptimizations() {
+  if (typeof window === 'undefined') return false;
+  if (window.AndroidBridge && typeof window.AndroidBridge.requestIgnoreBatteryOptimizations === 'function') {
+    try {
+      window.AndroidBridge.requestIgnoreBatteryOptimizations();
+      addDiagnosticLog('info', 'requestIgnoreBatteryOptimizations invoked');
+      return true;
+    } catch (e) {
+      addDiagnosticLog('error', 'requestIgnoreBatteryOptimizations failed', { error: e.message });
+      console.warn('[PWA] Error calling requestIgnoreBatteryOptimizations:', e);
+    }
+  }
+  return false;
+}
+
+// Native FCM Device Token Subscription
+export async function subscribeFcmToken(fcmToken, authHeader = null) {
+  if (!fcmToken || typeof fcmToken !== 'string') return { ok: false, error: 'Invalid FCM token' };
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authHeader) headers['Authorization'] = authHeader;
+
+    const res = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        fcmToken,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Android'
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: data.error || 'Failed to register FCM device token.' };
+    }
+    try {
+      localStorage.setItem('insuminder_fcm_token', fcmToken);
+      localStorage.setItem('insuminder_device_notifications_active', 'true');
+    } catch (e) {
+      void e;
+    }
+    addDiagnosticLog('info', 'FCM device token registered with server', { fcmToken: fcmToken.slice(0, 15) + '...' });
+    return { ok: true, fcmToken };
+  } catch (err) {
+    console.warn('[PWA] subscribeFcmToken error:', err);
+    return { ok: false, error: err.message || 'Network error registering FCM device token.' };
+  }
+}
+
+export async function syncNativeFcmToken(authHeader = null) {
+  if (!isAndroidApp() || typeof window === 'undefined' || !window.AndroidBridge) return null;
+  if (typeof window.AndroidBridge.getNativeFcmToken !== 'function') return null;
+  try {
+    const token = window.AndroidBridge.getNativeFcmToken();
+    if (token && typeof token === 'string' && token.trim().length > 0) {
+      return await subscribeFcmToken(token.trim(), authHeader);
+    }
+  } catch (e) {
+    console.warn('[PWA] syncNativeFcmToken error:', e);
+  }
+  return null;
+}
+
+if (typeof window !== 'undefined') {
+  window.__onNativeFcmTokenReceived = (token) => {
+    if (token) {
+      let authHeader = null;
+      try {
+        const tokenVal = localStorage.getItem('insuminder_auth_token');
+        if (tokenVal) authHeader = `Bearer ${tokenVal}`;
+      } catch {
+        // ignore
+      }
+      subscribeFcmToken(token, authHeader).catch((err) => {
+        console.warn('[PWA] Auto-registration of FCM token failed:', err);
+      });
+    }
+  };
 }

@@ -1,4 +1,5 @@
 import { sendWebPush } from './_webpush.js';
+import { sendFcmNotification } from './_fcm.js';
 
 const TELEGRAM_API_BASE = 'https://api.telegram.org';
 
@@ -610,7 +611,20 @@ async function dispatchMultiChannelReminderEdge({
     let anyPushOk = false;
     let lastPushErr = null;
     for (const sub of pushSubs) {
-      const pRes = await sendWebPush(sub, payload, { env });
+      let pRes;
+      if (sub.endpoint && sub.endpoint.startsWith('fcm:')) {
+        const token = sub.endpoint.slice(4);
+        const fRes = await sendFcmNotification(token, {
+          reminderId: `bolus-${type}`,
+          title: payload.title,
+          body: payload.body,
+          targetUrl: payload.data?.url || '/'
+        }, { env });
+        pRes = { ok: fRes.success, expired: fRes.expired, error: fRes.error };
+      } else {
+        pRes = await sendWebPush(sub, payload, { env });
+      }
+
       if (pRes.ok) {
         anyPushOk = true;
       } else if (pRes.expired) {

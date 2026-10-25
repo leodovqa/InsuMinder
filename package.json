@@ -1,10 +1,10 @@
 {
   "name": "insuminder",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "scripts": {
     "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"node server/src/index.js\" \"npm run dev --prefix client\"",
     "build": "npm --prefix client run build",
-    "test": "node --test --test-concurrency=1 server/test/telegram.test.js server/test/auth.test.js server/test/share.test.js server/test/webpush.test.js server/test/download.test.js server/test/manual-injections.test.js server/test/therapy-modes.test.js && npm --prefix client test",
+    "test": "node --test --test-concurrency=1 server/test/telegram.test.js server/test/auth.test.js server/test/share.test.js server/test/webpush.test.js server/test/download.test.js server/test/manual-injections.test.js server/test/therapy-modes.test.js server/test/fcm.test.js && npm --prefix client test",
     "lint": "npm --prefix client run lint",
     "check:i18n": "npm --prefix client run check:i18n",
     "check:theme": "npm --prefix client run check:theme",

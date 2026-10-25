@@ -519,7 +519,14 @@ export const translations = {
       pwaInstallBtn: 'Download InsuMinder.apk',
       pwaInstalledBadge: 'Android App Active',
       pwaInstalling: 'Downloading APK...',
-      pwaInstallUnavailable: 'App is already installed or running natively.'
+      pwaInstallUnavailable: 'App is already installed or running natively.',
+      batteryOptTitle: 'Background & Battery Optimization',
+      batteryOptSubtitle: 'Ensure alarms and reminders ring reliably even when the device is locked, the app is killed, or Doze mode is active.',
+      batteryOptStatusUnrestricted: 'Unrestricted (Recommended)',
+      batteryOptStatusOptimized: 'Optimized (May delay alarms)',
+      batteryOptRequestBtn: 'Allow Unrestricted Background',
+      batteryOptGrantedBanner: '✓ InsuMinder is exempt from battery restrictions. High-precision alarms and FCM delivery are active.',
+      fcmKilledAppBanner: 'Firebase Cloud Messaging (FCM) is connected: notifications will wake your device even if the app is closed or killed.',
     },
     diagnostic: {
       title: 'Diagnostics & QA Center',
@@ -1175,7 +1182,14 @@ export const translations = {
       pwaInstallBtn: 'הורדת InsuMinder.apk',
       pwaInstalledBadge: 'אפליקציית אנדרואיד פעילה',
       pwaInstalling: 'מוריד APK...',
-      pwaInstallUnavailable: 'האפליקציה כבר מותקנת או פועלת במצב עצמאי.'
+      pwaInstallUnavailable: 'האפליקציה כבר מותקנת או פועלת במצב עצמאי.',
+      batteryOptTitle: 'פעילות ברקע וחיסכון בסוללה',
+      batteryOptSubtitle: 'הבטחת צלצול התזכורות בזמן אמת גם כשהמסך נעול, האפליקציה סגורה או במצב חיסכון בסוללה.',
+      batteryOptStatusUnrestricted: 'ללא הגבלה (מומלץ)',
+      batteryOptStatusOptimized: 'מותאם (עלול לעכב התראות)',
+      batteryOptRequestBtn: 'אפשר פעילות חופשית ברקע',
+      batteryOptGrantedBanner: '✓ אינסומיינדר פטורה מהגבלות סוללה. התראות שעון מעורר ו-FCM פעילות בדיוק מקסימלי.',
+      fcmKilledAppBanner: 'חיבור Firebase Cloud Messaging (FCM) פעיל: התראות יעירו את המכשיר גם כשהאפליקציה סגורה או נסגרה לחלוטין.',
     },
     diagnostic: {
       title: 'מרכז דיאגנוסטיקה ובדיקות QA',
@@ -1831,7 +1845,14 @@ export const translations = {
       pwaInstallBtn: 'Скачать InsuMinder.apk',
       pwaInstalledBadge: 'Приложение Android активно',
       pwaInstalling: 'Загрузка APK...',
-      pwaInstallUnavailable: 'Приложение уже установлено или работает автономно.'
+      pwaInstallUnavailable: 'Приложение уже установлено или работает автономно.',
+      batteryOptTitle: 'Работа в фоновом режиме и оптимизация батареи',
+      batteryOptSubtitle: 'Гарантирует своевременные сигналы даже при заблокированном экране, закрытом приложении или в режиме Doze.',
+      batteryOptStatusUnrestricted: 'Без ограничений (Рекомендуется)',
+      batteryOptStatusOptimized: 'Оптимизировано (может задерживать сигналы)',
+      batteryOptRequestBtn: 'Разрешить работу без ограничений',
+      batteryOptGrantedBanner: '✓ InsuMinder работает без ограничений батареи. Высокоточные будильники и доставка FCM активны.',
+      fcmKilledAppBanner: 'Firebase Cloud Messaging (FCM) подключен: уведомления разбудят устройство, даже если приложение закрыто.',
     },
     diagnostic: {
       title: 'Центр диагностики и QA',
