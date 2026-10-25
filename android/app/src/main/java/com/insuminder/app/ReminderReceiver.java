@@ -49,7 +49,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             body = "You have an insulin dose reminder.";
         }
         if (targetUrl == null || targetUrl.trim().isEmpty()) {
-            targetUrl = "https://insuminder.pages.dev/?action=basal";
+            targetUrl = "https://insuminder.pages.dev/";
         }
 
         // Verify that notifications are enabled on the device

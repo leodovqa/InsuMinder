@@ -142,18 +142,20 @@ Before any commit, run all 6 checks:
 - Never use hardcoded dark colors or unhandled white text that becomes invisible in Light mode.
 - Verified by `npm --prefix client run check:theme`.
 
-### Rule 9: 9-File Unified Version Synchronization
-Every release or version bump must synchronize the exact same version string across all 9 locations:
-1. `android/app/build.gradle` (`versionName` & incremented `versionCode`)
-2. `client/public/version.json` (`version`, `versionCode`, `versionHistory`)
-3. Root `package.json`
-4. `client/package.json`
-5. `server/package.json`
-6. `client/src/pwa.js` (`ANDROID_PACKAGE_INFO.version` & `APP_CURRENT_CHANGELOG`)
-7. `functions/api/download/android.js`
-8. `client/functions/api/download/android.js`
-9. `server/src/index.js`
-Verified by `node scripts/check-version.js`.
+### Rule 9: 9-File Unified Version Synchronization (Zero-Tolerance Versioning Rule)
+- **ZERO-TOLERANCE POLICY**: Under NO circumstances may any branch or PR ever be merged without bumping the application version compared to `main` and incrementing `versionCode`. Merging without versioning is strictly prohibited and permanently blocked.
+- Enforced automatically in local pre-commit (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `node scripts/check-version.js`. Any PR with an unbumped version or unincremented `versionCode` will immediately fail CI and cannot be merged.
+- Every release or version bump must synchronize the exact same version string across all 9 locations:
+  1. `android/app/build.gradle` (`versionName` & incremented `versionCode`)
+  2. `client/public/version.json` (`version`, `versionCode`, `versionHistory`)
+  3. Root `package.json`
+  4. `client/package.json`
+  5. `server/package.json`
+  6. `client/src/pwa.js` (`ANDROID_PACKAGE_INFO.version` & `APP_CURRENT_CHANGELOG`)
+  7. `functions/api/download/android.js`
+  8. `client/functions/api/download/android.js`
+  9. `server/src/index.js`
+- Verified in pre-commit and CI via `node scripts/check-version.js`.
 
 ### Rule 10: State Preservation on Localization Change
 - Changing the interface language must NEVER reset active context (`personal` vs `shared`), selected owner, basal time, drafts, or form values.
@@ -200,6 +202,19 @@ Verified by `node scripts/check-version.js`.
 ---
 
 ## 3. Completed Milestones History
+
+### v2.0.1 — Unified Notification Messages across OS & Telegram, 3h Native Alarm & Zero-Tolerance CI Versioning Check
+- **Single Source of Truth for Notification Messages**:
+  * Unified reminder messages across Android Native AlarmManager, Web Push, and Telegram in `client/src/utils.js` (`getReminderNotificationContent`) and `translations.js` (`reminderMessages`).
+  * Ensured identical clinical prompt texts, dose times, emojis, and styling across all 3 languages (EN, HE, RU) with 100% parity.
+- **Fixed Basal Notification Missing Description**:
+  * Added `settings.basalReminderTitle` and `settings.basalReminderDesc` to `translations.js` under `settings` so native reminders no longer display raw unmapped keys.
+- **Added 3-Hour Native Android Notification**:
+  * Added `bolus-3h` AlarmManager scheduling and cancellation to `client/src/App.jsx`, ensuring users receive native OS alerts when the 3-hour safe injection window is reached.
+- **Zero-Tolerance Versioning Rule Enacted in CI & Pre-Commit**:
+  * Updated `.husky/pre-commit`, `.github/workflows/ci.yml` (`fetch-depth: 0`), and `scripts/check-version.js` so unversioned commits and PRs are permanently blocked from merging.
+- **Full Version Parity & 0-Diff Functions**:
+  * Synchronized version bump to `v2.0.1` (versionCode `24`) across all 9 locations with 0 diff between `functions/` and `client/functions/`.
 
 ### v1.9.3 (PR pending) — Xiaomi HyperOS Direct App Info Intent Fallback, Spinner Timeout & Settings UI Visibility
 - **Xiaomi HyperOS Direct App Info Intent Fallback**:
@@ -332,6 +347,9 @@ Verified by `node scripts/check-version.js`.
 
 ## 4. Product Backlog & Future Enhancements (Saved for Later)
 
+0. **Button Loading Spinners & Disabling during Async Actions (Save / Inject Buttons)**:
+   - All "save" type and "inject" type buttons must show a small inline loader/spinner and be disabled while the async operation is in progress (1–3 seconds) until the action completes and feedback/alert appears.
+   - Prevents double-taps and gives clear immediate user feedback that the system is processing the request.
 1. **Basal Notification Direct App/Web Launch Link**:
    - Exclusively for basal insulin reminders (Telegram and Push), append a dedicated action link at the bottom of the notification.
    - Triggers opening the native Android app via intent URL, falling back to `https://insuminder.pages.dev` in browser if app is not installed.

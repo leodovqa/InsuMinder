@@ -49,16 +49,16 @@ export async function onRequestPost(context) {
     }
 
     const title = userLang === 'he'
-      ? '🔔 בדיקת התראות InsuMinder'
+      ? '🔔 בדיקת התראות InsuMinder ⏰'
       : (userLang === 'ru'
-        ? '🔔 Проверка уведомлений InsuMinder'
-        : '🔔 InsuMinder Test Alert');
+        ? '🔔 Проверка уведомлений InsuMinder ⏰'
+        : '🔔 InsuMinder Test Alert ⏰');
 
     const desc = userLang === 'he'
-      ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!'
+      ? 'חיבור ההתראות הצליח! תזכורות ההזרקה שלך פעילות.'
       : (userLang === 'ru'
-        ? 'Push-уведомления на устройстве активны и готовы к работе!'
-        : 'Device push reminders are active and ready!');
+        ? 'Подключение уведомлений успешно! Напоминания об инъекциях активны.'
+        : 'Notification connection successful! Your injection reminders are active.');
 
     const payload = {
       title,

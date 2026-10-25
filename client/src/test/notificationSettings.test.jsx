@@ -160,7 +160,7 @@ describe('NotificationSettings Component', () => {
 
     expect(window.AndroidBridge.postNativeNotification).toHaveBeenCalledWith(
       expect.stringContaining('InsuMinder Test Alert'),
-      expect.stringContaining('Device push reminders are active'),
+      expect.stringContaining('Notification connection successful'),
       'insuminder-test',
       '/?page=notifications'
     );
