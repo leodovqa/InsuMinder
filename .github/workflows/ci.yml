@@ -40,6 +40,9 @@ jobs:
       - name: Check Theme (Dark & Light) Consistency & Parity
         run: npm --prefix client run check:theme
 
+      - name: Check for Hardcoded Secrets & Sensitive Credentials (Rule 13)
+        run: node scripts/check-secrets.js
+
       - name: Check Application Version Synchronization & Parity
         run: node scripts/check-version.js
 

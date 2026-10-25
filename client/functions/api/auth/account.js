@@ -38,7 +38,8 @@ export async function onRequestDelete(context) {
       db.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').bind(userId),
       db.prepare('DELETE FROM basal_reminders WHERE user_id = ?').bind(userId),
       db.prepare('DELETE FROM shared_members WHERE owner_id = ? OR member_id = ?').bind(userId, userId),
-      db.prepare('DELETE FROM share_invites WHERE owner_id = ?').bind(userId)
+      db.prepare('DELETE FROM share_invites WHERE owner_id = ?').bind(userId),
+      db.prepare('DELETE FROM saved_foods WHERE user_id = ?').bind(userId)
     ];
 
     if (email) {

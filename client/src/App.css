@@ -3843,7 +3843,8 @@ html.modal-open {
   text-wrap: balance;
 }
 
-.modal-close-x-btn {
+.modal-close-x-btn,
+.modal-close-btn {
   background: none;
   border: none;
   color: var(--text-muted, #94a3b8);
@@ -3862,7 +3863,8 @@ html.modal-open {
   transition: all 0.15s ease;
 }
 
-.modal-close-x-btn:hover {
+.modal-close-x-btn:hover,
+.modal-close-btn:hover {
   background-color: rgba(255, 255, 255, 0.08);
   color: var(--text-h);
 }
@@ -6403,7 +6405,8 @@ html.modal-open {
   border-color: #e2e8f0;
 }
 
-[data-theme="light"] .modal-close-x-btn:hover {
+[data-theme="light"] .modal-close-x-btn:hover,
+[data-theme="light"] .modal-close-btn:hover {
   background-color: rgba(0, 0, 0, 0.06);
 }
 
@@ -12045,4 +12048,889 @@ body.nav-drawer-open {
   background-color: rgba(37, 99, 235, 0.1);
   color: #1d4ed8;
   border-color: rgba(37, 99, 235, 0.25);
+}
+
+
+/* ==========================================================================
+   CARB CALCULATOR & QUICK SHORTCUT COMPONENT STYLES
+   ========================================================================== */
+
+/* 1. Home Quick Shortcut Button */
+.home-calc-shortcut-wrapper {
+  width: 100%;
+  margin: 10px 0 16px 0;
+}
+
+.home-calc-shortcut-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  transition: background-color 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-sizing: border-box;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.home-calc-shortcut-btn:hover {
+  background-color: var(--accent-bg);
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.18);
+}
+
+.home-calc-shortcut-btn:active {
+  transform: scale(0.99);
+}
+
+.home-calc-shortcut-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.home-calc-shortcut-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(14, 165, 233, 0.08) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.home-calc-shortcut-info {
+  display: flex;
+  flex-direction: column;
+  text-align: start;
+  min-width: 0;
+}
+
+.home-calc-shortcut-text {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-h);
+  line-height: 1.25;
+}
+
+.home-calc-shortcut-sub {
+  font-size: 11.5px;
+  color: var(--text);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+.home-calc-shortcut-arrow {
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+  margin-inline-start: 8px;
+  flex-shrink: 0;
+}
+
+.home-calc-shortcut-btn:hover .home-calc-shortcut-arrow {
+  transform: translateX(3px);
+}
+
+[dir="rtl"] .home-calc-shortcut-btn:hover .home-calc-shortcut-arrow {
+  transform: translateX(-3px);
+}
+
+/* 2. Dedicated View Container */
+.carb-calculator-view {
+  width: 100%;
+}
+
+.carb-calc-container {
+  max-width: 620px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 16px 36px 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* Header */
+.carb-calc-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: start;
+  padding: 4px 0;
+}
+
+.carb-calc-header-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(14, 165, 233, 0.08) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.carb-calc-header-text {
+  min-width: 0;
+}
+
+.carb-calc-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0 0 4px 0;
+  line-height: 1.25;
+}
+
+.carb-calc-subtitle {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* 3. Cards Shared & Specifics */
+.carb-calc-card,
+.carb-save-card,
+.saved-foods-card {
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 22px;
+  text-align: start;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.22);
+  box-sizing: border-box;
+}
+
+.calc-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.calc-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calc-card-icon {
+  font-size: 18px;
+}
+
+.calc-card-title {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.calc-clear-btn {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.calc-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  color: #ef4444;
+}
+
+/* Active Food Selection Banner */
+.calc-active-food-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(2, 132, 199, 0.14);
+  border: 1px solid rgba(2, 132, 199, 0.38);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-h);
+}
+
+.active-food-icon {
+  font-size: 14px;
+}
+
+.active-food-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+.active-food-deselect-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.active-food-deselect-btn:hover {
+  color: #ef4444;
+}
+
+/* Inputs & Form Rows */
+.calc-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 520px) {
+  .calc-inputs-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.calc-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calc-input-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.calc-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.calc-input {
+  width: 100%;
+  height: 46px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0 70px 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-h);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.calc-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.calc-input-badge {
+  position: absolute;
+  right: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+[dir="rtl"] .calc-input {
+  padding: 0 14px 0 70px;
+}
+
+[dir="rtl"] .calc-input-badge {
+  right: auto;
+  left: 12px;
+}
+
+/* Quick Portions Chips */
+.calc-quick-chips-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quick-chips-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.calc-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.calc-chip-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.calc-chip-btn:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--text-h);
+  transform: translateY(-1px);
+}
+
+.calc-chip-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+
+/* 4. Result Hero Display */
+.calc-result-hero {
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  transition: all 0.25s ease;
+}
+
+.calc-result-hero.empty {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1.5px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 16px;
+}
+
+.calc-result-hero.has-result {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.16) 0%, rgba(14, 165, 233, 0.08) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.42);
+  box-shadow: 0 4px 20px rgba(2, 132, 199, 0.15);
+}
+
+.result-hero-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.result-hero-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text);
+}
+
+.result-hero-digits-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+
+.result-hero-value {
+  font-size: 46px;
+  font-weight: 800;
+  color: #38bdf8;
+  line-height: 1;
+  letter-spacing: -1.5px;
+}
+
+.result-hero-unit {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.result-hero-formula {
+  font-size: 12px;
+  color: var(--text);
+  font-family: var(--mono);
+  margin-top: 8px;
+  opacity: 0.85;
+}
+
+/* 5. Save Food Card */
+.carb-save-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.carb-save-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.carb-save-text {
+  min-width: 0;
+}
+
+.carb-save-title {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0 0 4px 0;
+}
+
+.carb-save-subtitle {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.carb-save-inputs-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 520px) {
+  .carb-save-inputs-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.carb-save-name-group,
+.carb-save-carbs-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.carb-feedback-banner {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.carb-feedback-banner.success {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+}
+
+.carb-feedback-banner.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.carb-save-action-row {
+  margin-top: 4px;
+}
+
+.carb-save-submit-btn {
+  width: 100%;
+  height: 44px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.btn-icon-label-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.btn-icon-svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.btn-text-label {
+  display: inline-block;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.modal-btn.delete-btn,
+.modal-btn.confirm-delete-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35) !important;
+}
+
+.modal-btn.delete-btn:hover:not(:disabled),
+.modal-btn.confirm-delete-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45) !important;
+}
+
+/* 6. Saved Foods Card & Grid */
+.saved-foods-header {
+  margin-bottom: 12px;
+}
+
+.saved-foods-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.saved-foods-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-foods-icon {
+  font-size: 18px;
+}
+
+.saved-foods-title {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.saved-foods-badge {
+  background: rgba(2, 132, 199, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(2, 132, 199, 0.35);
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.saved-foods-subtitle {
+  font-size: 13px;
+  color: var(--text);
+  margin: 4px 0 0 0;
+  line-height: 1.4;
+}
+
+.saved-foods-search-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 14px 0 10px 0;
+}
+
+.saved-foods-search-bar .search-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 14px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.saved-foods-search-input {
+  width: 100%;
+  height: 42px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0 38px 0 38px;
+  font-size: 14px;
+  color: var(--text-h);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.saved-foods-search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-h);
+}
+
+[dir="rtl"] .saved-foods-search-bar .search-icon {
+  left: auto;
+  right: 14px;
+}
+
+[dir="rtl"] .search-clear-btn {
+  right: auto;
+  left: 12px;
+}
+
+.saved-foods-caption {
+  font-size: 12px;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.saved-foods-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.saved-food-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.saved-food-item:hover {
+  background-color: var(--accent-bg);
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.saved-food-item.selected {
+  background: rgba(2, 132, 199, 0.15);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1.5px #38bdf8;
+}
+
+.saved-food-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.saved-food-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saved-food-carbs-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  background: rgba(2, 132, 199, 0.18);
+  border: 1px solid rgba(2, 132, 199, 0.35);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.saved-food-item-actions {
+  display: flex;
+  align-items: center;
+}
+
+.saved-food-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.65;
+  transition: opacity 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.saved-food-delete-btn:hover {
+  opacity: 1;
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+.saved-foods-empty {
+  text-align: center;
+  padding: 28px 16px;
+  color: var(--text);
+  border: 1.5px dashed var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-foods-empty .empty-icon {
+  font-size: 28px;
+}
+
+.saved-foods-empty .empty-text {
+  font-size: 13.5px;
+  margin: 0;
+  max-width: 320px;
+}
+
+/* 7. Light Theme Overrides */
+[data-theme="light"] .home-calc-shortcut-btn {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .home-calc-shortcut-btn:hover {
+  background-color: rgba(2, 132, 199, 0.06);
+  border-color: #0284c7;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.12);
+}
+
+[data-theme="light"] .carb-calc-card,
+[data-theme="light"] .carb-save-card,
+[data-theme="light"] .saved-foods-card {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .calc-input,
+[data-theme="light"] .saved-foods-search-input {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+[data-theme="light"] .calc-input:focus,
+[data-theme="light"] .saved-foods-search-input:focus {
+  background-color: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+[data-theme="light"] .calc-input-badge {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+[data-theme="light"] .calc-chip-btn {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+[data-theme="light"] .calc-chip-btn:hover {
+  background-color: rgba(2, 132, 199, 0.12);
+  border-color: #0284c7;
+  color: #0284c7;
+}
+
+[data-theme="light"] .calc-chip-btn.active {
+  background-color: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+[data-theme="light"] .calc-result-hero.has-result {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.1) 0%, rgba(14, 165, 233, 0.04) 100%);
+  border-color: rgba(2, 132, 199, 0.35);
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.08);
+}
+
+[data-theme="light"] .result-hero-value {
+  color: #0284c7;
+}
+
+[data-theme="light"] .calc-active-food-banner {
+  background-color: rgba(2, 132, 199, 0.08);
+  border-color: rgba(2, 132, 199, 0.3);
+}
+
+[data-theme="light"] .saved-food-item {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .saved-food-item:hover {
+  background-color: rgba(2, 132, 199, 0.06);
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .saved-food-item.selected {
+  background-color: rgba(2, 132, 199, 0.1);
+  border-color: #0284c7;
+  box-shadow: 0 0 0 1.5px #0284c7;
+}
+
+[data-theme="light"] .saved-food-carbs-badge {
+  background-color: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.3);
+  color: #0284c7;
+}
+
+[data-theme="light"] .saved-foods-empty {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
 }

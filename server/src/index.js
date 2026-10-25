@@ -1249,6 +1249,64 @@ app.get('/api/dev/device-logs', (req, res) => {
   res.json({ success: true, logs: deviceTelemetryBuffer });
 });
 
+// =========================================================================
+// SAVED FOODS (CARBOHYDRATE CALCULATOR) ENDPOINTS
+// =========================================================================
+
+app.get('/api/foods', requireAuth, (req, res) => {
+  const userId = req.user.id;
+  const search = req.query.q || null;
+  const limit = req.query.limit || 20;
+
+  db.getSavedFoods(userId, search, limit, (err, rows) => {
+    if (err) {
+      console.error('[API] Error fetching saved foods:', err);
+      return res.status(500).json({ success: false, error: 'Failed to retrieve saved foods.' });
+    }
+    res.json({ success: true, foods: rows || [] });
+  });
+});
+
+app.post('/api/foods', requireAuth, (req, res) => {
+  const userId = req.user.id;
+  const { name, carbsPer100g } = req.body || {};
+
+  const trimmedName = (name || '').trim();
+  const carbs = parseFloat(carbsPer100g);
+
+  if (!trimmedName) {
+    return res.status(400).json({ success: false, error: 'Food name is required.' });
+  }
+  if (isNaN(carbs) || carbs < 0 || carbs > 1000) {
+    return res.status(400).json({ success: false, error: 'Valid carbohydrates value (0-1000) is required.' });
+  }
+
+  db.saveFood(userId, trimmedName, carbs, (err, item) => {
+    if (err) {
+      console.error('[API] Error saving food:', err);
+      return res.status(500).json({ success: false, error: 'Failed to save food item.' });
+    }
+    res.json({ success: true, food: item });
+  });
+});
+
+app.delete('/api/foods/:id', requireAuth, (req, res) => {
+  const userId = req.user.id;
+  const foodId = parseInt(req.params.id, 10);
+
+  if (isNaN(foodId)) {
+    return res.status(400).json({ success: false, error: 'Invalid food ID.' });
+  }
+
+  db.deleteFood(userId, foodId, (err, result) => {
+    if (err) {
+      console.error('[API] Error deleting food:', err);
+      return res.status(500).json({ success: false, error: 'Failed to delete food item.' });
+    }
+    res.json({ success: true, deleted: result ? result.deleted : false });
+  });
+});
+
 // Android APK Download Endpoint
 app.get('/api/download/android', async (req, res) => {
   const releaseApkUrl = 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk';
@@ -1256,7 +1314,7 @@ app.get('/api/download/android', async (req, res) => {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '2.2.0',
+      version: '2.3.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',

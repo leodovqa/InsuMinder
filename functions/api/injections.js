@@ -157,7 +157,11 @@ export async function onRequestPost(context) {
         .run();
 
       if (!isBasal && isOfflineSync && context.waitUntil) {
-        context.waitUntil(dispatchDueNotifications(db, context.env));
+        context.waitUntil(
+          dispatchDueNotifications(db, context.env).catch(err => {
+            console.error('[injections] background notification dispatch error:', err);
+          })
+        );
       }
 
       if (isBasal) {
@@ -266,7 +270,11 @@ export async function onRequestPost(context) {
 
     // Opportunistically check and dispatch notifications in background (bolus only)
     if (!isBasal && context.waitUntil) {
-      context.waitUntil(dispatchDueNotifications(db, context.env));
+      context.waitUntil(
+        dispatchDueNotifications(db, context.env).catch(err => {
+          console.error('[injections] background notification dispatch error:', err);
+        })
+      );
     } else if (isBasal) {
       const { dateStr: todayDate } = getJerusalemDateAndTime(now);
       const userRow = await db.prepare("SELECT basal_time FROM users WHERE id = ?").bind(userId).first();

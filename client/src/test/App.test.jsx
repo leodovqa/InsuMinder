@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import App from '../App';
 import { authService } from '../authService';
 import * as pwa from '../pwa';
+import { clearOfflineQueue } from '../offlineQueue';
 
 describe('App Component - Home & Logs UI Tests', () => {
   const mockLogs = [
@@ -32,6 +33,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    clearOfflineQueue();
     authService.setSession('test-token', mockUser);
     window.history.pushState({}, '', '/');
 
@@ -164,7 +166,7 @@ describe('App Component - Home & Logs UI Tests', () => {
     });
 
     it('scopes Daily Injections tile and sidebar badge to today while Weekly Injections shows week total', async () => {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
       const multiDayLogs = [
         {
           id: 3,
@@ -217,7 +219,12 @@ describe('App Component - Home & Logs UI Tests', () => {
             json: () => Promise.resolve({ success: true, configs: [] })
           });
         }
-        return Promise.reject(new Error(`Unhandled URL: ${url}`));
+        if (url === '/api/share/status') {
+          return Promise.resolve({
+            json: () => Promise.resolve({ success: true, shareStatus: { activeContext: 'personal' } })
+          });
+        }
+        return Promise.resolve({ json: () => Promise.resolve({ success: true }) });
       });
 
       render(<App />);
@@ -564,7 +571,7 @@ describe('App Component - Home & Logs UI Tests', () => {
     });
 
     it('displays default safe view in Rapid Injection Trend if rapid doses were from yesterday', async () => {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayLog1 = {
         id: 101,
         injected_at: new Date(yesterday.getTime() - 60 * 60 * 1000).toISOString(),
@@ -1610,10 +1617,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v2\.2\.0/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v2\.3\.0/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v2.2.0')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v2.3.0')).toBeInTheDocument();
 
       // 3. Navigate to About & Info Tab
       const aboutNavBtn = screen.getByRole('button', { name: /About & Info/i, hidden: true });
@@ -1621,7 +1628,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v2.2.0')).toBeInTheDocument();
+      expect(screen.getByText('v2.3.0')).toBeInTheDocument();
 
       // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
       expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
@@ -1632,7 +1639,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Firebase Cloud Messaging/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dedicated Meal Portion Carb Calculator/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
@@ -1644,7 +1651,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Android
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v2.2.0')).toBeInTheDocument();
+      expect(screen.getByText('v2.3.0')).toBeInTheDocument();
 
       // Android version MUST show "Up to Date" status and "Check for Updates" button
       expect(screen.getByText('Up to Date')).toBeInTheDocument();
@@ -1857,6 +1864,32 @@ describe('App Component - Home & Logs UI Tests', () => {
       fireEvent.click(isoBtn);
       expect(isoBtn).toHaveClass('active');
       expect(localStorage.getItem('insuminder_date_format')).toBe('YYYY-MM-DD');
+    });
+  });
+
+  describe('Carb Calculator Navigation & Shortcut (v2.3.0)', () => {
+    it('renders quick shortcut on Home page and clicking it navigates to Carb Calculator', async () => {
+      window.history.pushState({}, '', '/');
+      localStorage.clear();
+
+      render(<App />);
+
+      const shortcutBtn = await screen.findByRole('button', { name: /Carb Calculator/i });
+      expect(shortcutBtn).toBeInTheDocument();
+
+      fireEvent.click(shortcutBtn);
+
+      expect(await screen.findByRole('heading', { name: /Meal Portion Carb Calculator/i })).toBeInTheDocument();
+      expect(window.location.search).toContain('page=calculator');
+    });
+
+    it('navigates directly to Carb Calculator when ?page=calculator is in URL', async () => {
+      window.history.pushState({}, '', '/?page=calculator');
+      localStorage.clear();
+
+      render(<App />);
+
+      expect(await screen.findByRole('heading', { name: /Meal Portion Carb Calculator/i })).toBeInTheDocument();
     });
   });
 });

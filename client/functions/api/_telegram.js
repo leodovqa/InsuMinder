@@ -65,7 +65,93 @@ export async function sendTelegramMessage(botToken, chatId, text) {
   return initialResult;
 }
 
+let tablesEnsured = false;
+let ensureTablesPromise = null;
+
 export async function ensureTablesExist(db) {
+  if (tablesEnsured) return;
+  if (ensureTablesPromise) return ensureTablesPromise;
+
+  ensureTablesPromise = (async () => {
+    try {
+      // Fast path: check if tables already exist to avoid dozens of D1 subrequests per request
+      const tableCheck = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").first();
+      if (tableCheck) {
+        // Users table exists. Ensure saved_foods exists.
+        const foodsCheck = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='saved_foods'").first();
+        if (!foodsCheck) {
+          await db.prepare(
+            `CREATE TABLE IF NOT EXISTS saved_foods (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              name TEXT NOT NULL,
+              carbs_per_100g REAL NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )`
+          ).run();
+        }
+
+        // Fast column checks using PRAGMA table_info to avoid throwing duplicate column errors
+        const logCols = await db.prepare("PRAGMA table_info(injection_logs)").all();
+        const logColNames = new Set((logCols?.results || []).map(c => c.name));
+        if (!logColNames.has('delivery_method')) {
+          try { await db.prepare("ALTER TABLE injection_logs ADD COLUMN delivery_method TEXT DEFAULT 'pen'").run(); } catch (err) { void err; }
+        }
+        if (!logColNames.has('type')) {
+          try { await db.prepare("ALTER TABLE injection_logs ADD COLUMN type TEXT DEFAULT 'bolus'").run(); } catch (err) { void err; }
+        }
+
+        const userCols = await db.prepare("PRAGMA table_info(users)").all();
+        const userColNames = new Set((userCols?.results || []).map(c => c.name));
+        if (!userColNames.has('therapy_mode')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN therapy_mode TEXT DEFAULT NULL").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('privacy_accepted_at')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN privacy_accepted_at TIMESTAMP").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('first_name')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN first_name TEXT").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('last_name')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN last_name TEXT").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('phone')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN phone TEXT").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('share_code')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN share_code TEXT").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('auth_provider')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'email'").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('failed_login_attempts')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('locked_until')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN locked_until TIMESTAMP").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('language')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('basal_time')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN basal_time TEXT DEFAULT '20:00'").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('theme')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'").run(); } catch (err) { void err; }
+        }
+        if (!userColNames.has('notification_preferences')) {
+          try { await db.prepare("ALTER TABLE users ADD COLUMN notification_preferences TEXT").run(); } catch (err) { void err; }
+        }
+
+        tablesEnsured = true;
+        return;
+      }
+    } catch (fastPathErr) {
+      console.warn('[ensureTablesExist] Fast path check failed, running full table setup:', fastPathErr);
+    }
+
+    // Slow path (runs only on empty new database):
   // Users table
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS users (
@@ -223,6 +309,19 @@ export async function ensureTablesExist(db) {
     )`
   ).run();
 
+  // Saved foods table (Meal Portion Carbohydrate Calculator)
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS saved_foods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      carbs_per_100g REAL NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  ).run();
+
+
   try {
     await db.prepare(`ALTER TABLE users ADD COLUMN first_name TEXT`).run();
   } catch (err) {
@@ -292,6 +391,14 @@ export async function ensureTablesExist(db) {
     await db.prepare(`ALTER TABLE injection_logs ADD COLUMN delivery_method TEXT DEFAULT 'pen'`).run();
   } catch (err) {
     void err;
+  }
+    tablesEnsured = true;
+  })();
+
+  try {
+    await ensureTablesPromise;
+  } finally {
+    ensureTablesPromise = null;
   }
 }
 
