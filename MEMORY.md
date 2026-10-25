@@ -50,34 +50,27 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 
 ---
 
-## 1. Active Sprint Task (v2.0.0)
+## 1. Planned Tasks & Future Backlog (Saved for Later)
 
-### Task Details
-- **Task**: Therapy Delivery Modes (Pens / MDI vs Insulin Pump / Patch Pump / Pod), Onboarding Selector & Historical Log Isolation
-- **Target Version**: 2.0.0 (versionCode 23)
-- **Status**: Implemented on branch `feat/therapy-modes-pen-and-pump-flows` (awaiting user commit & push approval).
+### Task 1: Interactive Weekly Injection History Drilldown by Day with Chunked / Lazy Fetching
+- **User Story**: In Injection Logs, the user can tap on each day in the weekly report / chart (only days that actually have logged data) to view all injections recorded for that day.
+- **Detailed Historical Cards**: Clicking a day displays its logged injection details (time of injection, dose type, delivery method, and reminder statuses: 10m, 2h, 3h Sent / Not Sent with tooltip), identical to how today's injections are displayed on Home and Logs.
+- **Chunked / Lazy Loading Architecture (Zero Server Throttling)**:
+  - Do NOT fetch massive historical datasets on initial app load. Initial load continues to fetch only recent / current week logs.
+  - When the user navigates "back" to a previous week using the week navigation arrows (`< Prev Week`), the app dynamically requests that specific week chunk from the server (e.g. `GET /api/logs?weekStart=YYYY-MM-DD`).
+  - Cache loaded weeks in client state to prevent duplicate network calls.
 
-### Key Architectural Solutions
-1. **Database Schema & Migrations**:
-   - Added `therapy_mode TEXT DEFAULT NULL` to `users` ('pen' | 'pump').
-   - Added `delivery_method TEXT DEFAULT 'pen'` to `injection_logs` ('pen' | 'pump').
-   - Maintained backward compatibility: existing logs default to 'pen'.
-2. **Mandatory Onboarding Mode Selection**:
-   - Following registration and medical privacy acceptance, users without a `therapy_mode` land on the modal (`TherapyModeOnboardingModal.jsx`).
-   - Side-by-side interactive tiles for Pens vs Pump/Pod with real-time description text underneath.
-   - Disabled continue button until a choice is selected. Persisted to server profile so refreshes/re-logins land back on this screen.
-3. **Settings Switch Flow & Modal**:
-   - Dedicated "Insulin Delivery Method" section in Settings allows switching modes anytime.
-   - Confirmation modal explains the mode differences, warns about method-specific log isolation, and reloads home upon confirmation.
-4. **Historical Log Isolation & Home "Last Injection" Rule**:
-   - In Pen mode, logs and weekly trends show only Pen injections.
-   - In Pump mode, logs and weekly trends show only Pump injections.
-   - The Home "Last Injection" card reflects the true latest bolus across both methods to ensure active insulin timing is never lost.
-5. **Pump Logic Differences**:
-   - Basal eliminated: no basal button on Home, no basal settings/card, no basal reminder toggles, and background schedulers exclude pump users.
-   - Relaxed 3h confirmation modal: double-check to prevent accidental clicks without alarming risk warnings.
-   - Daily bolus limit doubled from 10 to 20 for pump mode.
-   - Orange pills and rapid injection warning cards (< 3h) removed from Home and Logs.
+### Task 2: Automated Vulnerability Checks in CI (.github/workflows/ci.yml)
+- **Objective**: Add automated vulnerability scanning to CI pull request and push workflows.
+- **Implementation**:
+  - Add an automated dependency audit step (e.g. `npm audit --audit-level=high` or Trivy / Snyk security scan) in `.github/workflows/ci.yml`.
+  - Block PR merging if any critical or high-severity vulnerabilities are introduced via new packages or dependencies.
+
+### Task 3: Google Cloud / Firebase API Key Review & Restriction (Postponed)
+- **Context**: When Firebase was enabled for killed-app FCM push notifications, Firebase automatically created an Android client key in `android/app/google-services.json`.
+- **Planned Work**:
+  - Revisit Google Cloud Console credentials for `insuminder-f6f48` later.
+  - Either restrict the auto-created Android API key under Application restrictions to package name `com.insuminder.app` and API restrictions to FCM / Installations, or generate and bind a dedicated restricted key as preferred.
 
 ### Key Architectural Solutions
 1. **In-App Direct APK Download Flow (`isAndroidApp()`)**:
@@ -181,6 +174,7 @@ Before any commit, run all 6 checks:
 - All secrets, private keys, and runtime credentials MUST be loaded strictly through environment variables (`context.env` in Cloudflare Pages Functions or `process.env` in Node.js).
 - If environment variables are not configured in a deployment or local runtime, the application code must degrade safely and return a clear, descriptive configuration error (e.g. 'VAPID keys not configured') rather than falling back to hardcoded secrets.
 - Automated tests requiring cryptographic keypairs (e.g. VAPID / ECDSA prime256v1 JWT signing) MUST generate ephemeral in-memory keys on the fly during test setup (`crypto.createECDH('prime256v1')`) and never store static keys in test code or mock fixtures.
+- **Automated Pre-Commit & CI Secret Scanner**: Enforced automatically in local pre-commit (`.husky/pre-commit`), root `npm test`, and in CI (`.github/workflows/ci.yml`) via `scripts/check-secrets.js` (`npm run check:secrets`). Scans tracked files and untracked git candidates for private keys, service account JSONs, Telegram bot tokens, and sensitive cloud credentials before any commit or PR can succeed.
 
 ---
 
@@ -202,6 +196,39 @@ Before any commit, run all 6 checks:
 ---
 
 ## 3. Completed Milestones History
+
+### v2.3.0 — Dedicated Meal Portion Carb Calculator, Personal Foods Database & Quick Navigation
+- **Dedicated Meal Portion Carb Calculator (`CarbCalculator`)**:
+  * Calculates exact portion carbohydrates in real-time from carbs per 100g:
+    $$\text{Total Carbs} = \frac{\text{Carbs per 100g} \times \text{Portion Weight (g)}}{100}$$
+  * Formatted output with 1 decimal place precision (e.g. 25g/100g with 140g meal = 35.0g carbs).
+  * Quick portion preset chips (50g, 75g, 100g, 125g, 150g, 200g, 250g, 300g) for 1-tap portion selection.
+  * Clear button and interactive formula transparency breakdown (`(25g × 140g) ÷ 100 = 35g carbs`).
+- **Personal Food Database & User Scoping**:
+  * New `saved_foods` table in SQLite (`server/src/db.js`) and Cloudflare D1 (`functions/api/_telegram.js`).
+  * Endpoints `GET /api/foods`, `POST /api/foods`, `DELETE /api/foods/:id` with user authentication, input validation, and cascade deletion upon user account deletion.
+  * Local guest fallback caching to `localStorage` (`insuminder_saved_foods`) for instant offline use.
+  * Search bar with case-insensitive filtering across all saved foods, displaying 20 most recent foods by default.
+  * On saved food selection: **Auto-populates the Carbs per 100g input ONLY**, leaving portion grams input empty for the user to input their custom meal portion weight.
+- **Home Dashboard Quick Access Shortcut & Dedicated Navigation**:
+  * Placed a sleek, modern quick shortcut card directly below the Bolus & Basal injection action buttons on the Home tab for 1-tap navigation before taking a mealtime dose.
+  * Integrated dedicated navigation tab positioned between Home and Injection Logs (`/?page=calculator`, alias `/?page=carbs`).
+  * Full accessibility, keyboard navigation, and custom delete confirmation modal.
+- **Top-Side Toast Notification Engine for Calculator**:
+  * Replaced static, in-place feedback banner with the application's central auto-dismissing top-side toast notification system (`onNotify={setNotification}`).
+  * Dispatches standard `.app-notification-success` and `.app-notification-warning` with 4.5s auto-dismiss and manual close button, unifying notification UX with settings and injection alerts.
+- **Production Injection Reliability & Cloudflare D1 Subrequest Optimization**:
+  * Root Cause: `ensureTablesExist` in `_telegram.js` was executing 29 sequential `CREATE TABLE` and `ALTER TABLE` queries on every `/api/injections` call and inside `context.waitUntil(dispatchDueNotifications)`, frequently exceeding Cloudflare's 50-subrequest worker limit and triggering HTTP 500/524 errors.
+  * Solved with worker isolate caching (`tablesEnsured`) and fast-path `PRAGMA table_info` checks: reduces D1 subrequests from 65+ down to 0 on warm requests and 3 on cold start.
+  * Resilient Client Error Handling: in `App.jsx`, updated `handleLogInjection` and `handleManualInjectionSubmit` to catch any 5xx server blips, timeouts, or network interruptions, immediately saving the dose to `enqueueOfflineInjection` with optimistic local state updates and an encouraging `(Saved offline)` toast. No injection is ever lost or rejected with false connection errors.
+  * Added `.catch` handler to background `context.waitUntil` dispatch.
+  * Fixed Israel Daylight Saving Time (DST) transition calculation for `yesterday` in unit tests.
+- **Rule 1, 7, 8, 9, 13 Compliance**:
+  * Zero diff between `functions/` and `client/functions/`.
+  * 100% 3-way translation parity (EN, HE, RU) across 650 keys in `translations.js`.
+  * Modern Dark & Light theme parity verified with `npm --prefix client run check:theme`.
+  * Zero Hardcoded Secrets (Rule 13) pre-commit & CI scanner verified via `scripts/check-secrets.js`.
+  * Synchronized semantic version bump to `v2.3.0` (versionCode `27`) across all 9 locations verified via `check-version.js`.
 
 ### v2.2.0 — Firebase Cloud Messaging (FCM) Killed App Push Delivery, AlarmClock Doze Immunity & 1-Tap Battery Exemption
 - **Firebase Cloud Messaging (FCM) Remote Push Engine for Killed App Delivery**:

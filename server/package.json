@@ -1,10 +1,10 @@
 {
   "name": "server",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test --test-concurrency=1 test/telegram.test.js test/auth.test.js test/share.test.js test/webpush.test.js test/download.test.js test/manual-injections.test.js test/therapy-modes.test.js test/fcm.test.js"
+    "test": "node --test --test-concurrency=1 test/telegram.test.js test/auth.test.js test/share.test.js test/webpush.test.js test/download.test.js test/manual-injections.test.js test/therapy-modes.test.js test/fcm.test.js test/foods.test.js"
   },
   "keywords": [],
   "author": "",

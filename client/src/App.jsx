@@ -26,6 +26,7 @@ import {
 } from './utils';
 import AuthModal from './AuthModal';
 import Profile from './Profile';
+import CarbCalculator from './CarbCalculator';
 import NotificationSettings from './NotificationSettings';
 import TimePicker24h from './TimePicker24h';
 import DatePickerModern from './DatePickerModern';
@@ -1891,8 +1892,9 @@ function AppContent() {
       },
       body: JSON.stringify({ type: cleanType, delivery_method: activeTherapyMode })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(async response => {
+      const data = await response.json().catch(() => ({}));
+
       if (data.success) {
         const injectedTime = formatTimeOnly(now.toISOString());
         const successMsg = cleanType === 'basal'
@@ -1917,56 +1919,47 @@ function AppContent() {
         };
         setLogs(prev => [newLog, ...prev.filter(l => l.id !== newLog.id)]);
         fetchLogs();
+      } else if (response.status && response.status >= 500) {
+        throw new Error(data.error || `Server status ${response.status}`);
       } else {
         setNotification({
           type: 'warning',
-          message: data.error || t('notifications.rateLimitOnePerMinute')
+          message: data.error || (response.status === 409 ? t('notifications.rateLimitOnePerMinute') : t('notifications.failedToLogInjection'))
         });
       }
     })
     .catch(error => {
-      console.error('Error logging injection:', error);
-      const isNetworkError = (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        error.name === 'TypeError' ||
-        /network|offline|failed to fetch|load failed/i.test(error.message);
-
-      if (isNetworkError) {
-        const queuedItem = enqueueOfflineInjection({
-          type: cleanType,
-          delivery_method: activeTherapyMode,
-          injected_at: now.toISOString()
-        });
-        setOfflineQueueCount(getOfflineQueue().length);
-        const injectedTime = formatTimeOnly(now.toISOString());
-        const baseSuccessMsg = cleanType === 'basal'
-          ? t('notifications.basalLoggedSuccess', { time: injectedTime })
-          : t('notifications.injectionLoggedSuccess', { time: injectedTime });
-        setNotification({
-          type: 'success',
-          message: `${baseSuccessMsg} (${t('offline.loggedOffline')})`
-        });
-        const optimisticLog = {
-          id: queuedItem.tempId,
-          tempId: queuedItem.tempId,
-          user_id: user?.id,
-          injected_at: now.toISOString(),
-          type: cleanType,
-          delivery_method: activeTherapyMode,
-          notify_10m_at: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
-          notify_2h_at: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-          notify_3h_at: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
-          status_10m_sent: cleanType === 'basal' ? 1 : 0,
-          status_2h_sent: cleanType === 'basal' ? 1 : 0,
-          status_3h_sent: cleanType === 'basal' ? 1 : 0,
-          _isOffline: true
-        };
-        setLogs(prev => [optimisticLog, ...prev.filter(l => l.id !== optimisticLog.id)]);
-      } else {
-        setNotification({
-          type: 'warning',
-          message: t('notifications.failedToLogInjection')
-        });
-      }
+      console.error('Error logging injection, queueing offline:', error);
+      const queuedItem = enqueueOfflineInjection({
+        type: cleanType,
+        delivery_method: activeTherapyMode,
+        injected_at: now.toISOString()
+      });
+      setOfflineQueueCount(getOfflineQueue().length);
+      const injectedTime = formatTimeOnly(now.toISOString());
+      const baseSuccessMsg = cleanType === 'basal'
+        ? t('notifications.basalLoggedSuccess', { time: injectedTime })
+        : t('notifications.injectionLoggedSuccess', { time: injectedTime });
+      setNotification({
+        type: 'success',
+        message: `${baseSuccessMsg} (${t('offline.loggedOffline')})`
+      });
+      const optimisticLog = {
+        id: queuedItem.tempId,
+        tempId: queuedItem.tempId,
+        user_id: user?.id,
+        injected_at: now.toISOString(),
+        type: cleanType,
+        delivery_method: activeTherapyMode,
+        notify_10m_at: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
+        notify_2h_at: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        notify_3h_at: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+        status_10m_sent: cleanType === 'basal' ? 1 : 0,
+        status_2h_sent: cleanType === 'basal' ? 1 : 0,
+        status_3h_sent: cleanType === 'basal' ? 1 : 0,
+        _isOffline: true
+      };
+      setLogs(prev => [optimisticLog, ...prev.filter(l => l.id !== optimisticLog.id)]);
     })
     .finally(() => {
       setIsLoggingInjection(false);
@@ -2048,13 +2041,15 @@ function AppContent() {
       });
 
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
+      if (data.success) {
         closeManualModal();
         setNotification({
           type: 'success',
           message: t('logs.manualLoggedSuccess')
         });
         fetchLogs();
+      } else if (res.status && res.status >= 500) {
+        throw new Error(data.error || `Server status ${res.status}`);
       } else {
         const errMsg = data.error || '';
         if (/2 basal|two basal/i.test(errMsg)) {
@@ -2074,45 +2069,37 @@ function AppContent() {
         }
       }
     } catch (err) {
-      console.error('Manual injection error:', err);
-      const isNetworkError = (typeof navigator !== 'undefined' && !navigator.onLine) ||
-        err.name === 'TypeError' ||
-        /network|offline|failed to fetch|load failed/i.test(err.message);
-
-      if (isNetworkError) {
-        const queuedItem = enqueueOfflineInjection({
-          manual: true,
-          type: manualType,
-          date: manualDate,
-          time: manualTime,
-          injected_at: selectedDate.toISOString(),
-          delivery_method: activeTherapyMode
-        });
-        setOfflineQueueCount(getOfflineQueue().length);
-        closeManualModal();
-        setNotification({
-          type: 'success',
-          message: `${t('logs.manualLoggedSuccess')} (${t('offline.loggedOffline')})`
-        });
-        const optimisticLog = {
-          id: queuedItem.tempId,
-          tempId: queuedItem.tempId,
-          user_id: user?.id,
-          injected_at: selectedDate.toISOString(),
-          type: manualType,
-          delivery_method: activeTherapyMode,
-          notify_10m_at: new Date(selectedDate.getTime() + 10 * 60 * 1000).toISOString(),
-          notify_2h_at: new Date(selectedDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
-          notify_3h_at: new Date(selectedDate.getTime() + 3 * 60 * 60 * 1000).toISOString(),
-          status_10m_sent: manualType === 'basal' ? 1 : 0,
-          status_2h_sent: manualType === 'basal' ? 1 : 0,
-          status_3h_sent: manualType === 'basal' ? 1 : 0,
-          _isOffline: true
-        };
-        setLogs(prev => [optimisticLog, ...prev.filter(l => l.id !== optimisticLog.id)]);
-      } else {
-        setManualError('Network error while saving injection.');
-      }
+      console.error('Manual injection error, queueing offline:', err);
+      const queuedItem = enqueueOfflineInjection({
+        manual: true,
+        type: manualType,
+        date: manualDate,
+        time: manualTime,
+        injected_at: selectedDate.toISOString(),
+        delivery_method: activeTherapyMode
+      });
+      setOfflineQueueCount(getOfflineQueue().length);
+      closeManualModal();
+      setNotification({
+        type: 'success',
+        message: `${t('logs.manualLoggedSuccess')} (${t('offline.loggedOffline')})`
+      });
+      const optimisticLog = {
+        id: queuedItem.tempId,
+        tempId: queuedItem.tempId,
+        user_id: user?.id,
+        injected_at: selectedDate.toISOString(),
+        type: manualType,
+        delivery_method: activeTherapyMode,
+        notify_10m_at: new Date(selectedDate.getTime() + 10 * 60 * 1000).toISOString(),
+        notify_2h_at: new Date(selectedDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        notify_3h_at: new Date(selectedDate.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+        status_10m_sent: manualType === 'basal' ? 1 : 0,
+        status_2h_sent: manualType === 'basal' ? 1 : 0,
+        status_3h_sent: manualType === 'basal' ? 1 : 0,
+        _isOffline: true
+      };
+      setLogs(prev => [optimisticLog, ...prev.filter(l => l.id !== optimisticLog.id)]);
     } finally {
       setIsSubmittingManual(false);
     }
@@ -2619,6 +2606,18 @@ function AppContent() {
 
           <button
             type="button"
+            className={`nav-item ${activeTab === 'calculator' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('calculator');
+              setIsNavOpen(false);
+            }}
+          >
+            <span className="nav-icon" role="img" aria-label="calculator">🧮</span>
+            <span className="nav-label">{t('nav.calculator')}</span>
+          </button>
+
+          <button
+            type="button"
             className={`nav-item ${activeTab === 'logs' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('logs');
@@ -3076,6 +3075,25 @@ function AppContent() {
               </button>
             )}
 
+            {/* Quick Carb Calculator Shortcut Button */}
+            <div className="home-calc-shortcut-wrapper">
+              <button
+                type="button"
+                className="home-calc-shortcut-btn"
+                onClick={() => setActiveTab('calculator')}
+                title={t('calculator.shortcutTitle')}
+              >
+                <div className="home-calc-shortcut-left">
+                  <span className="home-calc-shortcut-icon" aria-hidden="true">🧮</span>
+                  <div className="home-calc-shortcut-info">
+                    <span className="home-calc-shortcut-text">{t('calculator.shortcutBtn')}</span>
+                    <span className="home-calc-shortcut-sub">{t('calculator.shortcutTitle')}</span>
+                  </div>
+                </div>
+                <span className="home-calc-shortcut-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+
             {/* Show personal injection data, notifications and eligibility ONLY when logged in */}
             {isLoggedIn && (
               <>
@@ -3309,6 +3327,11 @@ function AppContent() {
         )}
       </div>
     </section>
+  )}
+
+  {/* VIEW 1.5: CARB CALCULATOR (Dedicated Page) */}
+  {activeTab === 'calculator' && (
+    <CarbCalculator onNotify={setNotification} />
   )}
 
   {/* VIEW 2: INJECTION LOGS & TRENDS (Dedicated Page) */}

@@ -163,6 +163,18 @@ db.serialize(() => {
     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
     + "FOREIGN KEY(user_id) REFERENCES users(id)"
     + ")");
+
+  // Saved Foods table (Carbohydrate Portion Calculator)
+  db.run("CREATE TABLE IF NOT EXISTS saved_foods ("
+    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+    + "user_id INTEGER NOT NULL,"
+    + "name TEXT NOT NULL,"
+    + "carbs_per_100g REAL NOT NULL,"
+    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+    + "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+    + "FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE"
+    + ")");
+  db.run("CREATE INDEX IF NOT EXISTS idx_saved_foods_user ON saved_foods(user_id)");
 });
 
 /* =========================================================================
@@ -1250,6 +1262,7 @@ function deleteUser(userId, callback) {
       db.run("DELETE FROM basal_reminders WHERE user_id = ?", [userId]);
       db.run("DELETE FROM shared_members WHERE owner_id = ? OR member_id = ?", [userId, userId]);
       db.run("DELETE FROM share_invites WHERE owner_id = ?", [userId]);
+      db.run("DELETE FROM saved_foods WHERE user_id = ?", [userId]);
       if (email) {
         db.run("DELETE FROM verification_codes WHERE email = ?", [email]);
       }
@@ -1261,8 +1274,88 @@ function deleteUser(userId, callback) {
   });
 }
 
+
+/* =========================================================================
+   SAVED FOODS (CARBOHYDRATE CALCULATOR)
+   ========================================================================= */
+
+function saveFood(userId, name, carbsPer100g, callback) {
+  const trimmedName = (name || '').trim();
+  const carbs = parseFloat(carbsPer100g);
+  if (!trimmedName || isNaN(carbs) || carbs < 0) {
+    return callback(new Error('Invalid food name or carbohydrate value.'));
+  }
+  const now = new Date().toISOString();
+  db.run(
+    `INSERT INTO saved_foods (user_id, name, carbs_per_100g, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [userId, trimmedName, carbs, now, now],
+    function(err) {
+      if (err) return callback(err);
+      callback(null, {
+        id: this.lastID,
+        user_id: userId,
+        name: trimmedName,
+        carbs_per_100g: carbs,
+        created_at: now,
+        updated_at: now
+      });
+    }
+  );
+}
+
+function getSavedFoods(userId, search = null, limit = 20, callback) {
+  if (typeof search === 'function') {
+    callback = search;
+    search = null;
+    limit = 20;
+  } else if (typeof limit === 'function') {
+    callback = limit;
+    limit = 20;
+  }
+
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+
+  if (search && typeof search === 'string' && search.trim().length > 0) {
+    const term = `%${search.trim().toLowerCase()}%`;
+    db.all(
+      `SELECT id, user_id, name, carbs_per_100g, created_at, updated_at
+       FROM saved_foods
+       WHERE user_id = ? AND LOWER(name) LIKE ?
+       ORDER BY updated_at DESC
+       LIMIT ?`,
+      [userId, term, parsedLimit],
+      callback
+    );
+  } else {
+    db.all(
+      `SELECT id, user_id, name, carbs_per_100g, created_at, updated_at
+       FROM saved_foods
+       WHERE user_id = ?
+       ORDER BY updated_at DESC
+       LIMIT ?`,
+      [userId, parsedLimit],
+      callback
+    );
+  }
+}
+
+function deleteFood(userId, foodId, callback) {
+  db.run(
+    `DELETE FROM saved_foods WHERE id = ? AND user_id = ?`,
+    [foodId, userId],
+    function(err) {
+      if (err) return callback(err);
+      callback(null, { deleted: this.changes > 0 });
+    }
+  );
+}
+
 module.exports = {
   db,
+  saveFood,
+  getSavedFoods,
+  deleteFood,
   createUser,
   getUserByEmail,
   getUserById,

@@ -1,6 +1,6 @@
 {
-  "version": "2.2.0",
-  "versionCode": 26,
+  "version": "2.3.0",
+  "versionCode": 27,
   "versionHistory": [
     "1.0.0",
     "1.1.0",
@@ -26,24 +26,25 @@
     "2.0.0",
     "2.0.1",
     "2.1.0",
-    "2.2.0"
+    "2.2.0",
+    "2.3.0"
   ],
   "buildTime": "2026-10-25T19:19:00.000Z",
   "changes": {
     "en": [
-      "Firebase Cloud Messaging (FCM): remote push notifications deliver reminders even if the app is killed or closed",
-      "High-Precision AlarmClock Engine and Device Reboot persistence for reliable alarms across Doze mode",
-      "1-tap Background and Battery Optimization Exemption dialog for zero-delay notifications"
+      "Dedicated Meal Portion Carb Calculator: easily calculate carbs for custom portions from carbs per 100g",
+      "Personal Food Database: save favorite food items with their 100g carb value for 1-tap calculation",
+      "Quick Access Home Shortcut & Navigation: fast 1-tap calculation jump directly from the Home dashboard"
     ],
     "he": [
-      "שירות הודעות ענן Firebase (FCM): מסירת התראות בזמן אמת גם כשהאפליקציה סגורה לחלוטין או הופסקה",
-      "מנגנון שעון מעורר בדיוק מירבי ותמיכה בהפעלה מחדש של המכשיר לפעולה רציפה במצב חיסכון בסוללה",
-      "דיאלוג בלחיצה אחת לקבלת פטור מהגבלות סוללה ופעילות חופשית ברקע לקבלת תזכורות ללא עיכוב"
+      "מחשבון פחמימות ייעודי למנות מזון: חישוב מדויק של כמות הפחמימות לפי משקל המנה מתוך ערך ל-100 גרם",
+      "מאגר מזונות אישי: שמירת מוצרים וערכי פחמימות ל-100 גרם לטעינה מהירה בלחיצה אחת",
+      "קיצור דרך מהיר ממסך הבית וניווט ייעודי: גישה ישירה למחשבון הפחמימות מלוח הבקרה הראשי"
     ],
     "ru": [
-      "Firebase Cloud Messaging (FCM): удаленная доставка push-уведомлений даже при закрытом или завершенном приложении",
-      "Высокоточный движок AlarmClock и автовосстановление при перезагрузке устройства для надежных сигналов в режиме Doze",
-      "Диалог в 1 касание для снятия ограничений батареи и фоновой работы без задержек"
+      "Выделенный калькулятор углеводов для порций: точный расчет углеводов на вес блюда из расчета на 100 г",
+      "Персональная база продуктов: сохранение продуктов с содержанием углеводов на 100 г для быстрого расчета",
+      "Быстрый переход с главного экрана и навигация: мгновенный доступ к калькулятору углеводов с панели приборов"
     ]
   }
 }
