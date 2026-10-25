@@ -937,3 +937,62 @@ export const getBasalTimeDiffMinutes = (nowDate, basalTimeStr) => {
   if (diff < -720) diff += 1440;
   return diff;
 };
+
+/**
+ * Single Source of Truth for Reminder Notification Content (OS, Push, Telegram parity).
+ *
+ * @param {'10m'|'2h'|'3h'|'basal'|'test'} type
+ * @param {Object} [options]
+ * @param {string|Date} [options.injectedAt]
+ * @param {string} [options.doseTime] - pre-formatted dose time, e.g. "13:58"
+ * @param {string} [options.lang='he'] - 'en' | 'he' | 'ru'
+ * @returns {{ title: string, body: string, targetUrl: string, tag: string }}
+ */
+export const getReminderNotificationContent = (type, { doseTime = null, injectedAt = null, lang = 'he' } = {}) => {
+  const time = doseTime || (injectedAt ? formatTimeOnly(injectedAt) : null);
+  switch (type) {
+    case '10m':
+      return {
+        title: translate('reminderMessages.rem10mTitle', {}, lang),
+        body: time
+          ? translate('reminderMessages.rem10mBody', { time }, lang)
+          : translate('reminderMessages.rem10mBodyNoTime', {}, lang),
+        targetUrl: '/?page=home',
+        tag: 'bolus-10m'
+      };
+    case '2h':
+      return {
+        title: translate('reminderMessages.rem2hTitle', {}, lang),
+        body: time
+          ? translate('reminderMessages.rem2hBody', { time }, lang)
+          : translate('reminderMessages.rem2hBodyNoTime', {}, lang),
+        targetUrl: '/?page=home',
+        tag: 'bolus-2h'
+      };
+    case '3h':
+      return {
+        title: translate('reminderMessages.rem3hTitle', {}, lang),
+        body: time
+          ? translate('reminderMessages.rem3hBody', { time }, lang)
+          : translate('reminderMessages.rem3hBodyNoTime', {}, lang),
+        targetUrl: '/?page=home',
+        tag: 'bolus-3h'
+      };
+    case 'basal':
+      return {
+        title: translate('reminderMessages.basalTitle', {}, lang),
+        body: translate('reminderMessages.basalBody', {}, lang),
+        targetUrl: '/?action=basal',
+        tag: 'basal-daily'
+      };
+    case 'test':
+    default:
+      return {
+        title: translate('reminderMessages.testTitle', {}, lang),
+        body: translate('reminderMessages.testBody', {}, lang),
+        targetUrl: '/?page=notifications',
+        tag: 'insuminder-test'
+      };
+  }
+};
+

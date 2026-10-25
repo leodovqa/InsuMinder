@@ -196,6 +196,8 @@ export const translations = {
       errorDuplicateTime: "Can't add, this exact time already appears."
     },
     settings: {
+      basalReminderTitle: 'Basal Injection Reminder',
+      basalReminderDesc: 'Daily reminder sent if basal insulin is not injected by your scheduled time.',
       language: 'Language',
       theme: 'Theme',
       themeDesc: 'Choose between dark and light appearance',
@@ -638,6 +640,22 @@ export const translations = {
       queueCleared: 'Notification queue cleared! No pending reminders will be sent.',
       basalAlreadyLoggedToast: 'Daily basal insulin dose was already logged for today.',
       basalTooEarlyToast: 'Too early for basal injection. Your scheduled basal time is at {time}.'
+    },
+    reminderMessages: {
+      doseLoggedAt: 'Dose logged at: {time} 💉',
+      rem10mTitle: '🍽️ Meal Time Reminder ⏰',
+      rem10mBody: 'Dose logged at: {time} 💉\n\n10 minutes have passed since your injection. You can now start your meal!',
+      rem10mBodyNoTime: '10 minutes have passed since your injection. You can now start your meal!',
+      rem2hTitle: '🩸 2-Hour Glucose Check ⏰',
+      rem2hBody: 'Dose logged at: {time} 💉\n\nPlease check your blood glucose level 2 hours after injection.',
+      rem2hBodyNoTime: 'Please check your blood glucose level 2 hours after injection.',
+      rem3hTitle: '🎯 3-Hour Safe Window ⏰',
+      rem3hBody: 'Dose logged at: {time} 💉\n\n3 hours have passed since your injection. Safe window reached for your next dose if needed.',
+      rem3hBodyNoTime: '3 hours have passed since your injection. Safe window reached for your next dose if needed.',
+      basalTitle: '🌙 Basal Injection Reminder ⏰',
+      basalBody: 'Please remember to take and log your daily basal insulin dose.',
+      testTitle: '🔔 InsuMinder Test Alert ⏰',
+      testBody: 'Notification connection successful! Your injection reminders are active.'
     }
   },
   he: {
@@ -822,6 +840,8 @@ export const translations = {
       errorDuplicateTime: 'לא ניתן להוסיף, זמן מדויק זה כבר מופיע.'
     },
     settings: {
+      basalReminderTitle: 'תזכורת אינסולין בזאלי',
+      basalReminderDesc: 'תזכורת יומית הנשלחת במידה ואינסולין בזאלי לא הוזרק עד השעה שנקבעה.',
       language: 'שפה',
       theme: 'ערכת נושא',
       themeDesc: 'בחרו בין מראה כהה למראה בהיר',
@@ -1264,6 +1284,22 @@ export const translations = {
       queueCleared: 'תור ההתראות נוקה בהצלחה! לא יישלחו תזכורות ממתינות.',
       basalAlreadyLoggedToast: 'מנת האינסולין הבזאלי היומית כבר תועדה להיום.',
       basalTooEarlyToast: 'מוקדם מדי להזרקה בזאלית. זמן ההזרקה המתוזמן שלך הוא בשעה {time}.'
+    },
+    reminderMessages: {
+      doseLoggedAt: 'הזרקה נרשמה בשעה: {time} 💉',
+      rem10mTitle: '🍽️ תזכורת זמן ארוחה ⏰',
+      rem10mBody: 'הזרקה נרשמה בשעה: {time} 💉\n\nחלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!',
+      rem10mBodyNoTime: 'חלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!',
+      rem2hTitle: '🩸 בדיקת סוכר לאחר שעתיים ⏰',
+      rem2hBody: 'הזרקה נרשמה בשעה: {time} 💉\n\nנא לבדוק את רמת הסוכר לאחר שעתיים מההזרקה.',
+      rem2hBodyNoTime: 'נא לבדוק את רמת הסוכר לאחר שעתיים מההזרקה.',
+      rem3hTitle: '🎯 חלון הזרקה בטוח (3 שעות) ⏰',
+      rem3hBody: 'הזרקה נרשמה בשעה: {time} 💉\n\nחלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.',
+      rem3hBodyNoTime: 'חלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.',
+      basalTitle: '🌙 תזכורת להזרקת אינסולין בזאלי ⏰',
+      basalBody: 'נא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.',
+      testTitle: '🔔 בדיקת התראות InsuMinder ⏰',
+      testBody: 'חיבור ההתראות הצליח! תזכורות ההזרקה שלך פעילות.'
     }
   },
   ru: {
@@ -1448,6 +1484,8 @@ export const translations = {
       errorDuplicateTime: 'Невозможно добавить, это точное время уже существует.'
     },
     settings: {
+      basalReminderTitle: 'Напоминание о базальном инсулине',
+      basalReminderDesc: 'Ежедневное напоминание, отправляемое, если базальный инсулин не был введён к заданному времени.',
       language: 'Язык',
       theme: 'Тема оформления',
       themeDesc: 'Выберите тёмное или светлое оформление',
@@ -1890,6 +1928,22 @@ export const translations = {
       queueCleared: 'Очередь уведомлений очищена! Ожидающие напоминания отправлены не будут.',
       basalAlreadyLoggedToast: 'Ежедневная доза базального инсулина уже была зафиксирована сегодня.',
       basalTooEarlyToast: 'Слишком рано для базальной инъекции. Запланированное время инъекции: {time}.'
+    },
+    reminderMessages: {
+      doseLoggedAt: 'Инъекция зафиксирована в: {time} 💉',
+      rem10mTitle: '🍽️ Напоминание о приёме пищи ⏰',
+      rem10mBody: 'Инъекция зафиксирована в: {time} 💉\n\nПрошло 10 минут с момента инъекции. Теперь можно приступить к еде!',
+      rem10mBodyNoTime: 'Прошло 10 минут с момента инъекции. Теперь можно приступить к еде!',
+      rem2hTitle: '🩸 Проверка сахара через 2 часа ⏰',
+      rem2hBody: 'Инъекция зафиксирована в: {time} 💉\n\nПожалуйста, измерьте уровень сахара в крови через 2 часа после инъекции.',
+      rem2hBodyNoTime: 'Пожалуйста, измерьте уровень сахара в крови через 2 часа после инъекции.',
+      rem3hTitle: '🎯 Безопасное окно для инъекции (3 часа) ⏰',
+      rem3hBody: 'Инъекция зафиксирована в: {time} 💉\n\nПрошло 3 часа с момента инъекции. Наступило безопасное окно для следующей дозы при необходимости.',
+      rem3hBodyNoTime: 'Прошло 3 часа с момента инъекции. Наступило безопасное окно для следующей дозы при необходимости.',
+      basalTitle: '🌙 Напоминание о базальном инсулине ⏰',
+      basalBody: 'Пожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.',
+      testTitle: '🔔 Проверка уведомлений InsuMinder ⏰',
+      testBody: 'Подключение уведомлений успешно! Напоминания об инъекциях активны.'
     }
   }
 };

@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "versionCode": 23,
+  "version": "2.0.1",
+  "versionCode": 24,
   "versionHistory": [
     "1.0.0",
     "1.1.0",
@@ -23,27 +23,28 @@
     "1.9.8",
     "1.9.9",
     "1.9.10",
-    "2.0.0"
+    "2.0.0",
+    "2.0.1"
   ],
   "buildTime": "2026-10-24T08:50:00.000Z",
   "changes": {
     "en": [
-      "Therapy delivery modes: Pens (MDI) and Insulin Pump / Pod with tailored workflows",
-      "Dedicated onboarding flow to select therapy method with real-time descriptions",
-      "Automatic basal reminder suppression and 20 bolus daily capacity for pump users",
-      "Clean modern modal typography without header icons and refined compact close buttons"
+      "Unified notification titles and messages across Android OS, Web Push, and Telegram",
+      "Native Android AlarmManager scheduling for 3-hour injection eligibility safe window",
+      "Fixed basal reminder description rendering on Android notifications",
+      "Strict CI and pre-commit enforcement of semantic version bumping and versionCode increments"
     ],
     "he": [
-      "מצבי טיפול באינסולין: עטים (MDI) ומשאבת אינסולין / פוד עם תהליכים מותאמים אישית",
-      "תהליך קליטה ייעודי לבחירת אופן המתן עם הסברים אינטראקטיביים בזמן אמת",
-      "ביטול אוטומטי של תזכורות בזאלי ומגבלת 20 מנות בולוס יומיות למשתמשי משאבה",
-      "טיפוגרפיה נקייה ומודרנית בחלונות ללא סמלילים בכותרת וכפתורי סגירה מעודנים"
+      "אחידות מלאה בכותרות ובנוסח התזכורות בין אנדרואיד, פוש וטלגרם",
+      "תזמון התראת שעון מעורר באנדרואיד לחלון הזרקה בטוח של 3 שעות",
+      "תיקון הצגת תיאור תזכורת האינסולין הבזאלי בהתראות המכשיר",
+      "אכיפה מחמירה ב-CI וב-Pre-commit להעלאת גרסה ו-versionCode בכל מיזוג"
     ],
     "ru": [
-      "Режимы инсулинотерапии: шприц-ручки (MDI) и помпа / под с адаптированным интерфейсом",
-      "Интерактивный экран онбординга для выбора метода введения с мгновенным описанием",
-      "Автоматическое отключение базальных напоминаний и лимит 20 болюсов в день для помпы",
-      "Чистая типографика модальных окон без иконок в заголовках и компактные кнопки закрытия"
+      "Единые заголовки и тексты напоминаний на Android, Web Push и в Telegram",
+      "Расписание нативного будильника Android для 3-часового безопасного окна инъекции",
+      "Исправление отображения описания базального напоминания в уведомлениях Android",
+      "Строгий контроль в CI и pre-commit для обязательного повышения версии и versionCode"
     ]
   }
 }

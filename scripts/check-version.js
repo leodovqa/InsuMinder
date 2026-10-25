@@ -49,7 +49,7 @@ if (!versionHistory.includes(canonicalVersion)) {
   error(`client/public/version.json "versionHistory" must include current version "${canonicalVersion}".`);
 }
 
-// 1b. Enforce Version Bump against main branch
+// 1b. Enforce Version Bump against main branch (Zero-Tolerance Versioning Rule)
 try {
   const { execSync } = require('child_process');
   let currentBranch = '';
@@ -59,15 +59,24 @@ try {
     // ignore
   }
 
-  if (currentBranch && currentBranch !== 'main' && currentBranch !== 'origin/main') {
+  const isCI = Boolean(process.env.CI);
+  const githubRef = process.env.GITHUB_REF || '';
+  const isMainBranch = (currentBranch === 'main' || currentBranch === 'origin/main' || githubRef === 'refs/heads/main') && !process.env.GITHUB_BASE_REF;
+
+  if (!isMainBranch) {
     let rawMain = null;
     try {
       rawMain = execSync('git show origin/main:client/public/version.json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
     } catch {
       try {
-        rawMain = execSync('git show main:client/public/version.json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+        execSync('git fetch origin main --depth=1', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+        rawMain = execSync('git show origin/main:client/public/version.json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
       } catch {
-        // origin/main not accessible
+        try {
+          rawMain = execSync('git show main:client/public/version.json', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+        } catch {
+          // unable to reach origin/main
+        }
       }
     }
 
@@ -98,20 +107,35 @@ try {
               `Version must be bumped compared to main (current: v${canonicalVersion}, main: v${mainVersion}). ` +
               `Every branch/PR must bump the version according to Semantic Versioning (MAJOR: X.0.0, MINOR: x.Y.0, or PATCH: x.y.Z).`
             );
+          } else {
+            success(`Version bump verified: v${mainVersion} -> v${canonicalVersion}`);
           }
+
           if (canonicalVersionCode <= mainCode) {
             error(
               `versionCode must be incremented compared to main (current: ${canonicalVersionCode}, main: ${mainCode}).`
             );
+          } else {
+            success(`versionCode increment verified: ${mainCode} -> ${canonicalVersionCode}`);
           }
         }
-      } catch {
-        // JSON parse error
+      } catch (parseErr) {
+        if (isCI) {
+          error(`Failed to parse main branch version.json: ${parseErr.message}`);
+        }
+      }
+    } else {
+      if (isCI) {
+        error('Could not retrieve client/public/version.json from origin/main to verify version bump in CI.');
+      } else {
+        console.warn('⚠️ [Version Check] origin/main not reachable locally; skipping branch comparison.');
       }
     }
   }
-} catch {
-  // child_process error
+} catch (err) {
+  if (process.env.CI) {
+    error(`Failed to verify version bump against main: ${err.message}`);
+  }
 }
 
 // 2. android/app/build.gradle

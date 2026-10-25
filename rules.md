@@ -42,8 +42,9 @@ These rules outline the guidelines for developing the web-based application.
    - Every user-facing UI feature, card, modal, dialog, form input, button, and navigation element must work and look polished across both visual themes: modern sleek Dark mode and modern clean Light mode.
    - All elements must adhere to the application's color and design system (`client/src/index.css` and `client/src/App.css`), maintaining high contrast, clear readability, and proper type aesthetics. Dark-specific hardcoded backgrounds or white texts must never leak unreadable contrast into Light mode, and Dark mode must remain completely unbroken.
    - Parity is strictly enforced by the pre-commit hook (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `npm --prefix client run check:theme`. Commits or PRs with missing theme variable definitions, broken contrast rules, or unstyled light-mode elements will fail.
-9. **Unified Application Versioning & Parity Rule**:
-   - Every single branch, PR, or release MUST bump the application version compared to `main` and increment `versionCode` (strictly enforced by `scripts/check-version.js` in pre-commit and CI).
+9. **Unified Application Versioning & Parity Rule (Zero-Tolerance Versioning Rule)**:
+   - **ZERO-TOLERANCE POLICY**: Under NO circumstances may any PR or branch ever be merged without bumping the application version compared to `main` and incrementing `versionCode`. Merging without versioning is strictly prohibited and permanently blocked.
+   - Enforced automatically in local pre-commit (`.husky/pre-commit`) and in CI (`.github/workflows/ci.yml`) via `node scripts/check-version.js`. Any PR with an unbumped version or unincremented `versionCode` will immediately fail CI and cannot be merged.
    - Version bumps follow Semantic Versioning (`MAJOR.MINOR.PATCH`):
      - **MAJOR (`X.0.0`)**: Breaking architectural changes, completely overhauled database schema/API contracts, or fundamental workflow rewrites.
      - **MINOR (`x.Y.0`)**: New features, capabilities, or major settings (e.g. adding master telegram toggle, manual injection logging, caregiver shared access).

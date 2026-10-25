@@ -1,3 +1,4 @@
+import { getReminderNotificationContent } from './utils';
 // client/src/pwa.js - Service Worker, Web Push & PWA installation helper
 
 let deferredPrompt = null;
@@ -328,8 +329,9 @@ export async function unsubscribeFromPush(authHeader = null) {
 
 // Send a test push notification to this device
 export async function sendTestPush(authHeader = null, lang = 'en') {
-  const testTitle = lang === 'he' ? '🔔 בדיקת התראות InsuMinder' : (lang === 'ru' ? '🔔 Проверка уведомлений InsuMinder' : '🔔 InsuMinder Test Alert');
-  const testBody = lang === 'he' ? 'התראות פוש למכשיר פעילות ומוכנות לשימוש!' : (lang === 'ru' ? 'Push-уведомления на устройстве активны и готовы к работе!' : 'Device push reminders are active and ready!');
+  const notif = getReminderNotificationContent('test', { lang });
+  const testTitle = notif.title;
+  const testBody = notif.body;
 
   let nativeSent = false;
   if (isAndroidApp() && window.AndroidBridge && typeof window.AndroidBridge.postNativeNotification === 'function') {
@@ -435,7 +437,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '2.0.0',
+  version: '2.0.1',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -444,25 +446,22 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Direct APK download update flow for Android with instant package installer launch',
-    'Precise native versionCode matching to eliminate false-positive update alerts on first launch',
-    'Instant high-speed pull-to-refresh with parallel data fetching',
-    'Centered header alignment and bidirectional symmetry for exit app confirmation modal',
-    'Full dual-channel notification delivery for native Android alarms and Telegram'
+    'Unified notification titles and messages across Android OS, Web Push, and Telegram',
+    'Native Android AlarmManager scheduling for 3-hour injection eligibility safe window',
+    'Fixed basal reminder description rendering on Android notifications',
+    'Strict CI and pre-commit enforcement of semantic version bumping and versionCode increments'
   ],
   he: [
-    'הורדת עדכון APK ישירה לאנדרואיד עם הפעלת מנהל ההתקנות המובנה',
-    'התאמת versionCode מקורי מדויקת למניעת התראות עדכון שווא בפתיחה ראשונה',
-    'רענון משיכה מהיר במיוחד עם טעינת נתונים מקבילית',
-    'יישור כותרת וסמליל מותאמים דו-כיוונית בחלון אישור היציאה מהאפליקציה',
-    'שליחת תזכורות מלאה בשני הערוצים: שעון מעורר מקומי באנדרואיד ובטלגרם במקביל'
+    'אחידות מלאה בכותרות ובנוסח התזכורות בין אנדרואיד, פוש וטלגרם',
+    'תזמון התראת שעון מעורר באנדרואיד לחלון הזרקה בטוח של 3 שעות',
+    'תיקון הצגת תיאור תזכורת האינסולין הבזאלי בהתראות המכשיר',
+    'אכיפה מחמירה ב-CI וב-Pre-commit להעלאת גרסה ו-versionCode בכל מיזוג'
   ],
   ru: [
-    'Прямая загрузка APK-обновления для Android с автоматическим запуском установщика',
-    'Точная сверка versionCode для предотвращения ложных уведомлений об обновлении при первом запуске',
-    'Мгновенное обновление потягиванием вниз с параллельной загрузкой данных',
-    'Симметричное двунаправленное выравнивание заголовка и значка в окне подтверждения выхода',
-    'Полная доставка напоминаний по двум каналам: нативные будильники Android и Telegram'
+    'Единые заголовки и тексты напоминаний на Android, Web Push и в Telegram',
+    'Расписание нативного будильника Android для 3-часового безопасного окна инъекции',
+    'Исправление отображения описания базального напоминания в уведомлениях Android',
+    'Строгий контроль в CI и pre-commit для обязательного повышения версии и versionCode'
   ]
 };
 

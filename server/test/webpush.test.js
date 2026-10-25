@@ -105,20 +105,20 @@ describe('Web Push & Multi-Channel Reminder Integration Tests', () => {
       const iso = '2026-10-10T14:30:00.000Z';
 
       const enPayload = scheduler.buildPushPayload('10m', { injectedAt: iso, lang: 'en' });
-      assert.strictEqual(enPayload.title, '🍽️ Meal Time Reminder');
+      assert.strictEqual(enPayload.title, '🍽️ Meal Time Reminder ⏰');
       assert.match(enPayload.body, /10 minutes have passed/);
       assert.strictEqual(enPayload.tag, 'insuminder-10m');
 
       const hePayload = scheduler.buildPushPayload('10m', { injectedAt: iso, lang: 'he' });
-      assert.strictEqual(hePayload.title, '🍽️ תזכורת זמן ארוחה');
+      assert.strictEqual(hePayload.title, '🍽️ תזכורת זמן ארוחה ⏰');
       assert.match(hePayload.body, /חלפו 10 דקות/);
 
       const ruPayload = scheduler.buildPushPayload('2h', { injectedAt: iso, lang: 'ru' });
-      assert.strictEqual(ruPayload.title, '🩸 Проверка уровня сахара');
+      assert.strictEqual(ruPayload.title, '🩸 Проверка сахара через 2 часа ⏰');
       assert.match(ruPayload.body, /Пожалуйста, измерьте/);
 
       const basalPayload = scheduler.buildPushPayload('basal', { lang: 'en' });
-      assert.strictEqual(basalPayload.title, '🌙 Basal Injection Reminder');
+      assert.strictEqual(basalPayload.title, '🌙 Basal Injection Reminder ⏰');
       assert.strictEqual(basalPayload.tag, 'insuminder-basal');
     });
 

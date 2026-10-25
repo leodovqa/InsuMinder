@@ -21,7 +21,8 @@ import {
   getBasalTimeDiffMinutes,
   getSavedDateFormat,
   setSavedDateFormat,
-  DATE_FORMATS
+  DATE_FORMATS,
+  getReminderNotificationContent
 } from './utils';
 import AuthModal from './AuthModal';
 import Profile from './Profile';
@@ -1186,20 +1187,25 @@ function AppContent() {
     const is2hEnabled = notificationPreferences?.personal?.rem2h !== false;
     const isBasalEnabled = notificationPreferences?.personal?.basal !== false;
 
-    // 1. Bolus 10m & 2h Reminders
+    const is3hEnabled = notificationPreferences?.personal?.rem3h !== false;
+
+    // 1. Bolus 10m, 2h & 3h Reminders
     if (latestBolusLog && latestBolusLog.injected_at) {
       const injectedTime = new Date(latestBolusLog.injected_at).getTime();
       const time10m = injectedTime + 10 * 60 * 1000;
       const time2h = injectedTime + 2 * 60 * 60 * 1000;
+      const time3h = injectedTime + 3 * 60 * 60 * 1000;
+      const doseTime = formatTimeOnly(latestBolusLog.injected_at);
 
       // 10-Minute Meal Reminder
       if (is10mEnabled && latestBolusLog.status_10m_sent !== 1 && time10m > currentTimestamp) {
+        const notif10m = getReminderNotificationContent('10m', { doseTime, lang: language });
         scheduleNativeReminder(
           'bolus-10m',
-          t('home.rem10mTitle') || '10-Minute Meal Reminder',
-          t('home.rem10mDesc') || 'You can safely begin eating now.',
+          notif10m.title,
+          notif10m.body,
           time10m,
-          '/?page=home'
+          notif10m.targetUrl
         );
       } else {
         cancelNativeReminder('bolus-10m');
@@ -1207,23 +1213,39 @@ function AppContent() {
 
       // 2-Hour Blood Glucose Check
       if (is2hEnabled && latestBolusLog.status_2h_sent !== 1 && time2h > currentTimestamp) {
+        const notif2h = getReminderNotificationContent('2h', { doseTime, lang: language });
         scheduleNativeReminder(
           'bolus-2h',
-          t('home.rem2hTitle') || '2-Hour Glucose Check',
-          t('home.rem2hDesc') || 'Please check your blood glucose level.',
+          notif2h.title,
+          notif2h.body,
           time2h,
-          '/?page=home'
+          notif2h.targetUrl
         );
       } else {
         cancelNativeReminder('bolus-2h');
       }
+
+      // 3-Hour Safe Window
+      if (is3hEnabled && latestBolusLog.status_3h_sent !== 1 && time3h > currentTimestamp) {
+        const notif3h = getReminderNotificationContent('3h', { doseTime, lang: language });
+        scheduleNativeReminder(
+          'bolus-3h',
+          notif3h.title,
+          notif3h.body,
+          time3h,
+          notif3h.targetUrl
+        );
+      } else {
+        cancelNativeReminder('bolus-3h');
+      }
     } else {
       cancelNativeReminder('bolus-10m');
       cancelNativeReminder('bolus-2h');
+      cancelNativeReminder('bolus-3h');
     }
 
     // 2. Basal Daily Reminder
-    if (isBasalEnabled && basalTime) {
+    if (isBasalEnabled && basalTime && activeTherapyMode !== 'pump') {
       const [bHourStr, bMinStr] = String(basalTime).split(':');
       const bHour = parseInt(bHourStr, 10) || 20;
       const bMin = parseInt(bMinStr, 10) || 0;
@@ -1237,22 +1259,24 @@ function AppContent() {
       const targetBasalToday = new Date();
       targetBasalToday.setHours(bHour, bMin, 0, 0);
 
+      const notifBasal = getReminderNotificationContent('basal', { lang: language });
+
       if (isBasalInjectedToday || targetBasalToday.getTime() <= currentTimestamp) {
         const targetBasalTomorrow = new Date(targetBasalToday.getTime() + 24 * 60 * 60 * 1000);
         scheduleNativeReminder(
           'basal-daily',
-          t('modals.basalReminderTitle') || 'Basal Injection Reminder',
-          t('settings.basalReminderDesc') || 'Daily reminder to log your basal insulin dose.',
+          notifBasal.title,
+          notifBasal.body,
           targetBasalTomorrow.getTime(),
-          '/?action=basal'
+          notifBasal.targetUrl
         );
       } else {
         scheduleNativeReminder(
           'basal-daily',
-          t('modals.basalReminderTitle') || 'Basal Injection Reminder',
-          t('settings.basalReminderDesc') || 'Daily reminder to log your basal insulin dose.',
+          notifBasal.title,
+          notifBasal.body,
           targetBasalToday.getTime(),
-          '/?action=basal'
+          notifBasal.targetUrl
         );
       }
     } else {
@@ -1263,7 +1287,8 @@ function AppContent() {
     logs,
     basalTime,
     notificationPreferences,
-    t
+    activeTherapyMode,
+    language
   ]);
 
 

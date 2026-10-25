@@ -325,7 +325,7 @@ describe('Telegram Notification Integration Tests', () => {
       );
       assert.strictEqual(
         scheduler.MESSAGE_2H,
-        '🩸 From InsuMinder (Local):\n⏰ 2-Hour Glucose Check\n\nPlease go and check your Glucose level after 2 Hours.'
+        '🩸 From InsuMinder (Local):\n⏰ 2-Hour Glucose Check\n\nPlease check your blood glucose level 2 hours after injection.'
       );
       assert.strictEqual(
         scheduler.MESSAGE_3H,

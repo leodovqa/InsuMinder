@@ -354,7 +354,7 @@ export function buildMessage2h(injectedAt, isLocal = false, lang = 'en') {
   }
   const prefix = isLocal ? "🩸 From InsuMinder (Local):" : "🩸 From InsuMinder:";
   const doseLine = doseTime ? `\n💉 Dose logged at: ${doseTime}` : "";
-  return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease go and check your Glucose level after 2 Hours.`;
+  return `${prefix}\n⏰ 2-Hour Glucose Check${doseLine}\n\nPlease check your blood glucose level 2 hours after injection.`;
 }
 
 export function buildMessage3h(injectedAt, isLocal = false, lang = 'en') {
@@ -408,9 +408,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
   const doseTime = formatDoseTime(injectedAt);
   if (type === '10m') {
     if (lang === 'he') {
-      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime} 💉\n\n` : '';
       return {
-        title: '🍽️ תזכורת זמן ארוחה',
+        title: '🍽️ תזכורת זמן ארוחה ⏰',
         body: `${doseLine}חלפו 10 דקות ממועד ההזרקה. כעת ניתן להתחיל לאכול!`,
         tag: 'insuminder-10m',
         icon: '/icons/icon-192x192.png',
@@ -419,9 +419,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
       };
     }
     if (lang === 'ru') {
-      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime} 💉\n\n` : '';
       return {
-        title: '🍽️ Напоминание о приёме пищи',
+        title: '🍽️ Напоминание о приёме пищи ⏰',
         body: `${doseLine}Прошло 10 минут с момента инъекции. Теперь можно приступить к еде!`,
         tag: 'insuminder-10m',
         icon: '/icons/icon-192x192.png',
@@ -429,9 +429,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
         data: { url: '/' }
       };
     }
-    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    const doseLine = doseTime ? `Dose logged at: ${doseTime} 💉\n\n` : '';
     return {
-      title: '🍽️ Meal Time Reminder',
+      title: '🍽️ Meal Time Reminder ⏰',
       body: `${doseLine}10 minutes have passed since your injection. You can now start your meal!`,
       tag: 'insuminder-10m',
       icon: '/icons/icon-192x192.png',
@@ -442,9 +442,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
 
   if (type === '2h') {
     if (lang === 'he') {
-      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime} 💉\n\n` : '';
       return {
-        title: '🩸 בדיקת סוכר לאחר שעתיים',
+        title: '🩸 בדיקת סוכר לאחר שעתיים ⏰',
         body: `${doseLine}נא לבדוק את רמת הסוכר לאחר שעתיים מההזרקה.`,
         tag: 'insuminder-2h',
         icon: '/icons/icon-192x192.png',
@@ -453,9 +453,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
       };
     }
     if (lang === 'ru') {
-      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime} 💉\n\n` : '';
       return {
-        title: '🩸 Проверка уровня сахара',
+        title: '🩸 Проверка сахара через 2 часа ⏰',
         body: `${doseLine}Пожалуйста, измерьте уровень сахара в крови через 2 часа после инъекции.`,
         tag: 'insuminder-2h',
         icon: '/icons/icon-192x192.png',
@@ -463,10 +463,10 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
         data: { url: '/' }
       };
     }
-    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    const doseLine = doseTime ? `Dose logged at: ${doseTime} 💉\n\n` : '';
     return {
-      title: '🩸 2-Hour Glucose Check',
-      body: `${doseLine}Please go and check your Glucose level after 2 Hours.`,
+      title: '🩸 2-Hour Glucose Check ⏰',
+      body: `${doseLine}Please check your blood glucose level 2 hours after injection.`,
       tag: 'insuminder-2h',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/badge-72x72.png',
@@ -476,9 +476,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
 
   if (type === '3h') {
     if (lang === 'he') {
-      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime}. ` : '';
+      const doseLine = doseTime ? `הזרקה נרשמה בשעה: ${doseTime} 💉\n\n` : '';
       return {
-        title: '🎯 חלון הזרקה בטוח (3 שעות)',
+        title: '🎯 חלון הזרקה בטוח (3 שעות) ⏰',
         body: `${doseLine}חלפו 3 שעות ממועד ההזרקה. הגיע חלון בטוח להזרקה הבאה במידת הצורך.`,
         tag: 'insuminder-3h',
         icon: '/icons/icon-192x192.png',
@@ -487,9 +487,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
       };
     }
     if (lang === 'ru') {
-      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime}. ` : '';
+      const doseLine = doseTime ? `Инъекция зафиксирована в: ${doseTime} 💉\n\n` : '';
       return {
-        title: '🎯 Безопасное окно для инъекции (3 часа)',
+        title: '🎯 Безопасное окно для инъекции (3 часа) ⏰',
         body: `${doseLine}Прошло 3 часа с момента инъекции. Наступило безопасное окно для следующей дозы при необходимости.`,
         tag: 'insuminder-3h',
         icon: '/icons/icon-192x192.png',
@@ -497,9 +497,9 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
         data: { url: '/' }
       };
     }
-    const doseLine = doseTime ? `Dose logged at: ${doseTime}. ` : '';
+    const doseLine = doseTime ? `Dose logged at: ${doseTime} 💉\n\n` : '';
     return {
-      title: '🎯 3-Hour Injection Eligibility',
+      title: '🎯 3-Hour Safe Window ⏰',
       body: `${doseLine}3 hours have passed since your injection. Safe window reached for your next dose if needed.`,
       tag: 'insuminder-3h',
       icon: '/icons/icon-192x192.png',
@@ -511,7 +511,7 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
   // Basal
   if (lang === 'he') {
     return {
-      title: '🌙 תזכורת להזרקת אינסולין בזאלי',
+      title: '🌙 תזכורת להזרקת אינסולין בזאלי ⏰',
       body: 'נא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.',
       tag: 'insuminder-basal',
       icon: '/icons/icon-192x192.png',
@@ -521,7 +521,7 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
   }
   if (lang === 'ru') {
     return {
-      title: '🌙 Напоминание о базальном инсулине',
+      title: '🌙 Напоминание о базальном инсулине ⏰',
       body: 'Пожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.',
       tag: 'insuminder-basal',
       icon: '/icons/icon-192x192.png',
@@ -530,7 +530,7 @@ export function buildPushPayload(type, { injectedAt, lang = 'en' } = {}) {
     };
   }
   return {
-    title: '🌙 Basal Injection Reminder',
+    title: '🌙 Basal Injection Reminder ⏰',
     body: 'Please remember to take and log your daily basal insulin dose.',
     tag: 'insuminder-basal',
     icon: '/icons/icon-192x192.png',
