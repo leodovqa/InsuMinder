@@ -11855,3 +11855,87 @@ body.nav-drawer-open {
   cursor: not-allowed;
   transform: none !important;
 }
+
+/* Offline Injection Queue Banner & Status Badges */
+.offline-queue-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto 16px;
+  padding: 10px 16px;
+  background-color: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 12px;
+  box-sizing: border-box;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.offline-queue-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.offline-queue-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.offline-queue-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s, background-color 0.2s;
+  min-height: 32px;
+}
+
+.offline-queue-sync-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.offline-queue-sync-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.log-offline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  font-family: var(--mono);
+}
+
+/* Light Theme overrides for Offline Banner & Badges */
+[data-theme="light"] .offline-queue-banner {
+  background-color: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+[data-theme="light"] .log-offline-pill {
+  background-color: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.25);
+}

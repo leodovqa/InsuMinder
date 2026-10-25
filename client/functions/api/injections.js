@@ -137,18 +137,28 @@ export async function onRequestPost(context) {
         }
       }
 
+      const isOfflineSync = Boolean(body.is_offline_sync);
       const injected_at = finalDateObj.toISOString();
       const notify_10m_at = new Date(finalDateObj.getTime() + 10 * 60 * 1000).toISOString();
       const notify_2h_at = new Date(finalDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString();
       const notify_3h_at = new Date(finalDateObj.getTime() + 3 * 60 * 60 * 1000).toISOString();
-      const status_sent = 1;
+      const status_10m_sent = (isBasal || (!isOfflineSync && finalDateObj < now) || new Date(notify_10m_at) <= now) ? 1 : 0;
+      const status_2h_sent = (isBasal || (!isOfflineSync && finalDateObj < now) || new Date(notify_2h_at) <= now) ? 1 : 0;
+      const status_3h_sent = (isBasal || (!isOfflineSync && finalDateObj < now) || new Date(notify_3h_at) <= now) ? 1 : 0;
+      const err_10m = status_10m_sent === 1 ? (isOfflineSync ? 'Sync after reminder time' : 'Manual entry') : null;
+      const err_2h = status_2h_sent === 1 ? (isOfflineSync ? 'Sync after reminder time' : 'Manual entry') : null;
+      const err_3h = status_3h_sent === 1 ? (isOfflineSync ? 'Sync after reminder time' : 'Manual entry') : null;
 
       const info = await db
         .prepare(
-          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?, ?)"
+          "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
-        .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_sent, status_sent, status_sent, cleanType, therapyMode)
+        .bind(userId, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, err_10m, err_2h, err_3h, cleanType, therapyMode)
         .run();
+
+      if (!isBasal && isOfflineSync && context.waitUntil) {
+        context.waitUntil(dispatchDueNotifications(db, context.env));
+      }
 
       if (isBasal) {
         const { dateStr: todayDate } = getJerusalemDateAndTime(now);

@@ -437,7 +437,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '2.0.1',
+  version: '2.1.0',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -446,23 +446,20 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    'Unified notification titles and messages across Android OS, Web Push, and Telegram',
-    'Native Android AlarmManager scheduling for 3-hour injection eligibility safe window',
-    'Fixed basal reminder description rendering on Android notifications',
-    'Strict CI and pre-commit enforcement of semantic version bumping and versionCode increments'
-  ],
+    "Offline Injection Sync Queue: queue injections locally when offline or disconnected and automatically synchronize upon network restoration",
+    "Animated button loading spinners and dynamic action states across notification push buttons and Home big injection buttons",
+    "Optimistic local state updates for offline injections with instant countdown timers and native Android alarm scheduling"
+],
   he: [
-    'אחידות מלאה בכותרות ובנוסח התזכורות בין אנדרואיד, פוש וטלגרם',
-    'תזמון התראת שעון מעורר באנדרואיד לחלון הזרקה בטוח של 3 שעות',
-    'תיקון הצגת תיאור תזכורת האינסולין הבזאלי בהתראות המכשיר',
-    'אכיפה מחמירה ב-CI וב-Pre-commit להעלאת גרסה ו-versionCode בכל מיזוג'
-  ],
+    "תור סנכרון להזרקות לא מקוונות: שמירה מקומית של הזרקות בהיעדר חיבור וסנכרון אוטומטי בעת חזרת הרשת",
+    "מחווני טעינה מונפשים ומצבי פעולה דינמיים בכפתורי התראות הפוש ובכפתורי ההזרקה הראשיים במסך הבית",
+    "עדכון אופטימי מיידי של נתונים מקומיים בהזרקה לא מקוונת, כולל טיימרים פעילים והתראות שעון מעורר באנדרואיד"
+],
   ru: [
-    'Единые заголовки и тексты напоминаний на Android, Web Push и в Telegram',
-    'Расписание нативного будильника Android для 3-часового безопасного окна инъекции',
-    'Исправление отображения описания базального напоминания в уведомлениях Android',
-    'Строгий контроль в CI и pre-commit для обязательного повышения версии и versionCode'
-  ]
+    "Очередь офлайн-синхронизации инъекций: локальное сохранение инъекций без интернета и автосинхронизация при восстановлении сети",
+    "Анимированные индикаторы загрузки и динамические статусы кнопок push-уведомлений и главных кнопок инъекций на главном экране",
+    "Оптимистичное обновление локального состояния при офлайн-инъекциях с немедленным запуском таймеров и нативных будильников Android"
+]
 };
 
 export function downloadAndroidApk() {

@@ -203,6 +203,25 @@ Before any commit, run all 6 checks:
 
 ## 3. Completed Milestones History
 
+### v2.1.0 — Offline Injection Sync Queue & Universal Button Loading Animations
+- **Offline Injection Sync Queue (`client/src/offlineQueue.js`)**:
+  * Seamless offline logging for both Bolus and Basal injections (and manual logs) when disconnected or network requests fail.
+  * Preserves exact dose timestamps (`injected_at`) and delivery method.
+  * Optimistically updates UI state and logs in memory so clinical countdown timers (10m, 2h, 3h safe window) and native Android `AlarmManager` alarms fire without delay.
+  * Persistent storage in `localStorage` with corrupted JSON recovery and duplicate minute tolerance (dequeuing on 409 responses).
+  * Automatic background synchronization via `registerOfflineSyncListeners` on `online` network restoration, tab visibility, and pull-to-refresh.
+  * Real-time Offline Sync Banner with one-click "Sync Now" button and pending sync badges (`⏳ Sync Pending`) in logs table and latest injection card.
+- **Backend Smart Scheduling for Offline Sync (`is_offline_sync: true`)**:
+  * In `functions/api/injections.js`, `client/functions/api/injections.js`, `server/src/index.js`, and `server/src/db.js`:
+  * Detects when an injection was logged in the past. If reminder times (10m, 2h, 3h) have already passed, marks them as sent with `'Sync after reminder time'` to prevent spamming expired alerts.
+  * If reminder times are still in the future, leaves `status = 0` so the server scheduler delivers them on time.
+- **Universal Button Loaders & Dynamic Action Titles**:
+  * In `NotificationSettings.jsx`: replaced `'...'` static text on "Enable / Disable Device Push" with animated `.btn-spinner` and localized dynamic states (`devicePushEnabling`, `devicePushDisabling`).
+  * Added animated `.btn-spinner` and disabled state to the "Send Test Push" button while dispatching test alerts.
+  * In Home big injection buttons (`App.jsx`): dynamically updates title text from static "Log Injection" to "Injecting...", "Log Bolus" to "Logging Bolus...", and "Log Basal" to "Logging Basal..." while loading.
+- **Full Version Parity & 0-Diff Functions**:
+  * Synchronized version bump to `v2.1.0` (versionCode `25`) across all 9 locations with 0 diff between `functions/` and `client/functions/`.
+
 ### v2.0.1 — Unified Notification Messages across OS & Telegram, 3h Native Alarm & Zero-Tolerance CI Versioning Check
 - **Single Source of Truth for Notification Messages**:
   * Unified reminder messages across Android Native AlarmManager, Web Push, and Telegram in `client/src/utils.js` (`getReminderNotificationContent`) and `translations.js` (`reminderMessages`).
@@ -347,20 +366,12 @@ Before any commit, run all 6 checks:
 
 ## 4. Product Backlog & Future Enhancements (Saved for Later)
 
-0. **Button Loading Spinners & Disabling during Async Actions (Save / Inject Buttons)**:
-   - All "save" type and "inject" type buttons must show a small inline loader/spinner and be disabled while the async operation is in progress (1–3 seconds) until the action completes and feedback/alert appears.
-   - Prevents double-taps and gives clear immediate user feedback that the system is processing the request.
-1. **Basal Notification Direct App/Web Launch Link**:
-   - Exclusively for basal insulin reminders (Telegram and Push), append a dedicated action link at the bottom of the notification.
-   - Triggers opening the native Android app via intent URL, falling back to `https://insuminder.pages.dev` in browser if app is not installed.
-2. **Data Export & Clinical Reporting (CSV & PDF)**:
+1. **Data Export & Clinical Reporting (CSV & PDF)**:
    - Export injections in CSV format filtered by 7, 14, 30, or 90 days.
    - Printable summary for doctor visits.
-3. **Offline Injection Sync Queue**:
-   - Queue injection logs in IndexedDB when offline and sync automatically via Service Worker Background Sync when network returns.
-4. **Telegram Chat ID Auto-Detection / Webhook**:
+2. **Telegram Chat ID Auto-Detection / Webhook**:
    - Simplify Telegram onboarding by having users send `/start` to the bot to automatically bind `chat_id`.
-5. **CI Runner Infrastructure Proactive Maintenance**:
+3. **CI Runner Infrastructure Proactive Maintenance**:
    - Track GitHub Actions runner migrations for Node 22/24 LTS and Ubuntu 26 images.
-6. **Concurrent Shared Caregiver Multi-Account Management**:
+4. **Concurrent Shared Caregiver Multi-Account Management**:
    - Enable caregivers to simultaneously link, monitor, and switch between multiple family members or dependent patient profiles with individual notification preferences.
