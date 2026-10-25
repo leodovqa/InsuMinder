@@ -508,9 +508,14 @@ export default function NotificationSettings({
                       onClick={handleTestPush}
                       disabled={testPushLoading}
                     >
-                      {testPushLoading
-                        ? t('notificationSettings.devicePushTesting')
-                        : t('notificationSettings.devicePushTestBtn')}
+                      {testPushLoading ? (
+                        <span className="btn-loading-content">
+                          <span className="btn-spinner" aria-hidden="true" />
+                          <span>{t('notificationSettings.devicePushTesting')}</span>
+                        </span>
+                      ) : (
+                        t('notificationSettings.devicePushTestBtn')
+                      )}
                     </button>
                   ) : (
                     <button
@@ -519,9 +524,14 @@ export default function NotificationSettings({
                       onClick={handleTogglePush}
                       disabled={pushLoading}
                     >
-                      {pushLoading
-                        ? '...'
-                        : t('notificationSettings.devicePushEnableBtn')}
+                      {pushLoading ? (
+                        <span className="btn-loading-content">
+                          <span className="btn-spinner" aria-hidden="true" />
+                          <span>{t('notificationSettings.devicePushEnabling')}</span>
+                        </span>
+                      ) : (
+                        t('notificationSettings.devicePushEnableBtn')
+                      )}
                     </button>
                   )
                 ) : (
@@ -532,11 +542,16 @@ export default function NotificationSettings({
                       onClick={handleTogglePush}
                       disabled={pushLoading || permission === 'denied'}
                     >
-                      {pushLoading
-                        ? '...'
-                        : isSubscribed
+                      {pushLoading ? (
+                        <span className="btn-loading-content">
+                          <span className="btn-spinner" aria-hidden="true" />
+                          <span>{isSubscribed ? t('notificationSettings.devicePushDisabling') : t('notificationSettings.devicePushEnabling')}</span>
+                        </span>
+                      ) : (
+                        isSubscribed
                         ? t('notificationSettings.devicePushDisableBtn')
-                        : t('notificationSettings.devicePushEnableBtn')}
+                        : t('notificationSettings.devicePushEnableBtn')
+                      )}
                     </button>
 
                     {isSubscribed && (
@@ -546,9 +561,14 @@ export default function NotificationSettings({
                         onClick={handleTestPush}
                         disabled={testPushLoading}
                       >
-                        {testPushLoading
-                          ? t('notificationSettings.devicePushTesting')
-                          : t('notificationSettings.devicePushTestBtn')}
+                        {testPushLoading ? (
+                          <span className="btn-loading-content">
+                            <span className="btn-spinner" aria-hidden="true" />
+                            <span>{t('notificationSettings.devicePushTesting')}</span>
+                          </span>
+                        ) : (
+                          t('notificationSettings.devicePushTestBtn')
+                        )}
                       </button>
                     )}
                   </>

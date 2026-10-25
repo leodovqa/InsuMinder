@@ -105,6 +105,9 @@ export const translations = {
       logBasal: 'Basal Insulin',
       logBolusSubtitle: 'Mealtime / daytime dose',
       logBasalSubtitle: 'Nighttime background dose',
+      injecting: 'Injecting...',
+      loggingBolus: 'Logging Bolus...',
+      loggingBasal: 'Logging Basal...',
       dailyInjections: 'Daily Injections',
       lastInjection: 'Last Injection',
       noInjectionsYet: 'No injections yet',
@@ -492,6 +495,8 @@ export const translations = {
       devicePushDisableBtn: 'Disable Push on this Device',
       devicePushTestBtn: 'Send Test Push',
       devicePushTesting: 'Sending Test Push...',
+      devicePushEnabling: 'Enabling...',
+      devicePushDisabling: 'Disabling...',
       devicePushTestSuccess: 'Test notification sent! Check your notification tray.',
       devicePushActiveSuccess: 'Device notifications enabled successfully! A test notification was sent to your notification tray.',
       devicePushDeclinedBanner: 'Device notifications declined. To receive reminders, tap again to allow or open device settings.',
@@ -656,6 +661,13 @@ export const translations = {
       basalBody: 'Please remember to take and log your daily basal insulin dose.',
       testTitle: '🔔 InsuMinder Test Alert ⏰',
       testBody: 'Notification connection successful! Your injection reminders are active.'
+    },
+    offline: {
+      syncPending: 'Pending Sync',
+      loggedOffline: 'Injection saved offline 📴. Will auto-sync when connection is restored.',
+      syncSuccess: 'Offline injections synced successfully!',
+      syncBanner: '{count} injection(s) pending sync',
+      syncNow: 'Sync Now'
     }
   },
   he: {
@@ -749,6 +761,9 @@ export const translations = {
       logBasal: 'אינסולין בזאלי',
       logBolusSubtitle: 'מינון יום / לארוחה',
       logBasalSubtitle: 'מינון רקע לילי',
+      injecting: 'מתעד הזרקה...',
+      loggingBolus: 'מתעד בולוס...',
+      loggingBasal: 'מתעד בזאלי...',
       dailyInjections: 'הזרקות היום',
       lastInjection: 'הזרקה אחרונה',
       noInjectionsYet: 'טרם תועדו הזרקות',
@@ -1136,6 +1151,8 @@ export const translations = {
       devicePushDisableBtn: 'השבת התראות במכשיר זה',
       devicePushTestBtn: 'שלח התראת בדיקה',
       devicePushTesting: 'שולח התראת בדיקה...',
+      devicePushEnabling: 'מפעיל...',
+      devicePushDisabling: 'מכבה...',
       devicePushTestSuccess: 'התראת בדיקה נשלחה! בדוק את מגש ההתראות במכשיר.',
       devicePushActiveSuccess: 'התראות המכשיר הופעלו בהצלחה! התראת בדיקה נשלחה למגש ההתראות.',
       devicePushDeclinedBanner: 'התראות המכשיר נדחו. כדי לקבל תזכורות, יש ללחוץ שוב ולאשר או לפתוח הגדרות מכשיר.',
@@ -1300,6 +1317,13 @@ export const translations = {
       basalBody: 'נא לזכור להזריק ולתעד את מנת האינסולין הבזאלי היומית שלך.',
       testTitle: '🔔 בדיקת התראות InsuMinder ⏰',
       testBody: 'חיבור ההתראות הצליח! תזכורות ההזרקה שלך פעילות.'
+    },
+    offline: {
+      syncPending: 'ממתין לסנכרון',
+      loggedOffline: 'ההזרקה נשמרה במצב לא מקוון 📴. תסונכרן אוטומטית ברגע שהחיבור יחזור.',
+      syncSuccess: 'ההזרקות הלא מקוונות סונכרנו בהצלחה!',
+      syncBanner: '{count} הזרקות ממתינות לסנכרון',
+      syncNow: 'סנכרן עכשיו'
     }
   },
   ru: {
@@ -1393,6 +1417,9 @@ export const translations = {
       logBasal: 'Базальный инсулин',
       logBolusSubtitle: 'Дневная доза / перед едой',
       logBasalSubtitle: 'Ночная продлённая доза',
+      injecting: 'Запись инъекции...',
+      loggingBolus: 'Запись болюса...',
+      loggingBasal: 'Запись базального...',
       dailyInjections: 'Инъекций за сегодня',
       lastInjection: 'Последняя инъекция',
       noInjectionsYet: 'Инъекций пока нет',
@@ -1780,6 +1807,8 @@ export const translations = {
       devicePushDisableBtn: 'Отключить Push на этом устройстве',
       devicePushTestBtn: 'Отправить тестовый Push',
       devicePushTesting: 'Отправка тестового push...',
+      devicePushEnabling: 'Включение...',
+      devicePushDisabling: 'Отключение...',
       devicePushTestSuccess: 'Тестовое уведомление отправлено! Проверьте шторку уведомлений.',
       devicePushActiveSuccess: 'Уведомления на устройстве успешно включены! Тестовое уведомление отправлено в панель уведомлений.',
       devicePushDeclinedBanner: 'Уведомления на устройстве отклонены. Чтобы получать напоминания, нажмите снова и разрешите или откройте настройки устройства.',
@@ -1944,6 +1973,13 @@ export const translations = {
       basalBody: 'Пожалуйста, не забудьте ввести и зафиксировать ежедневную дозу базального инсулина.',
       testTitle: '🔔 Проверка уведомлений InsuMinder ⏰',
       testBody: 'Подключение уведомлений успешно! Напоминания об инъекциях активны.'
+    },
+    offline: {
+      syncPending: 'Ожидает синхронизации',
+      loggedOffline: 'Инъекция сохранена офлайн 📴. Автоматически синхронизируется при подключении.',
+      syncSuccess: 'Офлайн-инъекции успешно синхронизированы!',
+      syncBanner: '{count} инъекций ожидают синхронизации',
+      syncNow: 'Синхронизировать сейчас'
     }
   }
 };

@@ -33,6 +33,12 @@ import AndroidInstallModal from './AndroidInstallModal';
 import UpdateBanner from './UpdateBanner';
 import { authService } from './authService';
 import {
+  getOfflineQueue,
+  enqueueOfflineInjection,
+  syncOfflineQueue,
+  registerOfflineSyncListeners
+} from './offlineQueue';
+import {
   isStandaloneApp,
   isAndroidApp,
   checkIsAppInstalled,
@@ -245,6 +251,8 @@ function AppContent() {
   const [isSavingTherapyMode, setIsSavingTherapyMode] = useState(false);
   const [isLoggingInjection, setIsLoggingInjection] = useState(false);
   const [loggingType, setLoggingType] = useState(null); // 'bolus' | 'basal' | null
+  const [offlineQueueCount, setOfflineQueueCount] = useState(() => getOfflineQueue().length);
+  const [isSyncingOfflineQueue, setIsSyncingOfflineQueue] = useState(false);
 
   const handleSelectTherapyMode = async (mode) => {
     setIsSavingTherapyMode(true);
@@ -1323,7 +1331,7 @@ function AppContent() {
       .catch(error => console.error('Error fetching telegram configs:', error));
   };
 
-  const fetchLogs = () => {
+  const fetchLogs = useCallback(() => {
     return fetch('/api/logs', {
       headers: authService.getAuthHeaders()
     })
@@ -1331,7 +1339,31 @@ function AppContent() {
       .then(data => {
         if (data.success) {
           if (Array.isArray(data.logs)) {
-            setLogs(data.logs);
+            const queue = getOfflineQueue();
+            if (queue.length > 0) {
+              const offlineLogs = queue.map(item => ({
+                id: item.tempId,
+                tempId: item.tempId,
+                user_id: user?.id,
+                injected_at: item.injected_at,
+                type: item.type,
+                delivery_method: item.delivery_method,
+                notify_10m_at: new Date(new Date(item.injected_at).getTime() + 10 * 60 * 1000).toISOString(),
+                notify_2h_at: new Date(new Date(item.injected_at).getTime() + 2 * 60 * 60 * 1000).toISOString(),
+                notify_3h_at: new Date(new Date(item.injected_at).getTime() + 3 * 60 * 60 * 1000).toISOString(),
+                status_10m_sent: item.type === 'basal' ? 1 : 0,
+                status_2h_sent: item.type === 'basal' ? 1 : 0,
+                status_3h_sent: item.type === 'basal' ? 1 : 0,
+                _isOffline: true
+              }));
+              const combined = [
+                ...offlineLogs,
+                ...data.logs.filter(l => !offlineLogs.some(ol => ol.injected_at === l.injected_at && ol.type === l.type))
+              ];
+              setLogs(combined);
+            } else {
+              setLogs(data.logs);
+            }
           }
           setBasalReminder(data.basalReminder || null);
         }
@@ -1341,7 +1373,7 @@ function AppContent() {
         console.error('Error fetching logs:', error);
         return null;
       });
-  };
+  }, [user?.id]);
 
   // Fetch Caregiver / Family Share Status
   const fetchShareStatus = async () => {
@@ -1375,7 +1407,48 @@ function AppContent() {
     }
   };
 
+  const handleSyncOfflineQueue = useCallback(async () => {
+    if (isSyncingOfflineQueue || !isLoggedIn) return;
+    const currentQueue = getOfflineQueue();
+    if (currentQueue.length === 0) {
+      setOfflineQueueCount(0);
+      return;
+    }
+    setIsSyncingOfflineQueue(true);
+    try {
+      const result = await syncOfflineQueue(authService.getAuthHeaders(), (item, serverData) => {
+        if (serverData && serverData.id) {
+          setLogs(prev => prev.map(log => (log.tempId === item.tempId ? { ...log, id: serverData.id, _isOffline: false } : log)));
+        }
+      });
+      setOfflineQueueCount(result.remainingCount);
+      if (result.syncedCount > 0) {
+        setNotification({
+          type: 'success',
+          message: t('offline.syncSuccess', { count: result.syncedCount })
+        });
+        fetchLogs();
+      }
+    } catch (err) {
+      console.error('Failed to sync offline queue:', err);
+    } finally {
+      setIsSyncingOfflineQueue(false);
+    }
+  }, [isSyncingOfflineQueue, isLoggedIn, fetchLogs, t]);
+
+  useEffect(() => {
+    const unregister = registerOfflineSyncListeners(() => {
+      if (isLoggedIn) {
+        handleSyncOfflineQueue();
+      }
+    });
+    return unregister;
+  }, [isLoggedIn, handleSyncOfflineQueue]);
+
   const refreshAppData = useCallback(async (isSilent = true) => {
+    if (authService.getToken() && getOfflineQueue().length > 0) {
+      handleSyncOfflineQueue();
+    }
     try {
       const promises = [fetchLogs(), fetchTelegramConfigs()];
       if (authService.getToken()) {
@@ -1388,7 +1461,7 @@ function AppContent() {
     } catch (e) {
       if (!isSilent) console.warn('[Refresh] Error refreshing app data:', e);
     }
-  }, []);
+  }, [fetchLogs, handleSyncOfflineQueue]);
 
   // Live state refresh on tab change
   useEffect(() => {
@@ -1853,10 +1926,47 @@ function AppContent() {
     })
     .catch(error => {
       console.error('Error logging injection:', error);
-      setNotification({
-        type: 'warning',
-        message: t('notifications.failedToLogInjection')
-      });
+      const isNetworkError = (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        error.name === 'TypeError' ||
+        /network|offline|failed to fetch|load failed/i.test(error.message);
+
+      if (isNetworkError) {
+        const queuedItem = enqueueOfflineInjection({
+          type: cleanType,
+          delivery_method: activeTherapyMode,
+          injected_at: now.toISOString()
+        });
+        setOfflineQueueCount(getOfflineQueue().length);
+        const injectedTime = formatTimeOnly(now.toISOString());
+        const baseSuccessMsg = cleanType === 'basal'
+          ? t('notifications.basalLoggedSuccess', { time: injectedTime })
+          : t('notifications.injectionLoggedSuccess', { time: injectedTime });
+        setNotification({
+          type: 'success',
+          message: `${baseSuccessMsg} (${t('offline.loggedOffline')})`
+        });
+        const optimisticLog = {
+          id: queuedItem.tempId,
+          tempId: queuedItem.tempId,
+          user_id: user?.id,
+          injected_at: now.toISOString(),
+          type: cleanType,
+          delivery_method: activeTherapyMode,
+          notify_10m_at: new Date(now.getTime() + 10 * 60 * 1000).toISOString(),
+          notify_2h_at: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+          notify_3h_at: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+          status_10m_sent: cleanType === 'basal' ? 1 : 0,
+          status_2h_sent: cleanType === 'basal' ? 1 : 0,
+          status_3h_sent: cleanType === 'basal' ? 1 : 0,
+          _isOffline: true
+        };
+        setLogs(prev => [optimisticLog, ...prev.filter(l => l.id !== optimisticLog.id)]);
+      } else {
+        setNotification({
+          type: 'warning',
+          message: t('notifications.failedToLogInjection')
+        });
+      }
     })
     .finally(() => {
       setIsLoggingInjection(false);
@@ -1965,7 +2075,44 @@ function AppContent() {
       }
     } catch (err) {
       console.error('Manual injection error:', err);
-      setManualError('Network error while saving injection.');
+      const isNetworkError = (typeof navigator !== 'undefined' && !navigator.onLine) ||
+        err.name === 'TypeError' ||
+        /network|offline|failed to fetch|load failed/i.test(err.message);
+
+      if (isNetworkError) {
+        const queuedItem = enqueueOfflineInjection({
+          manual: true,
+          type: manualType,
+          date: manualDate,
+          time: manualTime,
+          injected_at: selectedDate.toISOString(),
+          delivery_method: activeTherapyMode
+        });
+        setOfflineQueueCount(getOfflineQueue().length);
+        closeManualModal();
+        setNotification({
+          type: 'success',
+          message: `${t('logs.manualLoggedSuccess')} (${t('offline.loggedOffline')})`
+        });
+        const optimisticLog = {
+          id: queuedItem.tempId,
+          tempId: queuedItem.tempId,
+          user_id: user?.id,
+          injected_at: selectedDate.toISOString(),
+          type: manualType,
+          delivery_method: activeTherapyMode,
+          notify_10m_at: new Date(selectedDate.getTime() + 10 * 60 * 1000).toISOString(),
+          notify_2h_at: new Date(selectedDate.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+          notify_3h_at: new Date(selectedDate.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+          status_10m_sent: manualType === 'basal' ? 1 : 0,
+          status_2h_sent: manualType === 'basal' ? 1 : 0,
+          status_3h_sent: manualType === 'basal' ? 1 : 0,
+          _isOffline: true
+        };
+        setLogs(prev => [optimisticLog, ...prev.filter(l => l.id !== optimisticLog.id)]);
+      } else {
+        setManualError('Network error while saving injection.');
+      }
     } finally {
       setIsSubmittingManual(false);
     }
@@ -2672,6 +2819,24 @@ function AppContent() {
         </div>
       )}
 
+      {/* Offline Injection Queue Banner */}
+      {isLoggedIn && offlineQueueCount > 0 && (
+        <div className="offline-queue-banner" role="status" aria-live="polite">
+          <div className="offline-queue-banner-text">
+            <span className="offline-queue-icon" aria-hidden="true">⏳</span>
+            <span>{t('offline.syncBanner', { count: offlineQueueCount })}</span>
+          </div>
+          <button
+            type="button"
+            className="offline-queue-sync-btn"
+            onClick={handleSyncOfflineQueue}
+            disabled={isSyncingOfflineQueue}
+          >
+            {isSyncingOfflineQueue ? <span className="btn-spinner" aria-hidden="true" /> : t('offline.syncNow')}
+          </button>
+        </div>
+      )}
+
       {/* VIEW 1: HOME */}
       {activeTab === 'home' && (
         <section
@@ -2868,7 +3033,9 @@ function AppContent() {
                   <span className="log-injection-plus">
                     {isLoggingInjection && loggingType === 'bolus' ? <span className="btn-spinner" aria-hidden="true" /> : '+'}
                   </span>
-                  <span className="log-injection-title">{t('home.logBolus')}</span>
+                  <span className="log-injection-title">
+                    {isLoggingInjection && loggingType === 'bolus' ? t('home.loggingBolus') : t('home.logBolus')}
+                  </span>
                   <span className="log-injection-subtitle">{t('home.logBolusSubtitle')}</span>
                 </button>
                 <button
@@ -2881,7 +3048,9 @@ function AppContent() {
                   <span className="log-injection-plus">
                     {isLoggingInjection && loggingType === 'basal' ? <span className="btn-spinner" aria-hidden="true" /> : '+'}
                   </span>
-                  <span className="log-injection-title">{t('home.logBasal')}</span>
+                  <span className="log-injection-title">
+                    {isLoggingInjection && loggingType === 'basal' ? t('home.loggingBasal') : t('home.logBasal')}
+                  </span>
                   <span className="log-injection-subtitle">{t('home.logBasalSubtitle')}</span>
                 </button>
               </div>
@@ -2896,7 +3065,9 @@ function AppContent() {
                 <span className="log-injection-plus">
                   {isLoggingInjection ? <span className="btn-spinner" aria-hidden="true" /> : '+'}
                 </span>
-                <span className="log-injection-title">{t('home.logInjection')}</span>
+                <span className="log-injection-title">
+                  {isLoggingInjection ? t('home.injecting') : t('home.logInjection')}
+                </span>
                 <span className="log-injection-subtitle">
                   {!isLoggedIn
                     ? t('home.logInjectionSubtitleLoggedOut')
@@ -3204,7 +3375,14 @@ function AppContent() {
                       </div>
 
                       <div className="latest-log-meta">
-                        <div className="latest-log-timestamp"><span dir="ltr">{formatDateTime(latestLog.injected_at, dateFormat)}</span></div>
+                        <div className="latest-log-timestamp">
+                          <span dir="ltr">{formatDateTime(latestLog.injected_at, dateFormat)}</span>
+                          {latestLog._isOffline && (
+                            <span className="log-offline-pill" style={{ marginInlineStart: '0.5rem' }}>
+                              ⏳ {t('offline.syncPending')}
+                            </span>
+                          )}
+                        </div>
                         <div className="latest-log-relative">{formatRelativeTime(latestLog.injected_at, language)}</div>
                       </div>
 
@@ -3548,6 +3726,11 @@ function AppContent() {
                                 <span className={`log-type-badge ${log.type === 'basal' ? 'badge-basal' : 'badge-bolus'}`}>
                                   {log.type === 'basal' ? t('logs.typeBasal') : t('logs.typeBolus')}
                                 </span>
+                                {log._isOffline && (
+                                  <span className="log-offline-pill" title={t('offline.syncPending')}>
+                                    ⏳ {t('offline.syncPending')}
+                                  </span>
+                                )}
                                 {isRapid && (
                                   <span className="log-rapid-pill" title="Logged under 3h after prior dose">
                                     {t('logs.rapidPillBadge')}

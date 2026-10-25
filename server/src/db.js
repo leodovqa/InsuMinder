@@ -457,7 +457,7 @@ function getJerusalemDateAndTime(date = new Date()) {
   };
 }
 
-function insertManualInjectionLog(userId, type, injectedAt, deliveryMethodOrCallback, maybeCallback) {
+function insertManualInjectionLog(userId, type, injectedAt, deliveryMethodOrCallback, isOfflineSyncOrCallback, maybeCallback) {
   const cleanUserId = typeof userId === 'number'
     ? userId
     : (typeof userId === 'string' && !isNaN(parseInt(userId, 10)) ? parseInt(userId, 10) : null);
@@ -466,7 +466,16 @@ function insertManualInjectionLog(userId, type, injectedAt, deliveryMethodOrCall
   const deliveryMethod = typeof deliveryMethodOrCallback === 'string' && ['pen', 'pump'].includes(deliveryMethodOrCallback)
     ? deliveryMethodOrCallback
     : null;
-  const callback = typeof deliveryMethodOrCallback === 'function' ? deliveryMethodOrCallback : maybeCallback;
+  let isOfflineSync = false;
+  let callback;
+  if (typeof deliveryMethodOrCallback === 'function') {
+    callback = deliveryMethodOrCallback;
+  } else if (typeof isOfflineSyncOrCallback === 'function') {
+    callback = isOfflineSyncOrCallback;
+  } else {
+    isOfflineSync = Boolean(isOfflineSyncOrCallback);
+    callback = maybeCallback;
+  }
 
   if (!injectedAt) {
     const err = new Error("Injection date and time are required.");
@@ -553,14 +562,20 @@ function insertManualInjectionLog(userId, type, injectedAt, deliveryMethodOrCall
         }
       }
 
+      const now = new Date();
       const isoInjectedAt = injectionDate.toISOString();
       const notify_10m_at = new Date(injectionDate.getTime() + 10 * 60 * 1000).toISOString();
       const notify_2h_at = new Date(injectionDate.getTime() + 2 * 60 * 60 * 1000).toISOString();
       const notify_3h_at = new Date(injectionDate.getTime() + 3 * 60 * 60 * 1000).toISOString();
-      const status_sent = 1;
+      const status_10m_sent = (isBasal || (!isOfflineSync && injectionDate < now) || new Date(notify_10m_at) <= now) ? 1 : 0;
+      const status_2h_sent = (isBasal || (!isOfflineSync && injectionDate < now) || new Date(notify_2h_at) <= now) ? 1 : 0;
+      const status_3h_sent = (isBasal || (!isOfflineSync && injectionDate < now) || new Date(notify_3h_at) <= now) ? 1 : 0;
+      const err_10m = status_10m_sent === 1 ? (isOfflineSync ? 'Sync after reminder time' : 'Manual entry') : null;
+      const err_2h = status_2h_sent === 1 ? (isOfflineSync ? 'Sync after reminder time' : 'Manual entry') : null;
+      const err_3h = status_3h_sent === 1 ? (isOfflineSync ? 'Sync after reminder time' : 'Manual entry') : null;
 
       const stmt = db.prepare(
-        "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Manual entry', 'Manual entry', 'Manual entry', ?, ?)"
+        "INSERT INTO injection_logs (user_id, injected_at, notify_10m_at, notify_2h_at, notify_3h_at, status_10m_sent, status_2h_sent, status_3h_sent, error_10m, error_2h, error_3h, type, delivery_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       );
       stmt.run(
         cleanUserId,
@@ -568,9 +583,12 @@ function insertManualInjectionLog(userId, type, injectedAt, deliveryMethodOrCall
         notify_10m_at,
         notify_2h_at,
         notify_3h_at,
-        status_sent,
-        status_sent,
-        status_sent,
+        status_10m_sent,
+        status_2h_sent,
+        status_3h_sent,
+        err_10m,
+        err_2h,
+        err_3h,
         cleanType,
         therapyMode,
         function(insErr) {

@@ -195,4 +195,34 @@ describe('NotificationSettings Component', () => {
 
     delete window.AndroidBridge;
   });
+
+  it('displays spinner and disabled state when testing device push notification', async () => {
+    window.AndroidBridge = {
+      isNativeAndroid: () => true,
+      isNotificationPermissionGranted: () => true,
+      postNativeNotification: vi.fn(),
+      requestNotificationPermission: vi.fn()
+    };
+
+    let resolveFetch;
+    const fetchPromise = new Promise(resolve => {
+      resolveFetch = resolve;
+    });
+    global.fetch = vi.fn().mockImplementation(() => fetchPromise);
+
+    renderNotificationSettings();
+
+    const testBtn = screen.getByRole('button', { name: /Send Test Push/i });
+    fireEvent.click(testBtn);
+
+    expect(testBtn).toBeDisabled();
+    expect(testBtn.querySelector('.btn-spinner')).toBeInTheDocument();
+
+    resolveFetch({
+      ok: true,
+      json: async () => ({ success: true, message: 'Test notification sent!' })
+    });
+
+    delete window.AndroidBridge;
+  });
 });
