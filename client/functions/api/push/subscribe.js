@@ -19,19 +19,26 @@ export async function onRequestPost(context) {
     const userId = authUser ? authUser.userId : 1;
 
     const body = await request.json().catch(() => ({}));
-    const { subscription, userAgent } = body;
+    let endpoint, p256dh, auth, ua;
 
-    if (!subscription || !subscription.endpoint || !subscription.keys) {
-      return new Response(JSON.stringify({ success: false, error: 'Valid push subscription is required.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (body.fcmToken) {
+      endpoint = 'fcm:' + body.fcmToken;
+      p256dh = 'fcm';
+      auth = 'fcm';
+      ua = body.userAgent || request.headers.get('user-agent') || 'InsuMinder-Android';
+    } else {
+      const { subscription, userAgent } = body;
+      if (!subscription || !subscription.endpoint || !subscription.keys) {
+        return new Response(JSON.stringify({ success: false, error: 'Valid push subscription or FCM token is required.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      endpoint = subscription.endpoint;
+      p256dh = subscription.keys.p256dh;
+      auth = subscription.keys.auth;
+      ua = userAgent || request.headers.get('user-agent') || '';
     }
-
-    const { endpoint, keys } = subscription;
-    const p256dh = keys.p256dh;
-    const auth = keys.auth;
-    const ua = userAgent || request.headers.get('user-agent') || '';
 
     await db.prepare(
       `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent)

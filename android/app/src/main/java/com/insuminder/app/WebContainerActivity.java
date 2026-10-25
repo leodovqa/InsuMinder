@@ -20,6 +20,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
 import android.provider.Settings;
+import android.content.SharedPreferences;
+import android.os.PowerManager;
+import com.google.firebase.messaging.FirebaseMessaging;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
@@ -58,6 +61,20 @@ import com.google.android.gms.tasks.Task;
  */
 public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivity {
 
+    private static WebContainerActivity sActiveInstance;
+
+    public static void notifyFcmTokenReceived(String token) {
+        if (sActiveInstance != null && sActiveInstance.mWebView != null && token != null) {
+            final String safeToken = token.replace("\\", "\\\\").replace("'", "\\'");
+            sActiveInstance.runOnUiThread(() -> {
+                sActiveInstance.mWebView.evaluateJavascript(
+                    "if (typeof window.__onNativeFcmTokenReceived === 'function') { window.__onNativeFcmTokenReceived('" + safeToken + "'); }",
+                    null
+                );
+            });
+        }
+    }
+
     public static final int RC_GOOGLE_SIGN_IN = 9001;
     public static final int RC_POST_NOTIFICATIONS = 9002;
     public static final String NOTIFICATION_CHANNEL_ID = "insuminder_reminders";
@@ -83,6 +100,8 @@ public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivi
 
         // Initialize high-priority notification channel for dose reminders
         createNotificationChannel();
+        sActiveInstance = this;
+        initFcmToken();
 
         RelativeLayout layout = new RelativeLayout(this);
         layout.setBackgroundColor(Color.parseColor("#0f172a"));
@@ -622,17 +641,22 @@ public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivi
             }
             PendingIntent pendingIntent = PendingIntent.getBroadcast(this, requestCode, intent, flags);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
-                } else {
-                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
-                }
+            Intent showIntent = new Intent(this, WebContainerActivity.class);
+            showIntent.setData(Uri.parse(targetUrl != null && !targetUrl.isEmpty() ? targetUrl : "https://insuminder.pages.dev/"));
+            PendingIntent showPendingIntent = PendingIntent.getActivity(this, requestCode + 1, showIntent, flags);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent);
+                alarmManager.setAlarmClock(clockInfo, pendingIntent);
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
             } else {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
             }
+
+            // Save to persistent schedules for boot recovery
+            NotificationHelper.saveScheduledReminder(this, reminderId, title, body, triggerAtMillis, targetUrl);
+            Log.i("InsuMinder", "scheduleNativeReminder (AlarmClock) scheduled for: " + reminderId + " at " + triggerAtMillis);
         } catch (Exception e) {
             Log.e("InsuMinder", "scheduleNativeReminder failed: " + e.getMessage());
         }
@@ -656,6 +680,8 @@ public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivi
                 alarmManager.cancel(pendingIntent);
                 pendingIntent.cancel();
             }
+            NotificationHelper.removeScheduledReminder(this, reminderId);
+            Log.i("InsuMinder", "cancelNativeReminder removed schedule: " + reminderId);
         } catch (Exception e) {
             Log.e("InsuMinder", "cancelNativeReminder failed: " + e.getMessage());
         }
@@ -748,6 +774,37 @@ public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivi
         @JavascriptInterface
         public void openNotificationSettings() {
             runOnUiThread(() -> WebContainerActivity.this.openAppNotificationSettings());
+        }
+
+        @JavascriptInterface
+        public String getNativeFcmToken() {
+            SharedPreferences prefs = getSharedPreferences("insuminder_notifications_prefs", Context.MODE_PRIVATE);
+            return prefs.getString(InsuMinderMessagingService.PREF_FCM_TOKEN, "");
+        }
+
+        @JavascriptInterface
+        public boolean isBatteryOptimizationIgnored() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+            }
+            return true;
+        }
+
+        @JavascriptInterface
+        public void requestIgnoreBatteryOptimizations() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                try {
+                    PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                    if (pm != null && !pm.isIgnoringBatteryOptimizations(getPackageName())) {
+                        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    }
+                } catch (Exception e) {
+                    Log.e("InsuMinder", "Failed to launch battery optimization request: " + e.getMessage());
+                }
+            }
         }
 
         @JavascriptInterface
@@ -861,5 +918,31 @@ public class WebContainerActivity extends androidx.appcompat.app.AppCompatActivi
         if (mWebView != null) {
             runOnUiThread(() -> mWebView.evaluateJavascript("window.__onNativeBackPressed ? window.__onNativeBackPressed() : false;", null));
         }
+    }
+
+    private void initFcmToken() {
+        try {
+            FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+                if (!task.isSuccessful()) {
+                    Log.w("InsuMinder", "Fetching FCM registration token failed", task.getException());
+                    return;
+                }
+                String token = task.getResult();
+                Log.i("InsuMinder", "Initial FCM token retrieved: " + token);
+                SharedPreferences prefs = getSharedPreferences("insuminder_notifications_prefs", Context.MODE_PRIVATE);
+                prefs.edit().putString(InsuMinderMessagingService.PREF_FCM_TOKEN, token).apply();
+                notifyFcmTokenReceived(token);
+            });
+        } catch (Exception e) {
+            Log.e("InsuMinder", "FirebaseMessaging init error: " + e.getMessage());
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (sActiveInstance == this) {
+            sActiveInstance = null;
+        }
+        super.onDestroy();
     }
 }

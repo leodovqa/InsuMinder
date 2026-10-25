@@ -10,7 +10,10 @@ import {
   isAndroidApp,
   isStandaloneApp,
   checkIsAppInstalled,
-  downloadAndroidApk
+  downloadAndroidApk,
+  isBatteryOptimizationIgnored,
+  requestIgnoreBatteryOptimizations,
+  syncNativeFcmToken
 } from './pwa';
 import { authService } from './authService';
 import ManualNotificationGuideModal from './ManualNotificationGuideModal';
@@ -56,6 +59,7 @@ export default function NotificationSettings({
 
   // PWA install state
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp());
+  const [batteryIgnored, setBatteryIgnored] = useState(() => isBatteryOptimizationIgnored());
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
@@ -82,8 +86,16 @@ export default function NotificationSettings({
         const perm = getNotificationPermission();
         setPermission(perm);
         setIsSubscribed(perm === 'granted');
+        if (isAndroid) {
+          setBatteryIgnored(isBatteryOptimizationIgnored());
+        }
       }
     };
+
+    if (isAndroid) {
+      const authHeader = authService.getToken() ? `Bearer ${authService.getToken()}` : null;
+      syncNativeFcmToken(authHeader).catch(() => {});
+    }
     document.addEventListener('visibilitychange', handleVisibility);
 
     if (typeof window !== 'undefined') {
@@ -248,6 +260,16 @@ export default function NotificationSettings({
     } finally {
       setTestPushLoading(false);
     }
+  };
+
+  const handleRequestBatteryOptimization = () => {
+    requestIgnoreBatteryOptimizations();
+    setTimeout(() => {
+      setBatteryIgnored(isBatteryOptimizationIgnored());
+    }, 1500);
+    setTimeout(() => {
+      setBatteryIgnored(isBatteryOptimizationIgnored());
+    }, 4000);
   };
 
   const handleInstallPwa = () => {
@@ -577,6 +599,54 @@ export default function NotificationSettings({
             </div>
           )}
         </div>
+
+        {/* Android Background & Battery Optimization Card */}
+        {isAndroid && (
+          <div className="battery-opt-card">
+            <div className="battery-opt-header">
+              <div className="battery-opt-icon-wrapper">
+                <span className="battery-opt-icon" role="img" aria-hidden="true">🔋</span>
+              </div>
+              <div className="battery-opt-title-block">
+                <div className="battery-opt-title-row">
+                  <h3 className="battery-opt-title">{t('notificationSettings.batteryOptTitle')}</h3>
+                  <span
+                    className={`notification-status-badge ${batteryIgnored ? 'badge-active' : 'badge-disabled'}`}
+                  >
+                    {batteryIgnored
+                      ? t('notificationSettings.batteryOptStatusUnrestricted')
+                      : t('notificationSettings.batteryOptStatusOptimized')}
+                  </span>
+                </div>
+                <p className="battery-opt-subtitle">{t('notificationSettings.batteryOptSubtitle')}</p>
+              </div>
+            </div>
+
+            <div className="battery-opt-body">
+              <div className="fcm-killed-info-banner">
+                <span className="info-banner-icon" aria-hidden="true">🚀</span>
+                <p className="info-banner-text">{t('notificationSettings.fcmKilledAppBanner')}</p>
+              </div>
+
+              {batteryIgnored ? (
+                <div className="battery-opt-success-banner">
+                  <span className="success-banner-icon" aria-hidden="true">✓</span>
+                  <p className="success-banner-text">{t('notificationSettings.batteryOptGrantedBanner')}</p>
+                </div>
+              ) : (
+                <div className="battery-opt-actions">
+                  <button
+                    type="button"
+                    className="push-action-btn btn-primary"
+                    onClick={handleRequestBatteryOptimization}
+                  >
+                    ⚡ {t('notificationSettings.batteryOptRequestBtn')}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Android App & Offline Installation Card (Only shown on web when not installed) */}
         {!isStandalone && (

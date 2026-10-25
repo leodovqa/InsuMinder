@@ -4,6 +4,7 @@ const db = require('./db');
 const { sendTelegramMessage } = require('./telegram');
 const scheduler = require('./scheduler');
 const webpush = require('./webpush');
+const fcm = require('./fcm');
 const {
   isValidEmail,
   hashPassword,
@@ -1099,17 +1100,25 @@ app.get('/api/push/vapid-public-key', (req, res) => {
   res.json({ publicKey: webpush.VAPID_PUBLIC_KEY });
 });
 
-// 2. Save Client Push Subscription
+// 2. Save Client Push Subscription (Web Push & Android FCM)
 app.post('/api/push/subscribe', optionalAuth, (req, res) => {
   const userId = req.user ? req.user.id : 1;
-  const { subscription, userAgent } = req.body || {};
+  const { subscription, fcmToken, userAgent } = req.body || {};
 
-  if (!subscription || !subscription.endpoint || !subscription.keys) {
-    return res.status(400).json({ success: false, error: 'Valid push subscription is required.' });
+  let subPayload;
+  if (fcmToken) {
+    subPayload = {
+      endpoint: 'fcm:' + fcmToken,
+      keys: { p256dh: 'fcm', auth: 'fcm' }
+    };
+  } else if (subscription && subscription.endpoint && subscription.keys) {
+    subPayload = subscription;
+  } else {
+    return res.status(400).json({ success: false, error: 'Valid push subscription or FCM token is required.' });
   }
 
-  const ua = userAgent || req.headers['user-agent'] || '';
-  db.savePushSubscription(userId, subscription, ua, (err) => {
+  const ua = userAgent || req.headers['user-agent'] || (fcmToken ? 'InsuMinder-Android' : '');
+  db.savePushSubscription(userId, subPayload, ua, (err) => {
     if (err) {
       return res.status(500).json({ success: false, error: err.message });
     }
@@ -1184,7 +1193,20 @@ app.post('/api/push/test', optionalAuth, async (req, res) => {
 
     let sentCount = 0;
     for (const sub of subscriptions) {
-      const result = await webpush.sendWebPush(sub, payload);
+      let result;
+      if (sub.endpoint && sub.endpoint.startsWith('fcm:')) {
+        const token = sub.endpoint.slice(4);
+        const fRes = await fcm.sendFcmNotification(token, {
+          reminderId: 'test-push',
+          title: payload.title,
+          body: payload.body,
+          targetUrl: payload.data?.url || '/?page=notifications'
+        });
+        result = { ok: fRes.success, expired: fRes.expired, error: fRes.error };
+      } else {
+        result = await webpush.sendWebPush(sub, payload);
+      }
+
       if (result.ok) {
         sentCount++;
       } else if (result.expired) {
@@ -1234,7 +1256,7 @@ app.get('/api/download/android', async (req, res) => {
     return res.json({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '2.1.0',
+      version: '2.2.0',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',

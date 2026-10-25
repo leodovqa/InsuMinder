@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "857222807539",
+    "project_id": "insuminder-f6f48",
+    "storage_bucket": "insuminder-f6f48.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:857222807539:android:5ea52ca0cf2247a660dc86",
+        "android_client_info": {
+          "package_name": "com.insuminder.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCeFVJjCSlHj44jIYyMZ5ldqHxspPkWpsc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

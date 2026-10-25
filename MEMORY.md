@@ -203,6 +203,30 @@ Before any commit, run all 6 checks:
 
 ## 3. Completed Milestones History
 
+### v2.2.0 — Firebase Cloud Messaging (FCM) Killed App Push Delivery, AlarmClock Doze Immunity & 1-Tap Battery Exemption
+- **Firebase Cloud Messaging (FCM) Remote Push Engine for Killed App Delivery**:
+  * Solved Android OEM task-killer notification loss (Xiaomi HyperOS, Samsung OneUI) when app is closed/swiped away or force-killed.
+  * Google Play Services FCM wakes up device and delivers notification banner even when the app process is completely dead.
+  * Pure Web Crypto implementation of Google OAuth2 Service Account assertion JWTs (`crypto.subtle.importKey("pkcs8", ...)` and `crypto.subtle.sign("RSASSA-PKCS1-v1_5", ...)`) in `functions/api/_fcm.js` and `client/functions/api/_fcm.js` with zero external dependencies, running natively on Cloudflare Pages Functions edge runtime.
+  * Express server FCM engine in `server/src/fcm.js` for local dev and self-hosted environments.
+  * Device FCM token subscription route (`POST /api/push/subscribe` with `{ fcmToken }`) saved as `fcm:<token>` endpoint.
+  * Multi-channel scheduler integration in `server/src/scheduler.js` and `functions/api/_telegram.js` routing to FCM when subscriptions start with `fcm:`, with auto-pruning on `UNREGISTERED` expired tokens.
+- **High-Precision AlarmClock Engine (`AlarmManager.setAlarmClock()`)**:
+  * Upgraded native Android alarms from `setExactAndAllowWhileIdle` to `AlarmManager.setAlarmClock()`.
+  * Immune to Android Doze mode, doesn't require `SCHEDULE_EXACT_ALARM` runtime permission, and triggers with millisecond precision.
+- **Phone Reboot & Package Update Alarm Persistence (`BootReceiver`)**:
+  * Implemented `BootReceiver` listening for `ACTION_BOOT_COMPLETED` and `ACTION_MY_PACKAGE_REPLACED`.
+  * Reads persisted reminder schedules from SharedPreferences and reschedules future alarms via `setAlarmClock()` automatically upon device reboot.
+- **100% Concurrent Deduplication Guard**:
+  * Centralized `NotificationHelper.displayNotification()` with shared reminder tag and Android `NotificationCompat.Builder.setOnlyAlertOnce(true)`.
+  * 60-second SharedPreferences timestamp guard prevents duplicate banner chimes even when both local AlarmClock and remote FCM push trigger at the exact same second.
+- **1-Tap Background & Battery Optimization Exemption**:
+  * Native bridge methods `isBatteryOptimizationIgnored()` and `requestIgnoreBatteryOptimizations()`.
+  * Triggers Android's native 1-tap system dialog (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) without sending users through complex system menus.
+  * UI card in `NotificationSettings.jsx` showing battery status (Unrestricted vs Optimized) and FCM connection status banner with full Dark & Light mode parity.
+- **Full Version Parity & 0-Diff Functions**:
+  * Synchronized version bump to `v2.2.0` (versionCode `26`) across all 9 locations with 0 diff between `functions/` and `client/functions/`.
+
 ### v2.1.0 — Offline Injection Sync Queue & Universal Button Loading Animations
 - **Offline Injection Sync Queue (`client/src/offlineQueue.js`)**:
   * Seamless offline logging for both Bolus and Basal injections (and manual logs) when disconnected or network requests fail.

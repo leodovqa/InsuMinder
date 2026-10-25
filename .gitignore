@@ -24,3 +24,9 @@ dist-apk/
 *.aab
 local.properties
 .vscode/
+
+# Firebase & Cloud Secrets (Rule 13: Zero Hardcoded Secrets)
+*firebase-adminsdk*.json
+serviceAccountKey.json
+service-account*.json
+firebase-key.json

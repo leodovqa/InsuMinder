@@ -1,6 +1,7 @@
 import { ensureTablesExist } from '../_telegram.js';
 import { getAuthUser } from '../_auth.js';
 import { sendWebPush } from '../_webpush.js';
+import { sendFcmNotification } from '../_fcm.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -70,7 +71,20 @@ export async function onRequestPost(context) {
 
     let sentCount = 0;
     for (const sub of subscriptions) {
-      const result = await sendWebPush(sub, payload, { env });
+      let result;
+      if (sub.endpoint && sub.endpoint.startsWith('fcm:')) {
+        const token = sub.endpoint.slice(4);
+        const fRes = await sendFcmNotification(token, {
+          reminderId: 'test-push',
+          title: payload.title,
+          body: payload.body,
+          targetUrl: payload.data?.url || '/?page=notifications'
+        }, { env });
+        result = { ok: fRes.success, expired: fRes.expired, error: fRes.error };
+      } else {
+        result = await sendWebPush(sub, payload, { env });
+      }
+
       if (result.ok) {
         sentCount++;
       } else if (result.expired) {
