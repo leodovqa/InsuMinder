@@ -11,6 +11,10 @@ Always work strictly within the designated subdirectories:
 
 ```text
 InsuMinder/
+├── .agents/                 # Modular AI agent configuration & workspace customizations
+│   ├── rules/               # Topic-specific engineering rules (branching, UI, versioning, secrets, etc.)
+│   └── skills/              # Repeatable operational runbooks (release-version, security-audit)
+├── AGENTS.md                # Top-level AI agent operating guide & navigation index
 ├── client/                  # Frontend application (React + Vite)
 │   ├── src/
 │   │   ├── components/      # UI elements (buttons, logs, alert cards)

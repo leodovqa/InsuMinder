@@ -438,7 +438,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '2.3.1',
+  version: '2.3.2',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -447,19 +447,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    "Automated security vulnerability checks in CI preventing vulnerable dependencies",
-    "Upgraded CI runner infrastructure to Node 22 LTS with Ubuntu 26 migration readiness",
-    "Hardened Google Cloud & Firebase API credentials with strict package and service restrictions"
+    "Modular AI agent operating architecture with dedicated workspace rules (.agents/rules/)",
+    "Autonomous skills framework (.agents/skills/) for releases and security audits",
+    "Centralized AGENTS.md operating guide and rule routing index"
   ],
   he: [
-    "בדיקות אבטחה אוטומטיות לזיהוי פגיעויות בספריות קוד בתהליך ה-CI",
-    "שדרוג תשתית ה-CI ל-Node 22 LTS והיערכות מלאה להגירה ל-Ubuntu 26",
-    "הקשחת אבטחת מפתחות Google Cloud ו-Firebase עם הגבלת חבילה ושירותים ייעודיים"
+    "ארכיטקטורת סוכן AI מודולרית עם כללי סביבת עבודה ייעודיים (.agents/rules/)",
+    "תשתית מיומנויות אוטונומית (.agents/skills/) לשחרור גרסאות ומבדקי אבטחה",
+    "מדריך הפעלה מרכזי ואינדקס ניתוב כללים (AGENTS.md)"
   ],
   ru: [
-    "Автоматическая проверка безопасности и уязвимостей зависимостей в CI",
-    "Обновление инфраструктуры CI на Node 22 LTS и готовность к переходу на Ubuntu 26",
-    "Усиленная защита ключей Google Cloud и Firebase с ограничением пакета и сервисов"
+    "Модульная архитектура AI-агентов с выделенными правилами рабочего пространства (.agents/rules/)",
+    "Фреймворк навыков (.agents/skills/) для релизов и аудита безопасности",
+    "Централизованное руководство по эксплуатации и маршрутизации правил (AGENTS.md)"
   ]
 };
 
