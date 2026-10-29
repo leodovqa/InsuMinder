@@ -211,6 +211,43 @@ Before any commit, run all 6 checks:
 
 ## 3. Completed Milestones History
 
+### v2.3.2 — Modular AI Agent Operating Architecture (.agents/rules/, .agents/skills/ & AGENTS.md)
+- **Modular AI Agent Architecture**:
+  * Adopted production-grade modular workspace customization structure matching industry best practices for autonomous coding agents.
+  * Modular Rules under `.agents/rules/`:
+    - `01-branching-and-pr.md`: Branching standards, autonomous commit/push ban, conventional commit format, PR gating protocol.
+    - `02-ui-standards.md`: Centering standards, unified `--section-gap: 20px`, vector SVG bounding boxes, modal scroll locking.
+    - `03-version-sync.md`: Zero-tolerance versioning, mandatory 9-file synchronization, semver increment.
+    - `04-zero-secrets.md`: Absolute zero hardcoded credentials, dynamic VAPID generation, ephemeral testing keys.
+    - `05-functions-zero-diff.md`: Cloudflare Pages functions zero-diff parity (`functions/` $\leftrightarrow$ `client/functions/`).
+    - `06-i18n-and-theme-parity.md`: 100% 3-way translation parity (EN, HE, RU) and dual theme parity (Dark & Light).
+    - `07-state-preservation.md`: Language as pure presentation; zero state reset on language change.
+  * Modular Skills under `.agents/skills/`:
+    - `release-version/SKILL.md`: Runbook for version bumping across all 9 manifest files, updating unit test assertions, building the Android APK, and verifying zero-tolerance versioning.
+    - `security-audit/SKILL.md`: Runbook for scanning repository secret leaks, executing high/critical CVE dependency audits, and safely patching lockfiles.
+  * Central Operating Guide (`AGENTS.md`):
+    - Top-level operational guide indexing project stack, commands, rules router, skills, and memory link in under 150 lines.
+- **Rule 1, 7, 8, 9, 13 Compliance**:
+  * Zero diff between `functions/` and `client/functions/`.
+  * 100% 3-way translation parity across 650 keys in `translations.js`.
+  * Modern Dark & Light theme parity verified with `npm --prefix client run check:theme`.
+  * Zero Hardcoded Secrets (Rule 13) pre-commit & CI scanner verified via `scripts/check-secrets.js`.
+  * Synchronized semantic version bump to `v2.3.2` (versionCode `29`) across all 9 locations verified via `check-version.js`.
+
+### v2.3.1 — Automated CI Vulnerability Checks, Node 22 LTS Runner Upgrade & Firebase API Key Restriction
+- **Automated Dependency Vulnerability Checks in CI**:
+  * Created dedicated security audit workflow (`.github/workflows/security.yml`) and custom audit script (`scripts/check-vulnerabilities.js`).
+  * Scans root, client, and server lockfiles with `npm audit --json --audit-level=high`.
+  * Runs as an independent, visible status check on PRs and commits.
+  * Patched client `undici` (7.30.1), `zod` (4.6.7), and server `body-parser` (2.4.0), `qs` (6.16.1), `undici` (6.29.1) with 0 high/critical vulnerabilities.
+- **CI Runner Infrastructure Upgrade**:
+  * Upgraded GitHub Actions runners to Node 22 LTS across all workflow jobs with readiness for Ubuntu 26 LTS.
+- **Google Cloud & Firebase API Key Restriction**:
+  * Hardened auto-created Android API key in `insuminder-f6f48` with Android application restriction to `com.insuminder.app` and SHA-1 fingerprint.
+  * Restricted API access to exactly 4 required APIs: FCM Registration API, Firebase Installations API, Identity Toolkit API, and Token Service API.
+- **Rule 1, 7, 8, 9, 13 Compliance**:
+  * Synchronized semantic version bump to `v2.3.1` (versionCode `28`) across all 9 locations.
+
 ### v2.3.0 — Dedicated Meal Portion Carb Calculator, Personal Foods Database & Quick Navigation
 - **Dedicated Meal Portion Carb Calculator (`CarbCalculator`)**:
   * Calculates exact portion carbohydrates in real-time from carbs per 100g:
