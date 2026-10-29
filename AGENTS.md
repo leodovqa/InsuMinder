@@ -51,6 +51,7 @@ npm run dev
 npm test
 
 # Verification checks (must all pass before proposing a PR)
+npm run tokens           # AI context window & token telemetry (or .\tokens in PowerShell)
 npm run check:secrets    # Rule 13: zero credentials scan
 npm run check:audit      # Standalone dependency vulnerability check
 npm run check:version    # Rule 9: 9-file version sync & semver bump check

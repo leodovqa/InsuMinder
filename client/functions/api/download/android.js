@@ -8,7 +8,7 @@ export async function onRequestGet(context) {
     return new Response(JSON.stringify({
       success: true,
       downloadUrl: releaseApkUrl,
-      version: '2.3.2',
+      version: '2.3.3',
       packageName: 'com.insuminder.app',
       name: 'InsuMinder.apk',
       sha256Url: 'https://github.com/leodovqa/InsuMinder/releases/latest/download/InsuMinder.apk.sha256',

@@ -1617,10 +1617,10 @@ describe('App Component - Home & Logs UI Tests', () => {
       render(<App />);
 
       // 1. Verify app footer version
-      expect(screen.getByText(/Dovgans • InsuMinder v2\.3\.2/i)).toBeInTheDocument();
+      expect(screen.getByText(/Dovgans • InsuMinder v2\.3\.3/i)).toBeInTheDocument();
 
       // 2. Verify sidebar nav drawer version
-      expect(screen.getByText('InsuMinder v2.3.2')).toBeInTheDocument();
+      expect(screen.getByText('InsuMinder v2.3.3')).toBeInTheDocument();
 
       // 3. Navigate to About & Info Tab
       const aboutNavBtn = screen.getByRole('button', { name: /About & Info/i, hidden: true });
@@ -1628,7 +1628,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Web
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v2.3.2')).toBeInTheDocument();
+      expect(screen.getByText('v2.3.3')).toBeInTheDocument();
 
       // Web version MUST NOT show "Up to Date" status or "Check for Updates" button
       expect(screen.queryByText('Up to Date')).not.toBeInTheDocument();
@@ -1639,7 +1639,7 @@ describe('App Component - Home & Logs UI Tests', () => {
       expect(whatsNewBtn).toBeInTheDocument();
       fireEvent.click(whatsNewBtn);
 
-      expect(screen.getByText(/Modular AI agent operating architecture/i)).toBeInTheDocument();
+      expect(screen.getByText(/Native CLI and PowerShell token telemetry tools/i)).toBeInTheDocument();
     });
 
     it('displays Up to Date and Check for Updates on Android in About card in Settings', async () => {
@@ -1651,7 +1651,7 @@ describe('App Component - Home & Logs UI Tests', () => {
 
       // Verify About InsuMinder card on Android
       expect(await screen.findByRole('heading', { level: 2, name: /About InsuMinder/i })).toBeInTheDocument();
-      expect(screen.getByText('v2.3.2')).toBeInTheDocument();
+      expect(screen.getByText('v2.3.3')).toBeInTheDocument();
 
       // Android version MUST show "Up to Date" status and "Check for Updates" button
       expect(screen.getByText('Up to Date')).toBeInTheDocument();

@@ -211,6 +211,15 @@ Before any commit, run all 6 checks:
 
 ## 3. Completed Milestones History
 
+### v2.3.3 — Native CLI & PowerShell AI Token Telemetry Tools
+- **Native Token Telemetry Tools**:
+  * Added `tokens.ps1` for instant Windows PowerShell execution with zero Node.js/PATH dependency.
+  * Added `tokens.bat` wrapper for standard command-line / double-click execution.
+  * Added `scripts/show-tokens.js` and `npm run tokens` shortcut for cross-platform Node.js environments.
+  * Real-time monitoring of active context window size (1M tokens limit), prompt cache hit ratio, and per-turn breakdown of fresh vs cached tokens.
+- **Rule 1, 7, 8, 9, 13 Compliance**:
+  * Synchronized semantic version bump to `v2.3.3` (versionCode `30`) across all 9 locations.
+
 ### v2.3.2 — Modular AI Agent Operating Architecture (.agents/rules/, .agents/skills/ & AGENTS.md)
 - **Modular AI Agent Architecture**:
   * Adopted production-grade modular workspace customization structure matching industry best practices for autonomous coding agents.
