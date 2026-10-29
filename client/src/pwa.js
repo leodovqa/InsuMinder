@@ -438,7 +438,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '2.3.2',
+  version: '2.3.3',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -447,19 +447,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    "Modular AI agent operating architecture with dedicated workspace rules (.agents/rules/)",
-    "Autonomous skills framework (.agents/skills/) for releases and security audits",
-    "Centralized AGENTS.md operating guide and rule routing index"
+    "Native CLI and PowerShell token telemetry tools (tokens.ps1, tokens.bat, scripts/show-tokens.js)",
+    "Real-time AI context window occupancy and prompt cache ratio tracking",
+    "Developer environment documentation and AGENTS.md guide update"
   ],
   he: [
-    "ארכיטקטורת סוכן AI מודולרית עם כללי סביבת עבודה ייעודיים (.agents/rules/)",
-    "תשתית מיומנויות אוטונומית (.agents/skills/) לשחרור גרסאות ומבדקי אבטחה",
-    "מדריך הפעלה מרכזי ואינדקס ניתוב כללים (AGENTS.md)"
+    "כלי טלמטריה ומעקב טוקנים ייעודיים ב-PowerShell ו-CLI (tokens.ps1, tokens.bat)",
+    "מעקב בזמן אמת אחר תפוסת חלון ההקשר (Context) ואחוזי המטמון (Prompt Cache) של ה-AI",
+    "עדכון תיעוד סביבת הפיתוח ומדריך ההפעלה AGENTS.md"
   ],
   ru: [
-    "Модульная архитектура AI-агентов с выделенными правилами рабочего пространства (.agents/rules/)",
-    "Фреймворк навыков (.agents/skills/) для релизов и аудита безопасности",
-    "Централизованное руководство по эксплуатации и маршрутизации правил (AGENTS.md)"
+    "Нативные инструменты телеметрии токенов для CLI и PowerShell (tokens.ps1, tokens.bat)",
+    "Отслеживание заполнения контекстного окна и эффективности кэша промптов (Prompt Cache)",
+    "Обновление документации среды разработки и руководства AGENTS.md"
   ]
 };
 
