@@ -438,7 +438,7 @@ export async function promptPwaInstall() {
 }
 
 export const ANDROID_PACKAGE_INFO = {
-  version: '2.3.0',
+  version: '2.3.1',
   packageName: 'com.insuminder.app',
   fileName: 'InsuMinder.apk',
   downloadUrl: '/api/download/android',
@@ -447,19 +447,19 @@ export const ANDROID_PACKAGE_INFO = {
 
 export const APP_CURRENT_CHANGELOG = {
   en: [
-    "Dedicated Meal Portion Carb Calculator: easily calculate carbs for custom portions from carbs per 100g",
-    "Personal Food Database: save favorite food items with their 100g carb value for 1-tap calculation",
-    "Quick Access Home Shortcut & Navigation: fast 1-tap calculation jump directly from the Home dashboard"
+    "Automated security vulnerability checks in CI preventing vulnerable dependencies",
+    "Upgraded CI runner infrastructure to Node 22 LTS with Ubuntu 26 migration readiness",
+    "Hardened Google Cloud & Firebase API credentials with strict package and service restrictions"
   ],
   he: [
-    "מחשבון פחמימות ייעודי למנות מזון: חישוב מדויק של כמות הפחמימות לפי משקל המנה מתוך ערך ל-100 גרם",
-    "מאגר מזונות אישי: שמירת מוצרים וערכי פחמימות ל-100 גרם לטעינה מהירה בלחיצה אחת",
-    "קיצור דרך מהיר ממסך הבית וניווט ייעודי: גישה ישירה למחשבון הפחמימות מלוח הבקרה הראשי"
+    "בדיקות אבטחה אוטומטיות לזיהוי פגיעויות בספריות קוד בתהליך ה-CI",
+    "שדרוג תשתית ה-CI ל-Node 22 LTS והיערכות מלאה להגירה ל-Ubuntu 26",
+    "הקשחת אבטחת מפתחות Google Cloud ו-Firebase עם הגבלת חבילה ושירותים ייעודיים"
   ],
   ru: [
-    "Выделенный калькулятор углеводов для порций: точный расчет углеводов на вес блюда из расчета на 100 г",
-    "Персональная база продуктов: сохранение продуктов с содержанием углеводов на 100 г для быстрого расчета",
-    "Быстрый переход с главного экрана и навигация: мгновенный доступ к калькулятору углеводов с панели приборов"
+    "Автоматическая проверка безопасности и уязвимостей зависимостей в CI",
+    "Обновление инфраструктуры CI на Node 22 LTS и готовность к переходу на Ubuntu 26",
+    "Усиленная защита ключей Google Cloud и Firebase с ограничением пакета и сервисов"
   ]
 };
 

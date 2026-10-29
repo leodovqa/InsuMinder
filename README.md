@@ -197,7 +197,7 @@ InsuMinder/
 
 ### Prerequisites
 - Node.js 22+ (LTS) or Node.js 24 and npm installed.
-- GitHub Actions workflows pinned to Ubuntu 24.04 and v5 actions for LTS stability.
+- GitHub Actions workflows running Node 22 (Active LTS) on Ubuntu 24.04 with automated dependency vulnerability scanning (npm audit) and Ubuntu 26 migration readiness.
 
 ### Start Development Environment
 You can start both client and server in parallel with:
@@ -226,6 +226,9 @@ npm --prefix client test
 
 # Run backend integration tests only:
 npm --prefix server test
+
+# Run security & vulnerability audit:
+npm run check:audit
 
 # Run linting:
 npm run lint

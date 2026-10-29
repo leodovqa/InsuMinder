@@ -96,23 +96,6 @@ const SECRET_PATTERNS = [
   }
 ];
 
-function getCandidateFiles() {
-  try {
-    const tracked = execSync('git ls-files', { cwd: REPO_ROOT, encoding: 'utf8' })
-      .split('\n')
-      .map(f => f.trim())
-      .filter(Boolean);
-    const untracked = execSync('git ls-files --others --exclude-standard', { cwd: REPO_ROOT, encoding: 'utf8' })
-      .split('\n')
-      .map(f => f.trim())
-      .filter(Boolean);
-    return Array.from(new Set([...tracked, ...untracked]));
-  } catch (err) {
-    console.error('⚠️ Could not run git ls-files. Falling back to filesystem scan...', err.message);
-    return [];
-  }
-}
-
 function shouldSkipFile(relPath) {
   const normalized = relPath.replace(/\\/g, '/');
   if (IGNORED_PATHS.some(ignored => normalized.includes(ignored))) {
@@ -123,6 +106,48 @@ function shouldSkipFile(relPath) {
     return true;
   }
   return false;
+}
+
+function walkDir(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const results = [];
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    const rel = path.relative(REPO_ROOT, full);
+    if (shouldSkipFile(rel)) continue;
+    if (entry.isDirectory()) {
+      results.push(...walkDir(full));
+    } else {
+      results.push(rel);
+    }
+  }
+  return results;
+}
+
+function getCandidateFiles() {
+  const gitPaths = [
+    'git',
+    'C:\\Users\\nusha\\AppData\\Local\\GitHubDesktop\\app-3.6.7\\resources\\app\\git\\cmd\\git.exe'
+  ];
+
+  for (const gitBin of gitPaths) {
+    try {
+      const tracked = execSync(`"${gitBin}" ls-files`, { cwd: REPO_ROOT, encoding: 'utf8' })
+        .split('\n')
+        .map(f => f.trim())
+        .filter(Boolean);
+      const untracked = execSync(`"${gitBin}" ls-files --others --exclude-standard`, { cwd: REPO_ROOT, encoding: 'utf8' })
+        .split('\n')
+        .map(f => f.trim())
+        .filter(Boolean);
+      return Array.from(new Set([...tracked, ...untracked]));
+    } catch {
+      // try next
+    }
+  }
+
+  console.warn('⚠️ Could not run git ls-files. Falling back to recursive filesystem scan...');
+  return walkDir(REPO_ROOT);
 }
 
 function scanFile(relPath) {

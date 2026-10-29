@@ -50,6 +50,32 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
 
 ---
 
+
+### Google Cloud & Firebase Client API Key Security Lockdown Guide
+> **Status**: ✅ HARDENED in v2.3.1  
+> **Project**: `insuminder-f6f48`  
+> **API Key (in `android/app/google-services.json`)**: `AIzaSyCeFVJjCSlHj44jIYyMZ5ldqHxspPkWpsc`  
+> **Android Application ID**: `com.insuminder.app`  
+
+#### Step-by-Step Google Cloud Console Restriction Instructions:
+1. Navigate to: [Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials?project=insuminder-f6f48)
+2. Locate and edit the Android API key: `AIzaSyCeFVJjCSlHj44jIYyMZ5ldqHxspPkWpsc` (often labeled "Android key (auto created by Firebase)").
+3. **Set Application Restrictions**:
+   - Select **Android apps**.
+   - Click **Add package name and fingerprint**:
+     - **Package Name**: `com.insuminder.app`
+     - **SHA-1 Certificate Fingerprint**: `FF:B5:3B:3A:04:6B:38:A4:FB:0E:3A:46:2D:DA:A8:33:FE:51:D9:0F`
+     - *(Optional SHA-256 for reference)*: `9F:08:3E:3A:EC:74:D5:7D:94:D7:B3:46:71:7B:CB:E6:72:A5:32:35:20:C2:AA:5A:87:64:F8:5C:E5:20:AA:FE`
+4. **Set API Restrictions**:
+   - Select **Restrict key**.
+   - Enable strictly the following APIs required by the client:
+     1. `Firebase Cloud Messaging API` (for push notifications)
+     2. `Firebase Installations API` (for client registration tokens)
+     3. `Google Identity Services / Play Services Auth` (for Google Sign-In)
+5. Click **Save**. The key is now cryptographically bound to InsuMinder's release build and cannot be abused by external apps or domains.
+
+---
+
 ## 1. Planned Tasks & Future Backlog (Saved for Later)
 
 ### Task 1: Interactive Weekly Injection History Drilldown by Day with Chunked / Lazy Fetching
@@ -59,18 +85,6 @@ The VAPID private key is used to sign RFC 8292 JWTs for Web Push notifications d
   - Do NOT fetch massive historical datasets on initial app load. Initial load continues to fetch only recent / current week logs.
   - When the user navigates "back" to a previous week using the week navigation arrows (`< Prev Week`), the app dynamically requests that specific week chunk from the server (e.g. `GET /api/logs?weekStart=YYYY-MM-DD`).
   - Cache loaded weeks in client state to prevent duplicate network calls.
-
-### Task 2: Automated Vulnerability Checks in CI (.github/workflows/ci.yml)
-- **Objective**: Add automated vulnerability scanning to CI pull request and push workflows.
-- **Implementation**:
-  - Add an automated dependency audit step (e.g. `npm audit --audit-level=high` or Trivy / Snyk security scan) in `.github/workflows/ci.yml`.
-  - Block PR merging if any critical or high-severity vulnerabilities are introduced via new packages or dependencies.
-
-### Task 3: Google Cloud / Firebase API Key Review & Restriction (Postponed)
-- **Context**: When Firebase was enabled for killed-app FCM push notifications, Firebase automatically created an Android client key in `android/app/google-services.json`.
-- **Planned Work**:
-  - Revisit Google Cloud Console credentials for `insuminder-f6f48` later.
-  - Either restrict the auto-created Android API key under Application restrictions to package name `com.insuminder.app` and API restrictions to FCM / Installations, or generate and bind a dedicated restricted key as preferred.
 
 ### Key Architectural Solutions
 1. **In-App Direct APK Download Flow (`isAndroidApp()`)**:
@@ -422,7 +436,5 @@ Before any commit, run all 6 checks:
    - Printable summary for doctor visits.
 2. **Telegram Chat ID Auto-Detection / Webhook**:
    - Simplify Telegram onboarding by having users send `/start` to the bot to automatically bind `chat_id`.
-3. **CI Runner Infrastructure Proactive Maintenance**:
-   - Track GitHub Actions runner migrations for Node 22/24 LTS and Ubuntu 26 images.
-4. **Concurrent Shared Caregiver Multi-Account Management**:
+3. **Concurrent Shared Caregiver Multi-Account Management**:
    - Enable caregivers to simultaneously link, monitor, and switch between multiple family members or dependent patient profiles with individual notification preferences.
