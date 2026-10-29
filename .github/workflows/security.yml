@@ -1,0 +1,32 @@
+name: Security Audit
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main, 'feat/*', 'feature/*', 'fix/*' ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Dependency Vulnerability Audit
+    # Runner infrastructure: pinned to ubuntu-24.04 with forward readiness for ubuntu-26.04
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js (Node 22 Active LTS)
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Check for Hardcoded Secrets & Sensitive Credentials (Rule 13)
+        run: node scripts/check-secrets.js
+
+      - name: Run Dependency Vulnerability Audit (npm audit --audit-level=high)
+        run: node scripts/check-vulnerabilities.js

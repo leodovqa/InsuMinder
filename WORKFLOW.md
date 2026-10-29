@@ -32,6 +32,7 @@ InsuMinder/
 │   └── gradle/              # Gradle wrapper
 ├── .github/workflows/
 │   ├── ci.yml               # Automated test, build, lint & parity workflow
+│   ├── security.yml         # Dedicated security & dependency vulnerability audit workflow
 │   └── android.yml          # Android APK compilation, signing & release workflow
 ├── .gitignore
 ├── DEPLOYMENT.md            # Human deployment guide (do not edit)

@@ -44,9 +44,6 @@ jobs:
       - name: Check for Hardcoded Secrets & Sensitive Credentials (Rule 13)
         run: node scripts/check-secrets.js
 
-      - name: Check for Package Security Vulnerabilities (npm audit --audit-level=high)
-        run: node scripts/check-vulnerabilities.js
-
       - name: Check Application Version Synchronization & Parity
         run: node scripts/check-version.js
 
