@@ -1,9 +1,10 @@
 npm run check:i18n
 npm run check:theme
 node scripts/check-secrets.js
+node scripts/check-vulnerabilities.js
 node scripts/check-version.js
 npm run lint
 git diff --no-index --exit-code functions/ client/functions/
 npm test
-echo "✓ Pre-commit verified: 3-way translation parity (EN, HE, RU), theme (dark/light) parity, zero hardcoded secrets (Rule 13), 9-source version sync & bump, Lint clean, 100% cloud/client functions parity, and test suite passing."
+echo "✓ Pre-commit verified: 3-way translation parity (EN, HE, RU), theme (dark/light) parity, zero hardcoded secrets (Rule 13), zero high/critical vulnerabilities, 9-source version sync & bump, Lint clean, 100% cloud/client functions parity, and test suite passing."
 echo "ℹ Notice: Please ensure README.md / WORKFLOW.md are updated if new features or logic were added."

@@ -14,6 +14,7 @@ concurrency:
 jobs:
   lint:
     name: Lint & Parity Check
+    # Runner infrastructure: pinned to ubuntu-24.04 with forward readiness for ubuntu-26.04
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository
@@ -21,10 +22,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Setup Node.js (Node 22 Active LTS)
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
@@ -56,10 +57,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
+      - name: Setup Node.js (Node 22 Active LTS)
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
@@ -79,10 +80,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
+      - name: Setup Node.js (Node 22 Active LTS)
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Server Dependencies
         run: npm --prefix server ci

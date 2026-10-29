@@ -32,6 +32,7 @@ InsuMinder/
 │   └── gradle/              # Gradle wrapper
 ├── .github/workflows/
 │   ├── ci.yml               # Automated test, build, lint & parity workflow
+│   ├── security.yml         # Dedicated security & dependency vulnerability audit workflow
 │   └── android.yml          # Android APK compilation, signing & release workflow
 ├── .gitignore
 ├── DEPLOYMENT.md            # Human deployment guide (do not edit)
@@ -290,11 +291,19 @@ Explain changes in 1–2 sentences before writing code.
 
 - **Branch Protection on `main`**:
   - The `main` branch is protected with required status checks:
-    - `Automated Tests`
+    - `Automated Tests` (Node 22 Active LTS)
     - `JS Compilation & Build` (includes Vite build + Cloudflare Pages functions build)
-    - `Lint & Parity Check` (includes ESLint, i18n translation parity, theme parity, version parity, and functions directory parity)
+    - `Lint & Parity Check` (includes ESLint, i18n translation parity, theme parity, Rule 13 zero-secrets check, Rule 9 version sync, automated package vulnerability audit `npm audit --audit-level=high`, and Cloudflare functions zero-diff parity)
   - GitHub strictly locks and disables the **Merge pull request** button until all status checks pass 100% green.
   - No broken, unverified, or failing code can be merged into `main` or deployed live to production.
+
+- **Automated Security Vulnerability Auditing**:
+  - Run via `node scripts/check-vulnerabilities.js` (or `npm run check:audit`).
+  - Scans root, `client/`, and `server/` workspaces. Blocks CI merge on any high or critical vulnerability.
+
+- **CI Runner Infrastructure & Modern LTS Readiness**:
+  - CI runners utilize Node 22 (Active LTS) with forward compatibility for Node 24.
+  - Runners pinned to `ubuntu-24.04` with forward migration readiness for `ubuntu-26.04`.
 
 ---
 

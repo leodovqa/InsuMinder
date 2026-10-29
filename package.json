@@ -1,6 +1,6 @@
 {
   "name": "insuminder",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "scripts": {
     "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"node server/src/index.js\" \"npm run dev --prefix client\"",
     "build": "npm --prefix client run build",
@@ -9,6 +9,7 @@
     "check:i18n": "npm --prefix client run check:i18n",
     "check:theme": "npm --prefix client run check:theme",
     "check:version": "node scripts/check-version.js",
+    "check:audit": "node scripts/check-vulnerabilities.js",
     "docker": "docker compose up --build",
     "prepare": "husky",
     "generate:vapid": "node scripts/generate-vapid-keys.js",
